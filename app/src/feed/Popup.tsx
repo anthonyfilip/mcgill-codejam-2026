@@ -1,7 +1,10 @@
+import { createPortal } from 'react-dom'
+
 // Pop-up in the middle of the screen with a title bar and a close button.
-// Used for a post's rating + comments and for playing a video from someone's page.
+// Used for rating a post and for playing a video from someone's page.
+// Drawn straight into <body> so nothing on the page (like the tab bar) can sit on top of it.
 export function Popup({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
-  return (
+  return createPortal(
     <div className="popup-backdrop" onClick={onClose}>
       <div className="popup" role="dialog" aria-modal="true" aria-label={title} onClick={(e) => e.stopPropagation()}>
         <div className="popup-head">
@@ -10,6 +13,7 @@ export function Popup({ title, onClose, children }: { title: string; onClose: ()
         </div>
         <div className="popup-body">{children}</div>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }

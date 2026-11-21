@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Avatar } from './Avatar'
 import { FeedVideo } from './FeedVideo'
 import { getName, getProfile, hasCheered, setCheered as rememberCheer } from './me'
@@ -17,7 +18,8 @@ function timeAgo(ms: number) {
 }
 
 // Instagram-style comments: a panel that slides up from the bottom. The comments scroll;
-// the "Add a comment…" box stays pinned at the bottom.
+// the "Add a comment…" box stays pinned at the bottom. Drawn straight into <body>: inside the
+// feed it sat under the tab bar, which covered the comment box.
 function CommentSheet({
   comments,
   onAdd,
@@ -45,7 +47,7 @@ function CommentSheet({
     }
   }
 
-  return (
+  return createPortal(
     <div className="sheet-backdrop" onClick={onClose}>
       <div className="sheet" role="dialog" aria-modal="true" aria-label="Comments" onClick={(e) => e.stopPropagation()}>
         <div className="sheet-grip" />
@@ -74,7 +76,8 @@ function CommentSheet({
           <button disabled={sending || !text.trim()}>Post</button>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
 
