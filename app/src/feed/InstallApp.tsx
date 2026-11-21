@@ -36,21 +36,15 @@ const AddGlyph = () => (
   </svg>
 )
 
-// Profile section: "Get the app" → installs on Android, explains the steps on iPhone.
+// Small "getSendy! the app" button, top-left of the profile → installs on Android, explains the
+// steps on iPhone. Hidden once you're using the installed app.
 export function InstallApp() {
   const [, rerender] = useState(0)
   const [help, setHelp] = useState(false)
   const [copied, setCopied] = useState(false)
   useEffect(() => onInstallChange(() => rerender((n) => n + 1)), [])
 
-  if (isInstalled()) {
-    return (
-      <section className="install">
-        <b className="install-title">getSendy! the app</b>
-        <p>You're using the app ✓</p>
-      </section>
-    )
-  }
+  if (isInstalled()) return null
 
   async function add() {
     if (canPromptInstall()) await promptInstall()
@@ -63,12 +57,10 @@ export function InstallApp() {
   }
 
   return (
-    <section className="install">
-      <b className="install-title">getSendy! the app</b>
-      <img src="/icon-192.png" alt="" className="install-icon" />
-      <p className="install-text">Put getSendy! on your home screen. It opens full screen, like a real app.</p>
-      <button className="btn primary" onClick={add}>
-        Add to Home Screen
+    <>
+      <button className="install-pill" onClick={add} title="Add getSendy! to your home screen">
+        <img src="/icon-192.png" alt="" />
+        getSendy! the app
       </button>
 
       {help && (
@@ -126,6 +118,6 @@ export function InstallApp() {
           )}
         </Popup>
       )}
-    </section>
+    </>
   )
 }

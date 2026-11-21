@@ -61,6 +61,7 @@ export function ProfilePage() {
     <main className="feed">
       <Tabs active={isMe ? '/profile.html' : undefined} />
 
+      {isMe && <InstallApp />}
       {isMe ? (
         <>
           <section className="profile-page">
@@ -69,7 +70,6 @@ export function ProfilePage() {
               Record a chug
             </a>
           </section>
-          <InstallApp />
           {me && <AccountSection />}
         </>
       ) : (
