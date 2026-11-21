@@ -288,18 +288,21 @@ function loop() {
   }
 
   // Read the hand while armed too, so the 🤙 light can be tested before a run starts.
+  // Hands are tracked in every state (also after a run), so the overlay always shows them.
+  // Only the "running" state acts on the 🤙.
   let send = false;
   let ang = null; // arm / hand / wrist / can angles for the drinking hand
-  if (state === "armed" || state === "running") {
+  let handsPx = [];
+  {
     const g = gesture.recognizeForVideo(video, now);
+    handsPx = g.landmarks.map((h) => toPx(h, canvas.width, canvas.height));
     const r = readSend(g, p ? p.nose.y : 0);
     send = r.send;
     live.fingers = r.fingers;
     // Match a tracked hand to the pose's drinking arm, then measure its angles.
     if (p) {
-      const hands = g.landmarks.map((h) => toPx(h, canvas.width, canvas.height));
-      const i = nearestHand(hands, p.arm.wrist, p.scale);
-      if (i >= 0) ang = handAngles(hands[i], p.arm.elbow, p.arm.wrist);
+      const i = nearestHand(handsPx, p.arm.wrist, p.scale);
+      if (i >= 0) ang = handAngles(handsPx[i], p.arm.elbow, p.arm.wrist);
     }
   }
   live.ang = ang;
@@ -323,7 +326,7 @@ function loop() {
     if (state === "running") $("timer").textContent = ((now - run.startAt) / 1000).toFixed(2);
   }
 
-  draw(p, ang);
+  draw(p, ang, handsPx, send);
   for (const k of ["crack", "angle", "mouth"]) {
     $(`sig-${k}`).classList.toggle("on", state === "armed" && now - seen[k] <= CONFIG.windowMs);
   }
@@ -376,8 +379,34 @@ function showClip() {
   $("download").download = `shotgun.${recorder.mimeType.includes("mp4") ? "mp4" : "webm"}`;
 }
 
-function draw(p, ang) {
+// Bones of the 21-point hand: thumb, index, middle, ring, pinky, and the palm.
+const HAND_BONES = [
+  [0, 1], [1, 2], [2, 3], [3, 4],
+  [0, 5], [5, 6], [6, 7], [7, 8],
+  [5, 9], [9, 10], [10, 11], [11, 12],
+  [9, 13], [13, 14], [14, 15], [15, 16],
+  [13, 17], [17, 18], [18, 19], [19, 20], [0, 17],
+];
+
+function draw(p, ang, handsPx = [], send = false) {
   ctx2d.clearRect(0, 0, canvas.width, canvas.height);
+  // Every tracked hand, green when it's making the 🤙.
+  for (const h of handsPx) {
+    ctx2d.lineWidth = 3;
+    ctx2d.strokeStyle = send ? "#2e9d4f" : "#63e6be";
+    ctx2d.beginPath();
+    for (const [a, b] of HAND_BONES) {
+      ctx2d.moveTo(h[a].x, h[a].y);
+      ctx2d.lineTo(h[b].x, h[b].y);
+    }
+    ctx2d.stroke();
+    ctx2d.fillStyle = "#fff";
+    for (const pt of h) {
+      ctx2d.beginPath();
+      ctx2d.arc(pt.x, pt.y, 3, 0, Math.PI * 2);
+      ctx2d.fill();
+    }
+  }
   if (ang) {
     // Estimated can axis along the knuckle line, extended a bit each way.
     const [a, b] = ang.canAxis;
