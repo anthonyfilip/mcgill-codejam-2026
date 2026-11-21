@@ -42,9 +42,5 @@ export const myPosts = () => idSet('shotgun-my-posts')
 export const addMyPost = (id: string) => toggleId('shotgun-my-posts', id, true)
 export const removeMyPost = (id: string) => toggleId('shotgun-my-posts', id, false)
 
-// Feed sound: on unless you've muted it.
-export const getMuted = () => get('shotgun-muted') === '1'
-export const setMuted = (on: boolean) => set('shotgun-muted', on ? '1' : '0')
-
 export const hasCheered = (id: string) => idSet('shotgun-cheered').has(id)
 export const setCheered = (id: string, on: boolean) => toggleId('shotgun-cheered', id, on)
