@@ -15,6 +15,10 @@ const LANES: Lane[] = [
   { key: 'handsNearMouth', label: 'hands near mouth', min: 0, max: 2, color: '#d6336c' },
   { key: 'headTilt', label: 'head tilt (high = tipped back)', min: -0.6, max: 0.6, color: '#1c7ed6' },
   { key: 'handAboveShoulder', label: 'hand above shoulder', min: -1.5, max: 1.5, color: '#2f9e44' },
+  { key: 'armAngle', label: 'arm angle ° (forearm from straight up: 0 up · 90 level · 180 down)', min: 0, max: 180, color: '#f08c00' },
+  { key: 'handAngle', label: 'hand angle ° (wrist→knuckles from straight up)', min: 0, max: 180, color: '#ae3ec9' },
+  { key: 'wristFlex', label: 'wrist bend ° (0 = straight)', min: 0, max: 120, color: '#5c7cfa' },
+  { key: 'canAngle', label: 'can tilt ° from upright (estimated from knuckles: 0 upright · 90 sideways)', min: 0, max: 90, color: '#15aabf' },
   { key: 'loudnessDb', label: 'loudness dB', min: -80, max: 0, color: '#7048e8' },
   { key: 'brightness', label: 'audio brightness (pops/clicks)', min: 0, max: 1, color: '#868e96' },
 ]

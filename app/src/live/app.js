@@ -3,6 +3,7 @@ import {
   PoseLandmarker,
   GestureRecognizer,
 } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14";
+import { handAngles, nearestHand, toPx } from "../detect/angles.ts";
 
 // All thresholds in one place. Starting guesses — tune with real cans.
 const CONFIG = {
@@ -197,7 +198,7 @@ function readPose(lm) {
     const dx = arm.wrist.x - arm.elbow.x, dy = arm.wrist.y - arm.elbow.y;
     angle = Math.acos(-dy / Math.hypot(dx, dy)) * 180 / Math.PI;
   }
-  return { arm, mouth, mouthDist, angle, nose: px(lm[NOSE]) };
+  return { arm, mouth, mouthDist, angle, scale, nose: px(lm[NOSE]) };
 }
 
 // ---------- End: 🤙 "send it" / shaka (hand landmarks) ----------
@@ -288,13 +289,23 @@ function loop() {
 
   // Read the hand while armed too, so the 🤙 light can be tested before a run starts.
   let send = false;
+  let ang = null; // arm / hand / wrist / can angles for the drinking hand
   if (state === "armed" || state === "running") {
-    const r = readSend(gesture.recognizeForVideo(video, now), p ? p.nose.y : 0);
+    const g = gesture.recognizeForVideo(video, now);
+    const r = readSend(g, p ? p.nose.y : 0);
     send = r.send;
     live.fingers = r.fingers;
+    // Match a tracked hand to the pose's drinking arm, then measure its angles.
+    if (p) {
+      const hands = g.landmarks.map((h) => toPx(h, canvas.width, canvas.height));
+      const i = nearestHand(hands, p.arm.wrist, p.scale);
+      if (i >= 0) ang = handAngles(hands[i], p.arm.elbow, p.arm.wrist);
+    }
   }
+  live.ang = ang;
   if (state === "running") {
     if (p?.angle != null) run.angles.push(p.angle);
+    if (ang) run.hand.push({ t: now - run.startAt, hand: ang.hand, wristFlex: ang.wristFlex, can: ang.can });
     if (send) sendSince ??= now;
     else sendSince = null;
     const confirmed = sendSince !== null && now - sendSince >= CONFIG.sendHoldMs && sendSince - run.startAt >= CONFIG.minRunMs;
@@ -312,7 +323,7 @@ function loop() {
     if (state === "running") $("timer").textContent = ((now - run.startAt) / 1000).toFixed(2);
   }
 
-  draw(p);
+  draw(p, ang);
   for (const k of ["crack", "angle", "mouth"]) {
     $(`sig-${k}`).classList.toggle("on", state === "armed" && now - seen[k] <= CONFIG.windowMs);
   }
@@ -321,6 +332,7 @@ function loop() {
     `state ${state}\n` +
     `audio rms ${live.rms?.toFixed(3)} bg ${live.bgRms?.toFixed(3)} (×${(live.rms / live.bgRms).toFixed(1)}) high ${live.highShare?.toFixed(2)}\n` +
     `angle ${p?.angle?.toFixed(0) ?? "-"}°  mouth ${p?.mouthDist?.toFixed(2) ?? "-"}\n` +
+    `drinking hand: ${ang ? `arm ${ang.arm?.toFixed(0) ?? "-"}° · hand ${ang.hand.toFixed(0)}° · wrist bend ${ang.wristFlex?.toFixed(0) ?? "-"}° · can ~${ang.can.toFixed(0)}° from upright` : "not matched"}\n` +
     `at mouth for ${(mouthHeldMs(now) / 1000).toFixed(1)}s (need ${CONFIG.mouthHoldMs / 1000}s before crack)` +
     `${now - (live.ignoredCrack ?? -Infinity) < 2000 ? "  · crack IGNORED (can not at mouth)" : ""}\n` +
     `hand ${fingerText(live.fingers)}  🤙 ${send ? "YES" : "no"}`;
@@ -330,7 +342,7 @@ function loop() {
 
 function startRun(startAt, startedBy) {
   if (state !== "armed") return; // crack (audio timer) and the video loop can both try to start
-  run = { startAt, startedBy, angles: [] };
+  run = { startAt, startedBy, angles: [], hand: [] }; // hand: per-frame hand/wrist/can angles
   chunks = [];
   const mimeType = ["video/webm", "video/mp4"].find((t) => MediaRecorder.isTypeSupported(t));
   recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
@@ -364,8 +376,19 @@ function showClip() {
   $("download").download = `shotgun.${recorder.mimeType.includes("mp4") ? "mp4" : "webm"}`;
 }
 
-function draw(p) {
+function draw(p, ang) {
   ctx2d.clearRect(0, 0, canvas.width, canvas.height);
+  if (ang) {
+    // Estimated can axis along the knuckle line, extended a bit each way.
+    const [a, b] = ang.canAxis;
+    const dx = (b.x - a.x) * 0.8, dy = (b.y - a.y) * 0.8;
+    ctx2d.lineWidth = 6;
+    ctx2d.strokeStyle = "#22b8cf";
+    ctx2d.beginPath();
+    ctx2d.moveTo(a.x - dx, a.y - dy);
+    ctx2d.lineTo(b.x + dx, b.y + dy);
+    ctx2d.stroke();
+  }
   if (!p) return;
   const { arm, mouth } = p;
   ctx2d.lineWidth = 4;
