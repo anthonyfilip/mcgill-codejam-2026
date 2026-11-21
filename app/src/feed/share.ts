@@ -4,6 +4,7 @@
 // page. Hook-up: docs/feed-integration.md.
 import './share.css'
 import { saveDraft } from './store'
+import { installSwipeNav } from './swipeNav'
 
 type RunFinished = { timeMs: number; maxAngle: number | null; startedBy: string[]; clip: Blob }
 
@@ -23,6 +24,10 @@ tabs.innerHTML = [
   .map(([href, icon, label, cls]) => `<a href="${href}" class="${cls}"><span class="tab-icon">${icon}</span>${label}</a>`)
   .join('')
 document.body.append(tabs)
+
+// Swipe left/right to the other tabs, but never once GET SENDY! has been tapped (it stays
+// disabled while armed and during the run), so a run can't be left by accident.
+installSwipeNav('/', () => !(document.getElementById('arm') as HTMLButtonElement | null)?.disabled)
 
 // Our start button: renamed, and moved onto the camera view (styled in share.css).
 // The "Tap Arm to start" hint goes; the tracker's later status messages still show.

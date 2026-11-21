@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Avatar } from './Avatar'
 import { FeedVideo } from './FeedVideo'
@@ -31,6 +31,40 @@ function CommentSheet({
 }) {
   const [text, setText] = useState('')
   const [sending, setSending] = useState(false)
+  const sheetRef = useRef<HTMLDivElement>(null)
+  const listRef = useRef<HTMLDivElement>(null)
+  const drag = useRef<{ y: number; dy: number } | null>(null)
+
+  // Swipe the panel down to close it: from the handle/title, or from the list when it's
+  // scrolled to the top. It follows your finger; let go past 100 px and it closes.
+  function dragStart(e: React.TouchEvent, fromList: boolean) {
+    if (fromList && (listRef.current?.scrollTop ?? 0) > 0) return
+    drag.current = { y: e.touches[0].clientY, dy: 0 }
+    if (sheetRef.current) sheetRef.current.style.transition = 'none'
+  }
+  function dragMove(e: React.TouchEvent) {
+    if (!drag.current || !sheetRef.current) return
+    const dy = e.touches[0].clientY - drag.current.y
+    if (dy < 0) {
+      // Moving up = scrolling the list, not closing.
+      drag.current = null
+      sheetRef.current.style.transform = ''
+      return
+    }
+    drag.current.dy = dy
+    sheetRef.current.style.transform = `translateY(${dy}px)`
+  }
+  function dragEnd() {
+    const el = sheetRef.current
+    const dy = drag.current?.dy ?? 0
+    drag.current = null
+    if (!el) return
+    el.style.transition = 'transform 0.2s ease-out'
+    if (dy > 100) {
+      el.style.transform = 'translateY(100%)'
+      setTimeout(onClose, 200)
+    } else el.style.transform = ''
+  }
 
   async function send(e: React.FormEvent) {
     e.preventDefault()
@@ -49,13 +83,15 @@ function CommentSheet({
 
   return createPortal(
     <div className="sheet-backdrop" onClick={onClose}>
-      <div className="sheet" role="dialog" aria-modal="true" aria-label="Comments" onClick={(e) => e.stopPropagation()}>
-        <div className="sheet-grip" />
-        <div className="sheet-head">
-          <b>Comments</b>
-          <button className="sheet-close" onClick={onClose} aria-label="Close">✕</button>
+      <div ref={sheetRef} className="sheet" role="dialog" aria-modal="true" aria-label="Comments" onClick={(e) => e.stopPropagation()}>
+        <div className="sheet-drag" onTouchStart={(e) => dragStart(e, false)} onTouchMove={dragMove} onTouchEnd={dragEnd}>
+          <div className="sheet-grip" />
+          <div className="sheet-head">
+            <b>Comments</b>
+            <button className="sheet-close" onClick={onClose} aria-label="Close">✕</button>
+          </div>
         </div>
-        <div className="sheet-list">
+        <div ref={listRef} className="sheet-list" onTouchStart={(e) => dragStart(e, true)} onTouchMove={dragMove} onTouchEnd={dragEnd}>
           {comments.length ? (
             comments.map((c) => (
               <div key={c.id} className="comment">
