@@ -30,3 +30,7 @@ body { min-height: 100dvh; }
 #light.on { background: rgba(0, 0, 0, 0.5); color: #fff; }
 #light.on .slash { display: none; }
 
+/* The tracker's own results box would flash up between the run and our results page. Keep it
+   hidden; it only shows if handing the run to our results page fails (share.ts). */
+body:not(.handoff-failed) #results { display: none !important; }
+
