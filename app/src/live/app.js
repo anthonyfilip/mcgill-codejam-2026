@@ -26,7 +26,7 @@ const CONFIG = {
   // drinking and not (both ~25°), so "tipped" now just means the hand is raised above the shoulder.
   angleDeg: 0,             // forearm tilt from vertical that counts as "can tipped"
   mouthDist: 0.8,          // wrist-to-mouth distance, in body-scale units (clips: drinking 0.25–0.66, otherwise 1.0–1.4)
-  sendHoldMs: 300,         // how long the 🤙 "send it" (shaka) must be held
+  sendHoldMs: 0,           // how long the 🤙 "send it" (shaka) must be held (0 = first frame ends it; was 300)
   sendAboveHead: false,    // false = a shaka anywhere in frame ends the run (true = must be above the nose)
   thumbOutRatio: 0.4,      // thumb tip → index knuckle distance, in palm lengths (live: shaka ~0.55, but a fist is similar)
   thumbBendDeg: 35,        // ...and the thumb must be straight. Live: shaka 4–21°, fist with thumb wrapped 51–61°.

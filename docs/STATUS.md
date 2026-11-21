@@ -20,7 +20,7 @@ Backup: a recorded run of the full demo, in case the live camera fails on stage.
   overlay, debug panel (person size, crack score, finger readings).
 - **Start:** crack with the can at the mouth (or up to 1 s before it gets there); fallback = can
   at mouth + hand raised for 0.8 s, back-dated. Cracks with the can elsewhere are ignored.
-- **End:** 🤙 shaka anywhere in frame (3D finger bends; works back-of-hand too), held 0.3 s; refused
+- **End:** 🤙 shaka anywhere in frame (3D finger bends; works back-of-hand too), no hold — one frame ends it; refused
   while the can is still at the mouth; time = last moment the can was at the mouth.
 - **Crack detector:** sudden bright jump vs the previous 0.5 s. Real Monster crack at ~2 m on the
   laptop mic scored in the thousands (threshold 4); 0 false cracks in a noisy no-crack recording.
