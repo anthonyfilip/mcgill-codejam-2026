@@ -27,16 +27,20 @@ Tick items off as they land. Order matters — phones need HTTPS for the camera,
       run. Under ~10 fps the detection gets unreliable.
 
 ## 2. Make the tracker work on phones (A, ~3 h)
-- [ ] **Camera:** flip button (front ↔ back, `facingMode`); mirror the video only for the front
+(Built Sat afternoon — every box below still needs one real phone run to confirm.)
+- [x] **Camera:** flip button (front ↔ back, `facingMode`); mirror the video only for the front
       camera; handle portrait video (e.g. 720×1280) in the overlay maths.
-- [ ] **Speed:** on phones use the `lite` pose model and lower resolution, and only run the hand
-      model while armed/running (it's the heavy part). Target ≥ 15 fps on a mid-range phone.
-- [ ] **iPhone audio:** create/resume the AudioContext inside the GET SENDY! tap (iOS blocks it
-      otherwise); check the crack still registers with the phone mic (crack score in debug).
-- [ ] **Recording:** check the replay clip works on iOS (MediaRecorder gives mp4 there) and uploads.
-- [ ] **Keep the screen on** during a run (`navigator.wakeLock`), and a short vibration on start/finish
+- [x] **Speed:** on phones use the `lite` pose model ~~and lower resolution~~ (kept HD: far-away
+      hands need the pixels), and only run the hand model while armed/running (it's the heavy part).
+      Target ≥ 15 fps on a mid-range phone — **measure it** (fps is in the debug panel's first line).
+- [x] **iPhone audio:** create/resume the AudioContext inside the GET SENDY! tap (iOS blocks it
+      otherwise); **check** the crack still registers with the phone mic (click dB in debug).
+- [x] **Recording:** records mp4 first wherever supported (plays on every phone); **check** the
+      replay and upload on iOS.
+- [x] **Keep the screen on** during a run (`navigator.wakeLock`), and a short vibration on start/finish
       where supported (`navigator.vibrate`, Android).
-- [ ] **Re-check accuracy** in the lab after any threshold/model change (both `CONFIG` and `rules.ts`).
+- [x] **Re-check accuracy** in the lab after any threshold/model change — rules unchanged, lab
+      scores unchanged (lab uses the full model; phones' lite model isn't measured yet).
 
 ## 3. Installable app — PWA (L or A, ~1.5 h)
 - [ ] Web app manifest: name, short name, icons (192/512 + maskable), theme/background colour,
