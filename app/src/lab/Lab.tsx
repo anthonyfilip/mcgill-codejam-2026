@@ -21,6 +21,7 @@ export function Lab() {
   const videoRef = useRef<HTMLVideoElement>(null)
   const overlayRef = useRef<HTMLCanvasElement>(null)
   const rowsRef = useRef<FrameSignals[]>([])
+  const analysingRef = useRef(false) // true only during an Analyse pass
 
   useEffect(() => {
     void fetch('/clips/index.json')
@@ -46,20 +47,27 @@ export function Lab() {
     const meter = attachMeter(video)
     const ctx = overlay.getContext('2d')!
     const draw = new DrawingUtils(ctx)
-    let lastTs = -1
+    // MediaPipe's VIDEO mode needs strictly increasing timestamps, but the clip's own time
+    // goes backwards when you seek, step back or switch clips. So MediaPipe gets its own
+    // ever-increasing clock, and we redraw whenever the shown frame changes.
+    let mpClock = 0
+    let lastVideoTime = -1
     let handle = 0
 
-    const onFrame = () => {
-      const ts = Math.round(video.currentTime * 1000)
-      if (ts > lastTs && video.videoWidth) {
-        lastTs = ts
+    const processFrame = () => {
+      if (!video.videoWidth || video.currentTime === lastVideoTime) return
+      lastVideoTime = video.currentTime
+      mpClock = Math.max(mpClock + 1, Math.round(performance.now()))
+      {
         overlay.width = video.videoWidth
         overlay.height = video.videoHeight
         const aspect = video.videoWidth / video.videoHeight
-        const pose = models.pose.detectForVideo(video, ts)
-        const hands = models.hands.detectForVideo(video, ts)
-        const row = computeSignals(video.currentTime, pose, hands, aspect, meter.read(), meter.brightness())
-        rowsRef.current.push(row)
+        const pose = models.pose.detectForVideo(video, mpClock)
+        const hands = models.hands.detectForVideo(video, mpClock)
+        // Only record graph data during an Analyse pass, not while scrubbing/labelling.
+        if (analysingRef.current) {
+          rowsRef.current.push(computeSignals(video.currentTime, pose, hands, aspect, meter.read(), meter.brightness()))
+        }
 
         ctx.clearRect(0, 0, overlay.width, overlay.height)
         const contestant = pickContestant(pose, aspect)
@@ -75,23 +83,54 @@ export function Lab() {
           draw.drawConnectors(hand, HandLandmarker.HAND_CONNECTIONS, { color: '#63e6be', lineWidth: 2 })
         }
         setTime(video.currentTime)
-        if (rowsRef.current.length % 5 === 0) setRows([...rowsRef.current])
+        if (analysingRef.current && rowsRef.current.length % 5 === 0) setRows([...rowsRef.current])
       }
-      if (!video.paused && !video.ended) handle = video.requestVideoFrameCallback(onFrame)
     }
 
+    const onFrame = () => {
+      processFrame()
+      if (!video.paused && !video.ended) handle = video.requestVideoFrameCallback(onFrame)
+    }
     const onPlay = () => {
       handle = video.requestVideoFrameCallback(onFrame)
     }
+    // Paused + seek/step, or a new clip loaded: redraw for the frame now on screen.
+    const onStill = () => {
+      // The decoded frame isn't always ready the instant 'seeked' fires; draw on the next one.
+      if ('requestVideoFrameCallback' in video) video.requestVideoFrameCallback(processFrame)
+      processFrame()
+    }
+    const onLoaded = () => {
+      lastVideoTime = -1
+      ctxClear()
+      onStill()
+    }
+    const ctxClear = () => ctx.clearRect(0, 0, overlay.width, overlay.height)
     const onEnded = () => {
+      if (!analysingRef.current) return
+      analysingRef.current = false
       setRows([...rowsRef.current])
       setStatus(`Done — ${rowsRef.current.length} frames analysed`)
     }
+    const onPause = () => {
+      if (analysingRef.current && !video.ended) {
+        analysingRef.current = false
+        setRows([...rowsRef.current])
+        setStatus(`Paused — ${rowsRef.current.length} frames analysed (press Analyse to start over)`)
+      }
+    }
     video.addEventListener('play', onPlay)
+    video.addEventListener('seeked', onStill)
+    video.addEventListener('loadeddata', onLoaded)
+    video.addEventListener('pause', onPause)
     video.addEventListener('ended', onEnded)
+    onLoaded() // models may finish loading after the first clip is already showing
     return () => {
       video.cancelVideoFrameCallback(handle)
       video.removeEventListener('play', onPlay)
+      video.removeEventListener('seeked', onStill)
+      video.removeEventListener('loadeddata', onLoaded)
+      video.removeEventListener('pause', onPause)
       video.removeEventListener('ended', onEnded)
     }
   }, [models])
@@ -102,6 +141,7 @@ export function Lab() {
     rowsRef.current = []
     setRows([])
     video.currentTime = 0
+    analysingRef.current = true
     setStatus('Analysing… (plays the clip once at normal speed)')
     await video.play()
   }
