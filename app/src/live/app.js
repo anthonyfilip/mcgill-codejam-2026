@@ -241,25 +241,29 @@ $("flip").onclick = async () => {
 };
 
 // 🔦 Light for night chugs, on from GET SENDY! until the run ends. Back camera: the phone's
-// flashlight ("torch", W3C Image Capture spec) where the browser can switch it (track capability
-// `torch`; Android Chrome — iPhones usually can't). Front camera (no flash): the page around the
-// camera view turns white, like a ring light. The choice is remembered on this device.
+// flashlight ("torch", W3C Image Capture spec) where the browser can switch it. Front camera (no
+// flash): a white frame around the camera view, like a ring light (style.css). The choice is
+// remembered on this device.
 let lightOn = false;
 try { lightOn = localStorage.getItem("tracker.light") === "on"; } catch { /* storage blocked */ }
 
-function canTorch() {
+// Back camera: always TRY the flashlight. Only trying when the camera listed `torch` as a capability
+// broke it on an iPhone (it worked earlier Sat in Brave — iOS browsers all share Safari's engine —
+// until the camera request changed). Both forms of the constraint are sent; a camera that can't do
+// it just ignores or refuses them.
+async function setTorch(on) {
   const track = stream?.getVideoTracks()[0];
-  const t = track?.getCapabilities?.().torch;
-  return Array.isArray(t) ? t.includes(true) : !!t;
+  if (!track) return;
+  for (const c of [{ advanced: [{ torch: on }] }, { torch: on }]) {
+    try { await track.applyConstraints(c); } catch { /* not supported in this form */ }
+  }
 }
 
 function applyLight() {
   $("light").classList.toggle("on", lightOn);
   const want = lightOn && !!stream && (state === "armed" || state === "running");
-  const torch = facing === "environment" && canTorch();
-  if (torch) stream.getVideoTracks()[0].applyConstraints({ advanced: [{ torch: want }] }).catch(() => {});
+  if (facing === "environment" && stream) setTorch(want);
   document.body.classList.toggle("screen-light", want && facing === "user");
-  if (want && facing === "environment" && !torch) setStateText("No flashlight in this browser — turn the room lights on");
 }
 
 $("light").onclick = () => {
@@ -696,12 +700,8 @@ function frame() {
     else sendSince = null;
     const confirmed = sendSince !== null && now - sendSince >= CONFIG.sendHoldMs && sendSince - run.startAt >= CONFIG.minRunMs;
     if (confirmed) {
-      if (atMouth) {
-        // Can still at the mouth → they're signing mid-drink. Don't end yet.
-        setStateText("Lower the can to finish 🤙");
-      } else {
-        run.sendAt ??= sendSince; // remember the 🤙 even if the hand drops before we finish below
-      }
+      // Can still at the mouth → they're signing mid-drink: don't end yet (no message during a chug).
+      if (!atMouth) run.sendAt ??= sendSince; // remember the 🤙 even if the hand drops before we finish below
     }
     if (run.sendAt != null && atMouth) run.sendAt = null; // went back to drinking
     if (run.sendAt != null) {
@@ -718,7 +718,6 @@ function frame() {
         // Sat: it kept counting for up to 0.9 s). The head-tilt search above finishes a moment later
         // and may nudge the final time.
         $("timer").textContent = ((lastMouth - run.startAt) / 1000).toFixed(2);
-        setStateText("🤙 Got it!");
       }
     }
     if (state === "running" && run.sendAt == null) $("timer").textContent = ((now - run.startAt) / 1000).toFixed(2);
@@ -871,9 +870,11 @@ function draw(p, ang, handsPx = [], send = false) {
 function setState(s) {
   state = s;
   setStateText({
-    armed: "", // no message while waiting for the crack — just the camera (Sat)
-    running: "GO GO GO",
-    done: "Sent ✔",
+    // No messages from GET SENDY! to the results page — just the camera (and the timer once the
+    // chug starts). Sat.
+    armed: "",
+    running: "",
+    done: "",
   }[s]);
   if (s === "armed") $("timer").textContent = "0.00";
   applyLight(); // 🔦 on while armed/running, off once the run is done
