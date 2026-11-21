@@ -7,6 +7,8 @@
 *(Working name — TODO: final name.)* Built in 36 hours at McGill CodeJam 2026. The live demo
 uses a can of Celsius.
 
+**Try it:** TODO — public URL once deployed.
+
 ## What it does
 
 - **Hands-free timing.** Press **GET SENDY!**, then just drink. The timer starts on its own at the
@@ -96,7 +98,8 @@ elbows are in frame.
 
 Without keys, posts are saved in your own browser only. To share them, create a Supabase
 project, run [`supabase/schema.sql`](supabase/schema.sql) in its SQL editor, and put the keys in
-`app/.env.local` (never commit it):
+`app/.env.local` (never commit it). Team members: ask a teammate for the project's two values
+privately rather than creating a new project.
 
 ```
 VITE_SUPABASE_URL=...
