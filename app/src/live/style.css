@@ -22,11 +22,3 @@ button:disabled { opacity: 0.5; }
 
 .devlink { margin-top: 24px; font-size: 13px; }
 .devlink a { color: #888; }
-
-.tabs { display: flex; gap: 8px; margin-bottom: 12px; }
-.tabs a { flex: 1; padding: 10px; text-align: center; border-radius: 8px; background: #2a2a2a; color: #aaa; font-weight: 600; text-decoration: none; }
-.tabs a.active { background: #f5b400; color: #111; }
-#post-area { margin-top: 12px; display: flex; flex-direction: column; gap: 6px; }
-#post-area[hidden] { display: none; }
-#post-desc { width: 100%; padding: 10px; border: 1px solid #444; border-radius: 8px; background: #111; color: #eee; font: inherit; resize: vertical; }
-#post-count { align-self: flex-end; font-size: 12px; color: #888; }

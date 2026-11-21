@@ -118,7 +118,6 @@ export default defineConfig({
       input: {
         main: path.resolve(import.meta.dirname, 'index.html'),
         lab: path.resolve(import.meta.dirname, 'lab.html'),
-        feed: path.resolve(import.meta.dirname, 'feed.html'),
       },
     },
   },
