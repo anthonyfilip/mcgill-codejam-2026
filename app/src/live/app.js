@@ -746,7 +746,7 @@ function frame() {
     (live.loopError ? `\nlast tracking error: ${live.loopError}` : "");
 }
 
-// The clip records from the GET SENDY! tap (armed) until the 🤙 (endRun stops it).
+// The clip records from the GET SENDY! tap (armed) until 1 s after the 🤙 (endRun stops it).
 function startRecording() {
   if (recorder && recorder.state !== "inactive") {
     recorder.onstop = null; // a restart (camera flip while armed): drop the old clip quietly
@@ -770,12 +770,23 @@ function startRun(startAt, startedBy) {
   navigator.vibrate?.(150); // Android only; iPhones ignore it
 }
 
+// The time is final here, but the clip keeps recording until 1 s after the 🤙 was first seen, so the
+// replay shows it (Sat). Until the clip stops, "Again" and the camera flip stay locked — either
+// would cut the clip short or throw it away. The clip stopping hands the run over (showClip).
+const CLIP_AFTER_SHAKA_MS = 1000;
+
 function endRun(endAt, endedBy) {
   run.timeMs = endAt - run.startAt;
   run.endedBy = endedBy;
-  recorder.stop();
+  const shakaAt = run.sendAt ?? endAt;
+  const rec = recorder;
+  setTimeout(() => {
+    if (rec.state !== "inactive") rec.stop();
+    $("arm").textContent = "Again";
+    $("arm").disabled = false;
+    $("flip").disabled = false;
+  }, Math.max(0, shakaAt + CLIP_AFTER_SHAKA_MS - performance.now()));
   setState("done");
-  $("flip").disabled = false;
   keepAwake(false);
   navigator.vibrate?.([80, 60, 80]);
   const a = run.angles;
@@ -785,8 +796,6 @@ function endRun(endAt, endedBy) {
   $("r-avg").textContent = a.length ? (a.reduce((s, x) => s + x, 0) / a.length).toFixed(0) : "-";
   $("r-by").textContent = `${run.startedBy.join(" + ")} → ended by ${run.endedBy}`;
   $("results").hidden = false;
-  $("arm").textContent = "Again";
-  $("arm").disabled = false;
 }
 
 function showClip() {
