@@ -1,7 +1,8 @@
 // Time an uploaded chug video with the same rules as the live tracker: the lab's pipeline
-// (src/detect/rules.ts) — cracks from the audio track, pose + hands frame by frame while the
-// clip plays once at normal speed, then detect() for the start and end.
-import { findCracks } from '../audio/offline'
+// (src/detect/rules.ts) — cracks and clicks from the audio track, pose + hands frame by frame
+// while the clip plays once at normal speed, then detect() for the start and end.
+import { soundProfile } from '../audio/offline'
+import { clicksFromProfile, cracksByContrast } from '../detect/cracks'
 import { detect, RULES } from '../detect/rules'
 import { computeSignals, type FrameSignals } from '../detect/signals'
 import { loadLandmarkers } from '../vision/landmarkers'
@@ -17,7 +18,10 @@ export async function analyseUpload(
   const url = URL.createObjectURL(file)
 
   onStatus('Listening for the crack…')
-  const cracks = await findCracks(url, RULES)
+  // Same as the lab: loud cracks, plus quiet clicks that catch cracks in noisy rooms.
+  const profile = await soundProfile(url, RULES.crackHighFreqHz, RULES.clickHighFreqHz)
+  const cracks = cracksByContrast(profile, RULES)
+  const clicks = clicksFromProfile(profile, RULES)
 
   onStatus('Loading the body tracker…')
   const models = await loadLandmarkers()
@@ -55,8 +59,8 @@ export async function analyseUpload(
   })
   URL.revokeObjectURL(url)
 
-  const det = detect(rows, cracks)
-  if (det.start === null) throw new Error("couldn't find the start (crack the can with it at your mouth)")
+  const det = detect(rows, cracks, RULES, clicks)
+  if (det.start === null) throw new Error("couldn't find the start (crack the can at your mouth, then drink)")
   if (det.end === null) throw new Error("couldn't find the end (the can never left your mouth)")
 
   const during = rows.filter((r) => r.t >= det.start! && r.t <= det.end! && r.liveAngle !== null)
