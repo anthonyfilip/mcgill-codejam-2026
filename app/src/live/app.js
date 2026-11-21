@@ -6,7 +6,13 @@ import {
 
 // All thresholds in one place. Starting guesses — tune with real cans.
 const CONFIG = {
-  windowMs: 1500,          // 2 of 3 signals must be true within this window
+  windowMs: 1500,          // how long a signal light stays on after it fires (display only)
+  // Start rule: the can must be at the mouth FIRST, then the crack — the order of a real shotgun.
+  mouthHoldMs: 300,        // can at the mouth at least this long before a crack counts
+  gapMs: 250,              // tracking dropouts shorter than this don't count as "left the mouth"
+  visualStartMs: 800,      // fallback if no crack is heard: can at mouth AND tipped for this long
+  // End rule: the 🤙 confirms the end, but the time stops when the can last left the mouth.
+  maxBackdateMs: 4000,     // only back-date if the can left the mouth at most this long before the 🤙
   crackRatio: 6,           // crack RMS must be this many times the background RMS
   crackMinRms: 0.02,       // ...and at least this loud in absolute terms
   crackHighFreqShare: 0.45,// share of spectral energy above crackHighFreqHz
@@ -43,6 +49,31 @@ let run = null;     // { startAt, startedBy, angles: [] }
 let sendSince = null;
 let live = {};      // latest readings, for the debug panel
 
+// Continuous "can at the mouth" / "can tipped" tracking (ms, performance.now()).
+// *Since = when the current stretch began (null if not currently true); last*At = last frame it was true.
+const track = { mouthSince: null, lastMouthAt: -Infinity, angleSince: null, lastAngleAt: -Infinity };
+
+function resetTrack() {
+  track.mouthSince = track.angleSince = null;
+  track.lastMouthAt = track.lastAngleAt = -Infinity;
+}
+
+// Update a stretch: true this frame extends it; false for longer than gapMs ends it.
+function updateStretch(isTrue, now, sinceKey, lastKey) {
+  if (isTrue) {
+    if (track[sinceKey] === null || now - track[lastKey] > CONFIG.gapMs) track[sinceKey] = now;
+    track[lastKey] = now;
+  } else if (now - track[lastKey] > CONFIG.gapMs) {
+    track[sinceKey] = null;
+  }
+}
+
+// How long the can has been held at the mouth right now (0 if it isn't).
+function mouthHeldMs(now) {
+  if (track.mouthSince === null || now - track.lastMouthAt > CONFIG.gapMs) return 0;
+  return track.lastMouthAt - track.mouthSince;
+}
+
 $("arm").onclick = async () => {
   $("arm").disabled = true;
   if (!stream) {
@@ -58,6 +89,7 @@ $("arm").onclick = async () => {
   run = null;
   sendSince = null;
   seen.crack = seen.angle = seen.mouth = -Infinity;
+  resetTrack();
   setState("armed");
 };
 
@@ -120,7 +152,14 @@ function checkCrack() {
   const highShare = total > 0 ? high / total : 0;
 
   const isCrack = rms > CONFIG.crackMinRms && rms > bgRms * CONFIG.crackRatio && highShare > CONFIG.crackHighFreqShare;
-  if (isCrack && state === "armed") seen.crack = performance.now();
+  if (isCrack && state === "armed") {
+    const now = performance.now();
+    seen.crack = now;
+    // Sequence rule: a crack only starts the run if the can was ALREADY at the mouth.
+    // A crack with the can elsewhere (or someone else's can) is ignored.
+    if (mouthHeldMs(now) >= CONFIG.mouthHoldMs) startRun(now, ["can at mouth", "crack"]);
+    else live.ignoredCrack = now;
+  }
   // Only learn the background from non-spikes.
   if (rms < bgRms * 2) bgRms = bgRms * 0.98 + rms * 0.02;
 
@@ -228,17 +267,23 @@ function loop() {
   const lm = res.landmarks[0];
   const p = lm ? readPose(lm) : null;
 
-  if (p && state === "armed") {
-    if (p.mouthDist < CONFIG.mouthDist) seen.mouth = now;
-    if (p.angle !== null && p.angle >= CONFIG.angleDeg) seen.angle = now;
+  const atMouth = !!p && p.mouthDist < CONFIG.mouthDist;
+  const tipped = !!p && p.angle !== null && p.angle >= CONFIG.angleDeg;
+  updateStretch(atMouth, now, "mouthSince", "lastMouthAt");
+  updateStretch(tipped, now, "angleSince", "lastAngleAt");
+  if (state === "armed") {
+    if (atMouth) seen.mouth = now;
+    if (tipped) seen.angle = now;
   }
 
-  // Start: any 2 of 3 signals within the window.
-  const active = Object.keys(seen).filter((k) => now - seen[k] <= CONFIG.windowMs);
-  if (state === "armed" && active.length >= 2) {
-    // If the crack is one of them, the clock starts at the crack.
-    const startAt = active.includes("crack") ? seen.crack : now;
-    startRun(startAt, active);
+  // Start (main path) happens in checkCrack: can at mouth, THEN crack.
+  // Fallback when no crack is heard (quiet mic, loud room): can at the mouth AND tipped,
+  // together for visualStartMs. The clock is back-dated to when both became true.
+  if (state === "armed" && track.mouthSince !== null && track.angleSince !== null) {
+    const bothSince = Math.max(track.mouthSince, track.angleSince);
+    if (atMouth && tipped && now - bothSince >= CONFIG.visualStartMs) {
+      startRun(bothSince, ["can at mouth", "can tipped", "no crack heard"]);
+    }
   }
 
   // Read the hand while armed too, so the 🤙 light can be tested before a run starts.
@@ -252,10 +297,19 @@ function loop() {
     if (p?.angle != null) run.angles.push(p.angle);
     if (send) sendSince ??= now;
     else sendSince = null;
-    if (sendSince !== null && now - sendSince >= CONFIG.sendHoldMs && sendSince - run.startAt >= CONFIG.minRunMs) {
-      endRun(sendSince);
+    const confirmed = sendSince !== null && now - sendSince >= CONFIG.sendHoldMs && sendSince - run.startAt >= CONFIG.minRunMs;
+    if (confirmed) {
+      if (atMouth) {
+        // Can still at the mouth → they're signing mid-drink. Don't end yet.
+        setStateText("Lower the can to finish 🤙");
+      } else {
+        // End = last moment the can was at the mouth, if that was recent; otherwise the 🤙 itself.
+        const lastMouth = track.lastMouthAt;
+        const backdate = lastMouth > run.startAt + CONFIG.minRunMs && sendSince - lastMouth <= CONFIG.maxBackdateMs;
+        endRun(backdate ? lastMouth : sendSince, backdate ? "can left mouth (🤙 confirmed)" : "🤙 (can not tracked)");
+      }
     }
-    $("timer").textContent = ((now - run.startAt) / 1000).toFixed(2);
+    if (state === "running") $("timer").textContent = ((now - run.startAt) / 1000).toFixed(2);
   }
 
   draw(p);
@@ -267,12 +321,15 @@ function loop() {
     `state ${state}\n` +
     `audio rms ${live.rms?.toFixed(3)} bg ${live.bgRms?.toFixed(3)} (×${(live.rms / live.bgRms).toFixed(1)}) high ${live.highShare?.toFixed(2)}\n` +
     `angle ${p?.angle?.toFixed(0) ?? "-"}°  mouth ${p?.mouthDist?.toFixed(2) ?? "-"}\n` +
+    `at mouth for ${(mouthHeldMs(now) / 1000).toFixed(1)}s (need ${CONFIG.mouthHoldMs / 1000}s before crack)` +
+    `${now - (live.ignoredCrack ?? -Infinity) < 2000 ? "  · crack IGNORED (can not at mouth)" : ""}\n` +
     `hand ${fingerText(live.fingers)}  🤙 ${send ? "YES" : "no"}`;
 
   requestAnimationFrame(loop);
 }
 
 function startRun(startAt, startedBy) {
+  if (state !== "armed") return; // crack (audio timer) and the video loop can both try to start
   run = { startAt, startedBy, angles: [] };
   chunks = [];
   const mimeType = ["video/webm", "video/mp4"].find((t) => MediaRecorder.isTypeSupported(t));
@@ -283,8 +340,9 @@ function startRun(startAt, startedBy) {
   setState("running");
 }
 
-function endRun(endAt) {
+function endRun(endAt, endedBy) {
   run.timeMs = endAt - run.startAt;
+  run.endedBy = endedBy;
   recorder.stop();
   setState("done");
   const a = run.angles;
@@ -292,7 +350,7 @@ function endRun(endAt) {
   $("timer").textContent = (run.timeMs / 1000).toFixed(2);
   $("r-max").textContent = a.length ? Math.max(...a).toFixed(0) : "-";
   $("r-avg").textContent = a.length ? (a.reduce((s, x) => s + x, 0) / a.length).toFixed(0) : "-";
-  $("r-by").textContent = run.startedBy.join(" + ");
+  $("r-by").textContent = `${run.startedBy.join(" + ")} → ended by ${run.endedBy}`;
   $("results").hidden = false;
   $("arm").textContent = "Again";
   $("arm").disabled = false;
