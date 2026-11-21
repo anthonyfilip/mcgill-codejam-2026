@@ -7,3 +7,10 @@
    (loading or mid-run) so it doesn't cover the view. */
 #stage #arm { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 2; width: auto; padding: 12px 28px; font-size: 18px; border-radius: 999px; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5); cursor: pointer; }
 #stage #arm:disabled { display: none; }
+
+/* Upload a video of your chug (under the signal lights) */
+#upload-chug { margin: 12px 0; display: flex; flex-direction: column; gap: 8px; }
+#upload-chug .upload-btn { padding: 12px; text-align: center; border: 2px dashed #444; border-radius: 10px; color: #f5b400; font-weight: 700; cursor: pointer; }
+#upload-chug.busy .upload-btn { pointer-events: none; opacity: 0.5; }
+#upload-chug video { width: 100%; border-radius: 10px; background: #000; }
+#upload-chug .upload-status { margin: 0; color: #aaa; font-size: 14px; text-align: center; }
