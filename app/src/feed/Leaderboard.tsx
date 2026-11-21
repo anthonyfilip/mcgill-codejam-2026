@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
-import { SAMPLE_POSTS, type Post } from './posts'
-import { getName } from './name'
+import type { Post } from './posts'
+import { getName } from './me'
 import { Profile } from './Profile'
-import { loadPosts } from './store'
+import { isMine, loadPosts, samplePosts } from './store'
 import { Tabs } from './Tabs'
 
 type Row = { user: string; best: number; runs: number }
@@ -22,18 +22,18 @@ function rank(posts: Post[]): Row[] {
 const MEDALS = ['🥇', '🥈', '🥉']
 
 export function Leaderboard() {
-  const [mine, setMine] = useState<Post[]>([])
-  const rows = rank([...mine, ...SAMPLE_POSTS])
+  const [posts, setPosts] = useState<Post[]>([])
+  const rows = rank([...posts, ...samplePosts])
   const me = getName()
 
   useEffect(() => {
-    loadPosts().then(setMine)
+    loadPosts().then(setPosts).catch(console.error)
   }, [])
 
   return (
     <main className="feed">
       <Tabs active="/leaderboard.html" />
-      <Profile mine={mine} />
+      <Profile mine={posts.filter(isMine)} />
 
       <ol className="board">
         {rows.map((r, i) => (

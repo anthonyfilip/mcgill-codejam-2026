@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { Post } from './posts'
-import { getName, setName } from './name'
+import { getName, setName } from './me'
 
 const secs = (ms: number) => (ms / 1000).toFixed(2)
 

@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
-import { SAMPLE_POSTS, type Post } from './posts'
+import { hasCheered, setCheered as rememberCheer } from './me'
+import type { Post } from './posts'
 import { Profile } from './Profile'
-import { deletePost, loadPosts } from './store'
+import { cheer, deletePost, isMine, loadPosts, samplePosts } from './store'
 import { Tabs } from './Tabs'
 
 function timeAgo(ms: number) {
@@ -13,8 +14,17 @@ function timeAgo(ms: number) {
 
 // onDelete is only passed for your own posts.
 function PostCard({ post, onDelete }: { post: Post; onDelete?: () => void }) {
-  const [cheered, setCheered] = useState(false)
-  const videoUrl = useMemo(() => (post.clip ? URL.createObjectURL(post.clip) : null), [post.clip])
+  const [cheered, setCheered] = useState(() => hasCheered(post.id))
+  const [count, setCount] = useState(post.cheers)
+  const videoUrl = useMemo(() => post.videoUrl ?? (post.clip ? URL.createObjectURL(post.clip) : null), [post])
+
+  function toggleCheer() {
+    const on = !cheered
+    setCheered(on)
+    setCount(count + (on ? 1 : -1))
+    rememberCheer(post.id, on)
+    cheer(post, on ? 1 : -1).catch(console.error)
+  }
   return (
     <article className="post">
       <header>
@@ -40,36 +50,44 @@ function PostCard({ post, onDelete }: { post: Post; onDelete?: () => void }) {
 
       {post.description && <p className="desc">{post.description}</p>}
 
-      <button className={cheered ? 'cheer on' : 'cheer'} onClick={() => setCheered(!cheered)}>
-        🍻 {post.cheers + (cheered ? 1 : 0)}
+      <button className={cheered ? 'cheer on' : 'cheer'} onClick={toggleCheer}>
+        🍻 {count}
       </button>
     </article>
   )
 }
 
 export function Feed() {
-  // Your posts (saved in this browser), newest first, shown above the samples.
-  const [mine, setMine] = useState<Post[]>([])
+  // Everyone's posts, newest first (in the local feed: yours, then the samples).
+  const [posts, setPosts] = useState<Post[]>([])
+  const [error, setError] = useState('')
 
   useEffect(() => {
-    loadPosts().then(setMine)
+    loadPosts()
+      .then(setPosts)
+      .catch((e) => setError(`Couldn't load the feed: ${e.message}`))
   }, [])
 
   async function remove(post: Post) {
     if (!confirm('Delete this post?')) return
-    await deletePost(post.id)
-    setMine(mine.filter((p) => p.id !== post.id))
+    try {
+      await deletePost(post)
+      setPosts(posts.filter((p) => p.id !== post.id))
+    } catch (e) {
+      alert(`Couldn't delete: ${(e as Error).message}`)
+    }
   }
 
   return (
     <main className="feed">
       <Tabs active="/feed.html" />
-      <Profile mine={mine} />
+      <Profile mine={posts.filter(isMine)} />
+      {error && <p className="error">{error}</p>}
 
-      {mine.map((p) => (
-        <PostCard key={p.id} post={p} onDelete={() => remove(p)} />
+      {posts.map((p) => (
+        <PostCard key={p.id} post={p} onDelete={isMine(p) ? () => remove(p) : undefined} />
       ))}
-      {SAMPLE_POSTS.map((p) => (
+      {samplePosts.map((p) => (
         <PostCard key={p.id} post={p} />
       ))}
     </main>

@@ -54,3 +54,5 @@ body { margin: 0; font-family: system-ui, sans-serif; background: #111; color: #
 .board .best { font-variant-numeric: tabular-nums; font-size: 18px; }
 .post .delete { padding: 4px 6px; border: 0; background: none; font-size: 16px; cursor: pointer; opacity: 0.6; }
 .post .delete:hover { opacity: 1; }
+.error { padding: 12px; border-radius: 8px; background: #3a1d1d; color: #f88; }
+.btn:disabled { opacity: 0.6; }

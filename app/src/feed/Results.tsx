@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
-import { SAMPLE_POSTS, type Post } from './posts'
-import { getName } from './name'
+import type { Post } from './posts'
+import { getName } from './me'
 import { Profile } from './Profile'
-import { deleteDraft, loadDraft, loadPosts, savePost, type Draft } from './store'
+import { deleteDraft, isMine, loadDraft, loadPosts, samplePosts, savePost, type Draft } from './store'
 import { Tabs } from './Tabs'
 
 const MAX_DESC = 300
@@ -16,12 +16,13 @@ const isDemo = params.has('demo')
 
 export function Results() {
   const [draft, setDraft] = useState<Draft | null | undefined>(isDemo ? DEMO : undefined) // undefined = loading
-  const [mine, setMine] = useState<Post[]>([])
+  const [all, setAll] = useState<Post[]>([])
   const [desc, setDesc] = useState('')
   const [posted, setPosted] = useState(false)
+  const [posting, setPosting] = useState(false)
 
   useEffect(() => {
-    loadPosts().then(setMine)
+    loadPosts().then(setAll).catch(console.error)
     if (!isDemo) loadDraft(params.get('run') ?? '').then((d) => setDraft(d ?? null))
   }, [])
 
@@ -38,28 +39,36 @@ export function Results() {
   }
 
   // Personal best: compare with runs you've posted before (not counting this one).
-  const earlier = mine.filter((p) => p.id !== draft.id)
+  const others = all.filter((p) => p.id !== draft.id)
+  const earlier = others.filter(isMine)
   const best = earlier.length ? Math.min(...earlier.map((p) => p.timeMs)) : null
   const isPB = best === null || draft.timeMs < best
-  // Rank among every run we know about (your posts + everyone else's).
-  const everyone = [...earlier, ...SAMPLE_POSTS]
+  // Rank among every run we know about (yours + everyone else's).
+  const everyone = [...others, ...samplePosts]
   const rank = everyone.filter((p) => p.timeMs < draft.timeMs).length + 1
 
   async function post() {
     if (!draft) return
-    await savePost({
-      id: draft.id === 'demo' ? crypto.randomUUID() : draft.id,
-      user: getName(),
-      postedAt: Date.now(),
-      timeMs: draft.timeMs,
-      maxAngle: draft.maxAngle,
-      startedBy: draft.startedBy,
-      description: desc.trim().slice(0, MAX_DESC),
-      clip: draft.clip,
-      cheers: 0,
-    })
-    if (draft.id !== 'demo') await deleteDraft(draft.id)
-    setPosted(true)
+    setPosting(true)
+    try {
+      await savePost({
+        id: draft.id === 'demo' ? crypto.randomUUID() : draft.id,
+        user: getName(),
+        postedAt: Date.now(),
+        timeMs: draft.timeMs,
+        maxAngle: draft.maxAngle,
+        startedBy: draft.startedBy,
+        description: desc.trim().slice(0, MAX_DESC),
+        clip: draft.clip,
+        cheers: 0,
+      })
+      if (draft.id !== 'demo') await deleteDraft(draft.id)
+      setPosted(true)
+    } catch (e) {
+      alert(`Couldn't post: ${(e as Error).message}`)
+    } finally {
+      setPosting(false)
+    }
   }
 
   // Throw this run away and go back to the tracker.
@@ -72,7 +81,7 @@ export function Results() {
   return (
     <main className="feed">
       <Tabs />
-      <Profile mine={mine} />
+      <Profile mine={all.filter(isMine)} />
 
       <section className="result">
         <div className="big-time">{secs(draft.timeMs)} s</div>
@@ -96,7 +105,9 @@ export function Results() {
               onChange={(e) => setDesc(e.target.value)}
             />
             <div className="count">{desc.length} / {MAX_DESC}</div>
-            <button className="btn primary" onClick={post}>Post to feed</button>
+            <button className="btn primary" onClick={post} disabled={posting}>
+              {posting ? 'Posting…' : 'Post to feed'}
+            </button>
           </>
         )}
 
