@@ -17,7 +17,7 @@ for (const [tag, attrs] of [
   ['meta', { name: 'apple-mobile-web-app-capable', content: 'yes' }],
   ['meta', { name: 'mobile-web-app-capable', content: 'yes' }],
   ['meta', { name: 'apple-mobile-web-app-status-bar-style', content: 'black' }],
-  ['meta', { name: 'apple-mobile-web-app-title', content: 'Get Sendy' }],
+  ['meta', { name: 'apple-mobile-web-app-title', content: 'getSendy!' }],
 ] as const) {
   const el = document.createElement(tag)
   for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v)
