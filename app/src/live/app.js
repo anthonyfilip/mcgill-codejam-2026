@@ -185,6 +185,7 @@ $("arm").onclick = async () => {
   sendSince = null;
   seen.crack = seen.angle = seen.mouth = -Infinity;
   resetTrack();
+  startRecording(); // the clip runs from this tap to the 🤙, not just the timed part
   setState("armed");
   keepAwake(true);
 };
@@ -198,6 +199,7 @@ $("flip").onclick = async () => {
   $("flip").disabled = true;
   try {
     await openCamera();
+    if (state === "armed") startRecording(); // the old recorder was on the other camera
   } catch (err) {
     setStateText(`Couldn't switch camera: ${err.message}`);
   }
@@ -695,9 +697,12 @@ function frame() {
     (live.loopError ? `\nlast tracking error: ${live.loopError}` : "");
 }
 
-function startRun(startAt, startedBy) {
-  if (state !== "armed") return; // crack (audio timer) and the video loop can both try to start
-  run = { startAt, startedBy, angles: [], hand: [] }; // hand: per-frame hand/wrist/can angles
+// The clip records from the GET SENDY! tap (armed) until the 🤙 (endRun stops it).
+function startRecording() {
+  if (recorder && recorder.state !== "inactive") {
+    recorder.onstop = null; // a restart (camera flip while armed): drop the old clip quietly
+    recorder.stop();
+  }
   chunks = [];
   // mp4 first when the browser can record it (Safari always; recent Chrome too): it plays on every
   // phone, while webm clips don't play on older iPhones in the feed.
@@ -706,6 +711,11 @@ function startRun(startAt, startedBy) {
   recorder.ondataavailable = (e) => chunks.push(e.data);
   recorder.onstop = showClip;
   recorder.start();
+}
+
+function startRun(startAt, startedBy) {
+  if (state !== "armed") return; // crack (audio timer) and the video loop can both try to start
+  run = { startAt, startedBy, angles: [], hand: [] }; // hand: per-frame hand/wrist/can angles
   setState("running");
   $("flip").disabled = true;
   navigator.vibrate?.(150); // Android only; iPhones ignore it
