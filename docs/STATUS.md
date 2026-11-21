@@ -36,6 +36,10 @@ Backup: a recorded run of the full demo, in case the live camera fails on stage.
   lasting 0.3 s: head tilts back ≥ 0.15 shoulder widths AND forearm swings ≥ 25° toward vertical
   (or is already within 45°), can still at the mouth. Clock = the strongest of those sounds (loud
   crack beats any click). **No sound → no start** (the old video-only fallback is gone).
+  **And a real person in the shot** (Sat — a phone pointed at a foot made a phantom pose that
+  started a run): face + shoulder confidence ≥ 0.5 and shoulders ≥ 4% of the frame height, at the
+  sound (within 0.5 s, like the hidden-face allowance) and on every frame the motion is judged on.
+  Around real starts single clips were ≥ 0.67 / ≥ 6.7%; the check changes no clip's score.
   The 46 ms crack detector misses cracks in noisy clips; at 6 ms the crack was the strongest
   click in 7/8 single clips. Cracks with the can elsewhere are ignored.
 - **End:** 🤙 shaka anywhere in frame (3D finger bends; works back-of-hand too), no hold — one frame ends it; refused
@@ -49,6 +53,12 @@ Backup: a recorded run of the full demo, in case the live camera fails on stage.
   ±0.25 s, worst 0.26 s; runs read ~0.1 s short on average)** — unchanged by the stricter start,
   and no false starts on single clips. Groups — start 0.95 s, 2/10 never start (05, 11): the
   tracker watches the wrong person's head/arm. 16/18 found.
+  **Re-analysed all 18 clips (Sat ~14:00, to record face confidence):** a fresh run of the model
+  reads some clips differently, and the start rule now **misses 2/8 single clips** — 03 (the can
+  hides the face for ~1 s around the crack, so the pose is lost) and 18 (the head barely tips back
+  within 1.5 s). The 6 that start: start 0.18 s, end 0.12 s, run time 0.16 s. Loosening the motion
+  thresholds brings back 10–16 s early starts, so the drinking-motion rule needs a sturdier design
+  (e.g. a longer hidden-face allowance for the crack). Old analysis backed up in the session scratchpad.
   Clips 10 and 04 were re-analysed (old saves had a 3 s gap at the crack / stopped before the end):
   run time −1.57 → +0.06 s and −0.52 → −0.19 s. Clip 10's crack lands exactly where the can starts
   tilting from upright.

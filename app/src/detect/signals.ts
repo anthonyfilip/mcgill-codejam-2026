@@ -33,6 +33,11 @@ export interface FrameSignals {
   // Exactly what the LIVE tracker (src/live/app.js readPose) measures, so clip scores match live behaviour:
   liveMouthDist: number | null // drinking wrist → mouth ÷ max(shoulder width, neck length)
   liveAngle: number | null // drinking forearm from vertical, only when that wrist is above its shoulder
+  // Is this a real, upright person? (A phone pointed at a foot produced a phantom pose that
+  // started a run, Sat.) Same definitions in src/live/app.js.
+  faceVis: number | null // lowest model confidence (0–1) among nose, both mouth corners, both shoulders
+  mouthAboveShoulders: number | null // (shoulder-line y − mouth y) ÷ shoulder width; > 0 = mouth above shoulders
+  personSize: number | null // shoulder width ÷ frame height
   loudnessDb: number
   brightness: number
 }
@@ -75,6 +80,9 @@ export function computeSignals(
     canAngle: null,
     liveMouthDist: null,
     liveAngle: null,
+    faceVis: null,
+    mouthAboveShoulders: null,
+    personSize: null,
     loudnessDb,
     brightness,
   }
@@ -129,7 +137,11 @@ export function computeSignals(
   const drinkShoulder = leftCloser ? sL : sR
   const liveAngle = wrist.y < drinkShoulder.y ? fromVertical(elbow, wrist) : null
 
-  return { ...base, handToMouth, handsNearMouth, headTilt, handAboveShoulder, ...angles, liveMouthDist, liveAngle }
+  const faceVis = Math.min(...[NOSE, MOUTH_L, MOUTH_R, L_SHOULDER, R_SHOULDER].map((i) => lm[i].visibility ?? 0))
+  const mouthAboveShoulders = (shoulderY - mouth.y) / shoulderW
+  const personSize = shoulderW // dist() already measures in frame heights
+
+  return { ...base, handToMouth, handsNearMouth, headTilt, handAboveShoulder, ...angles, liveMouthDist, liveAngle, faceVis, mouthAboveShoulders, personSize }
 }
 
 export function signalsToCsv(rows: FrameSignals[]): string {
@@ -146,6 +158,9 @@ export function signalsToCsv(rows: FrameSignals[]): string {
     'canAngle',
     'liveMouthDist',
     'liveAngle',
+    'faceVis',
+    'mouthAboveShoulders',
+    'personSize',
     'loudnessDb',
     'brightness',
   ]

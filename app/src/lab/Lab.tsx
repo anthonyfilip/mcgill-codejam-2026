@@ -253,12 +253,14 @@ export function Lab() {
     meter.setSpeakerVolume(0)
     try {
       for (let i = 0; i < clips.length; i++) {
-        // Skip clips already analysed properly.
+        // Skip clips already analysed properly — with the current signal fields (faceVis etc. were
+        // added Sat for the "real person" start check; older saves are redone).
         const prev = await fetch(signalsUrl(clips[i]))
         if (prev.ok) {
           const saved = (await prev.json()) as SavedSignals
           const lastT = saved.rows.at(-1)?.t ?? 0
-          if (enoughRows(saved.rows.length, lastT)) continue
+          const current = saved.rows.some((r) => 'faceVis' in r)
+          if (enoughRows(saved.rows.length, lastT) && current) continue
         }
         for (let attempt = 1; attempt <= 3; attempt++) {
           await waitVisible()
