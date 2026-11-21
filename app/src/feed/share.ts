@@ -24,7 +24,7 @@ tabs.innerHTML = [
   .join('')
 document.body.append(tabs)
 
-// Swipe right to the feed, left to the leaderboard, but never once GET SENDY! has been tapped
+// Swipe back to the feed (finger moving left), but never once GET SENDY! has been tapped
 // (it stays disabled while armed and during the run), so a run can't be left by accident.
 installSwipeNav('/', () => !(document.getElementById('arm') as HTMLButtonElement | null)?.disabled)
 
