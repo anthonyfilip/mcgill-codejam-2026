@@ -93,8 +93,13 @@ export function Lab() {
       if (!video.paused && !video.ended) handle = video.requestVideoFrameCallback(onFrame)
     }
     const onPlay = () => {
+      meter.resume() // otherwise Chrome freezes the video until the audio engine is woken
       handle = video.requestVideoFrameCallback(onFrame)
     }
+    // Any click/key on the page counts as a user action that's allowed to wake audio.
+    const wake = () => meter.resume()
+    document.addEventListener('pointerdown', wake)
+    document.addEventListener('keydown', wake)
     // Paused + seek/step, or a new clip loaded: redraw for the frame now on screen.
     const onStill = () => {
       // The decoded frame isn't always ready the instant 'seeked' fires; draw on the next one.
@@ -130,6 +135,8 @@ export function Lab() {
     onLoaded() // models may finish loading after the first clip is already showing
     return () => {
       video.cancelVideoFrameCallback(handle)
+      document.removeEventListener('pointerdown', wake)
+      document.removeEventListener('keydown', wake)
       video.removeEventListener('play', onPlay)
       video.removeEventListener('seeked', onStill)
       video.removeEventListener('loadeddata', onLoaded)
