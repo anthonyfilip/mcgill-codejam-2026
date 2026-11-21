@@ -2,8 +2,10 @@ import { FilesetResolver, HandLandmarker, PoseLandmarker } from '@mediapipe/task
 
 // Pinned to the installed package version so the WASM matches the JS.
 const WASM_URL = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.2.3/wasm'
+// Same "full" model as the live tracker: noticeably better than "lite" on small, partly
+// visible or moving people (handheld party clips).
 const POSE_MODEL =
-  'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task'
+  'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/1/pose_landmarker_full.task'
 const HAND_MODEL =
   'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task'
 

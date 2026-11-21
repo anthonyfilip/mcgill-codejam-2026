@@ -6,6 +6,10 @@ export interface AudioMeter {
   read(): number
   /** Share of energy above ~2 kHz (0..1). Clicks/pops are bright; voices are not. */
   brightness(): number
+  /** Wake the audio engine. Must be called from a user action (e.g. the video's 'play' event):
+   *  Chrome starts AudioContexts suspended, and a <video> routed into a suspended context
+   *  shows the pause icon but never advances. */
+  resume(): void
 }
 
 const meters = new WeakMap<HTMLMediaElement, AudioMeter>()
@@ -29,6 +33,9 @@ export function attachMeter(media: HTMLMediaElement): AudioMeter {
   const brightBin = Math.floor((2000 / (ctx.sampleRate / 2)) * analyser.frequencyBinCount)
 
   const meter: AudioMeter = {
+    resume() {
+      if (ctx.state !== 'running') void ctx.resume()
+    },
     read() {
       if (ctx.state === 'suspended') void ctx.resume()
       analyser.getFloatTimeDomainData(time)

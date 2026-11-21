@@ -1,4 +1,5 @@
 import type { HandLandmarkerResult, NormalizedLandmark, PoseLandmarkerResult } from '@mediapipe/tasks-vision'
+import { fromVertical, handAngles, nearestHand, toPx } from './angles'
 
 // Pose landmark indices (MediaPipe BlazePose, 33 points).
 const NOSE = 0
@@ -8,6 +9,8 @@ const MOUTH_L = 9
 const MOUTH_R = 10
 const L_SHOULDER = 11
 const R_SHOULDER = 12
+const L_ELBOW = 13
+const R_ELBOW = 14
 const L_WRIST = 15
 const R_WRIST = 16
 const L_INDEX = 19
@@ -22,6 +25,11 @@ export interface FrameSignals {
   handsNearMouth: number // hand-tracker hands within 1 shoulder-width of the mouth
   headTilt: number | null // (ear height − nose height); rises when the head tips back
   handAboveShoulder: number | null // how far the higher wrist is above the shoulders
+  // Drinking arm = the arm whose wrist is closest to the mouth. Degrees from straight up.
+  armAngle: number | null // forearm elbow→wrist
+  handAngle: number | null // hand wrist→middle knuckle
+  wristFlex: number | null // bend between forearm and hand (0 = straight)
+  canAngle: number | null // estimated can tilt from upright, from the knuckle line (0–90)
   loudnessDb: number
   brightness: number
 }
@@ -58,6 +66,10 @@ export function computeSignals(
     handsNearMouth: 0,
     headTilt: null,
     handAboveShoulder: null,
+    armAngle: null,
+    handAngle: null,
+    wristFlex: null,
+    canAngle: null,
     loudnessDb,
     brightness,
   }
@@ -88,7 +100,22 @@ export function computeSignals(
   const wristY = Math.min(lm[L_WRIST].y, lm[R_WRIST].y)
   const handAboveShoulder = (shoulderY - wristY) / shoulderW
 
-  return { ...base, handToMouth, handsNearMouth, headTilt, handAboveShoulder }
+  // Angles: work in "pixels" scaled by aspect so x and y distances are comparable.
+  const P = (p: NormalizedLandmark) => ({ x: p.x * aspect, y: p.y })
+  const leftCloser = dist(lm[L_WRIST], mouth, aspect) <= dist(lm[R_WRIST], mouth, aspect)
+  const elbow = P(lm[leftCloser ? L_ELBOW : R_ELBOW])
+  const wrist = P(lm[leftCloser ? L_WRIST : R_WRIST])
+  const handsPx = hands.landmarks.map((h) => toPx(h, aspect, 1))
+  const i = nearestHand(handsPx, wrist, shoulderW) // hand must be within one shoulder-width of the pose wrist
+  const a = i >= 0 ? handAngles(handsPx[i], elbow, wrist) : null
+  const angles = {
+    armAngle: fromVertical(elbow, wrist), // pose alone is enough for the arm
+    handAngle: a?.hand ?? null,
+    wristFlex: a?.wristFlex ?? null,
+    canAngle: a?.can ?? null,
+  }
+
+  return { ...base, handToMouth, handsNearMouth, headTilt, handAboveShoulder, ...angles }
 }
 
 export function signalsToCsv(rows: FrameSignals[]): string {
@@ -99,6 +126,10 @@ export function signalsToCsv(rows: FrameSignals[]): string {
     'handsNearMouth',
     'headTilt',
     'handAboveShoulder',
+    'armAngle',
+    'handAngle',
+    'wristFlex',
+    'canAngle',
     'loudnessDb',
     'brightness',
   ]
