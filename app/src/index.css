@@ -50,6 +50,20 @@ body {
   justify-content: center;
 }
 
+.timecode input {
+  font: inherit;
+  padding: 6px 10px;
+  min-width: 260px;
+}
+
+.set-start {
+  border: 2px solid #2b8a3e;
+}
+
+.set-end {
+  border: 2px solid #c92a2a;
+}
+
 .timecode strong {
   font-variant-numeric: tabular-nums;
   min-width: 70px;

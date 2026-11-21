@@ -1,7 +1,7 @@
 import { DrawingUtils, HandLandmarker, PoseLandmarker } from '@mediapipe/tasks-vision'
 import { useEffect, useRef, useState } from 'react'
 import { attachMeter } from '../audio/meter'
-import { type ClipLabel, loadLabels } from '../data/labels'
+import { type ClipLabel, type EditableField, loadLabels, saveLabel } from '../data/labels'
 import { computeSignals, type FrameSignals, pickContestant, signalsToCsv } from '../detect/signals'
 import { type Landmarkers, loadLandmarkers } from '../vision/landmarkers'
 import { SignalChart } from './SignalChart'
@@ -106,6 +106,16 @@ export function Lab() {
     await video.play()
   }
 
+  const setLabel = async (field: EditableField, value: string) => {
+    try {
+      await saveLabel(clip, field, value)
+      setLabels(await loadLabels())
+      setStatus(`Saved ${field} = ${value || '(blank)'} for ${clip}`)
+    } catch (e) {
+      setStatus(`Couldn't save: ${e instanceof Error ? e.message : String(e)}`)
+    }
+  }
+
   const step = (seconds: number) => {
     const video = videoRef.current
     if (!video) return
@@ -181,6 +191,37 @@ export function Lab() {
         <strong>{time.toFixed(2)} s</strong>
         <button onClick={() => step(0.1)}>+0.1 s</button>
         <button onClick={() => step(1)}>+1 s</button>
+      </div>
+
+      <div className="controls timecode">
+        <button className="set-start" onClick={() => void setLabel('start_s', time.toFixed(1))} disabled={!clip}>
+          Set start = {time.toFixed(1)} s
+        </button>
+        <button className="set-end" onClick={() => void setLabel('end_s', time.toFixed(1))} disabled={!clip}>
+          Set end = {time.toFixed(1)} s
+        </button>
+        <label>
+          People shotgunning{' '}
+          <select
+            value={label?.people_in_frame ?? ''}
+            onChange={(e) => void setLabel('people_in_frame', e.target.value)}
+            disabled={!clip}
+          >
+            <option value="">—</option>
+            <option value="1">1</option>
+            <option value="2">2</option>
+            <option value="3">3+</option>
+          </select>
+        </label>
+        <input
+          key={clip + (label?.notes ?? '')}
+          placeholder="notes (e.g. not a shotgun, starts mid-chug)"
+          defaultValue={label?.notes ?? ''}
+          onBlur={(e) => {
+            if (e.target.value !== (label?.notes ?? '')) void setLabel('notes', e.target.value)
+          }}
+          disabled={!clip}
+        />
       </div>
 
       <SignalChart

@@ -36,6 +36,21 @@ const num = (s: string | undefined) => {
   return Number.isFinite(n) ? n : null
 }
 
+export type EditableField = 'start_s' | 'end_s' | 'people_in_frame' | 'contestant' | 'notes'
+
+/** Write one value into Chug_Examples/labels.csv via the dev server. Throws with the reason on failure. */
+export async function saveLabel(clip: string, field: EditableField, value: string): Promise<void> {
+  const res = await fetch('/clips/labels', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ clip, field, value }),
+  })
+  if (!res.ok) {
+    const msg = await res.text()
+    throw new Error(/EBUSY|EPERM/.test(msg) ? 'labels.csv is open in another program (Excel?) — close it and try again' : msg)
+  }
+}
+
 export async function loadLabels(): Promise<Map<string, ClipLabel>> {
   const res = await fetch('/clips/labels.csv')
   if (!res.ok) return new Map()
