@@ -1,0 +1,102 @@
+/* Dark theme to match the live tracker (src/live/style.css). */
+* { box-sizing: border-box; }
+body { margin: 0; font-family: system-ui, sans-serif; background: #111; color: #eee; }
+
+.feed { max-width: 640px; margin: 0 auto; padding: 16px; display: flex; flex-direction: column; gap: 16px; }
+
+.tabs { display: flex; gap: 8px; }
+.tabs a { flex: 1; padding: 10px; text-align: center; border-radius: 8px; background: #2a2a2a; color: #aaa; font-weight: 600; text-decoration: none; }
+.tabs a.active { background: #f5b400; color: #111; }
+
+
+.post { background: #1d1d1d; border-radius: 12px; overflow: hidden; }
+.post header { display: flex; align-items: center; gap: 10px; padding: 12px; }
+.avatar { width: 32px; height: 32px; border-radius: 50%; background: #f5b400; color: #111; display: grid; place-items: center; font-weight: 700; }
+.when { margin-left: auto; color: #888; font-size: 13px; }
+
+.post video, .no-video { display: block; width: 100%; aspect-ratio: 4 / 3; background: #000; object-fit: cover; }
+.no-video { display: grid; place-items: center; font-size: 64px; }
+
+.stats { display: flex; flex-wrap: wrap; align-items: baseline; gap: 12px; padding: 12px 12px 0; }
+.stats .time { font-size: 28px; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+.actions { display: flex; gap: 8px; padding: 12px; }
+.cheer { padding: 8px 14px; border: 0; border-radius: 999px; background: #2a2a2a; color: #eee; font-size: 16px; cursor: pointer; }
+.cheer.on { background: #f5b400; color: #111; }
+.desc { margin: 8px 12px 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+
+/* Profile strip */
+.profile { display: flex; align-items: center; gap: 12px; padding: 12px; background: #1d1d1d; border-radius: 12px; }
+.avatar.big { width: 48px; height: 48px; font-size: 20px; }
+.profile .name { padding: 0; border: 0; background: none; color: #eee; font-size: 18px; font-weight: 700; cursor: pointer; }
+.profile-stats { display: flex; gap: 14px; margin-top: 2px; color: #888; font-size: 13px; }
+.profile-stats b { color: #eee; }
+
+/* Results */
+.result { display: flex; flex-direction: column; gap: 10px; padding: 16px; background: #1d1d1d; border-radius: 12px; text-align: center; }
+.big-time { font-size: 64px; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1; }
+.pb { font-size: 18px; font-weight: 600; color: #f5b400; }
+.rank { color: #888; }
+.result video, .result .no-video { border-radius: 8px; }
+.desc-input { width: 100%; padding: 10px; border: 1px solid #444; border-radius: 8px; background: #111; color: #eee; font: inherit; resize: vertical; }
+.count { align-self: flex-end; margin-top: -6px; font-size: 12px; color: #888; }
+.btn { flex: 1; display: block; padding: 12px; border: 0; border-radius: 10px; background: #2a2a2a; color: #eee; font: inherit; font-weight: 700; text-decoration: none; cursor: pointer; }
+.btn.primary { background: #f5b400; color: #111; font-size: 18px; }
+.row { display: flex; gap: 8px; }
+
+/* Leaderboard */
+.board { list-style: none; margin: 0; padding: 0; background: #1d1d1d; border-radius: 12px; overflow: hidden; }
+.board li { display: flex; align-items: center; gap: 10px; padding: 12px; border-top: 1px solid #2a2a2a; }
+.board li:first-child { border-top: 0; }
+.board li.me { background: #2b2510; }
+.board .place { width: 28px; text-align: center; font-weight: 700; font-size: 18px; }
+.board .who { font-weight: 600; }
+.board .runs { margin-left: auto; color: #888; font-size: 13px; }
+.board .best { font-variant-numeric: tabular-nums; font-size: 18px; }
+.post .delete { padding: 4px 6px; border: 0; background: none; font-size: 16px; cursor: pointer; opacity: 0.6; }
+.post .delete:hover { opacity: 1; }
+.error { padding: 12px; border-radius: 8px; background: #3a1d1d; color: #f88; }
+.btn:disabled { opacity: 0.6; }
+.comments { padding: 0 12px 12px; display: flex; flex-direction: column; gap: 8px; }
+.comment { margin: 0; overflow-wrap: anywhere; }
+.comment .when { margin-left: 4px; font-size: 12px; }
+.comments form { display: flex; gap: 8px; }
+.comments input { flex: 1; min-width: 0; padding: 10px; border: 1px solid #444; border-radius: 999px; background: #111; color: #eee; font: inherit; }
+.comments form button { padding: 0 16px; border: 0; border-radius: 999px; background: #f5b400; color: #111; font-weight: 700; cursor: pointer; }
+.comments form button:disabled { opacity: 0.5; }
+
+/* Avatars with photos */
+img.avatar { object-fit: cover; }
+.avatar { flex-shrink: 0; }
+.avatar-btn { padding: 0; border: 0; background: none; cursor: pointer; border-radius: 50%; }
+
+/* Profile pop-up */
+.modal-backdrop { position: fixed; inset: 0; z-index: 10; display: grid; place-items: center; padding: 16px; background: rgba(0, 0, 0, 0.7); }
+.modal { width: 100%; max-width: 360px; display: flex; flex-direction: column; gap: 12px; padding: 20px; border-radius: 16px; background: #1d1d1d; color: #eee; }
+.modal h2 { margin: 0; text-align: center; }
+.photo-pick { display: flex; flex-direction: column; align-items: center; gap: 8px; color: #f5b400; font-weight: 600; cursor: pointer; }
+.photo-pick .avatar.big { width: 96px; height: 96px; font-size: 40px; }
+.field { display: flex; flex-direction: column; gap: 6px; font-weight: 600; }
+.field input { padding: 12px; border: 1px solid #444; border-radius: 8px; background: #111; color: #eee; font: inherit; font-weight: 400; }
+.hint { margin-top: -6px; font-size: 13px; color: #888; }
+.hint.bad { color: #f88; }
+.hint.good { color: #5c5; }
+
+/* Star rating */
+.rating { margin: 12px 12px 0; padding: 8px 12px; border-radius: 10px; background: #252525; }
+.avg-rating { font-size: 22px; font-weight: 700; color: #f5b400; font-variant-numeric: tabular-nums; }
+.avg-rating small { font-size: 13px; font-weight: 400; color: #888; }
+.avg-rating.none { color: #555; }
+.stars { display: flex; align-items: center; gap: 2px; }
+.star { padding: 0 2px; border: 0; background: none; font-size: 28px; line-height: 1; color: #444; cursor: pointer; transition: color 0.1s, transform 0.1s; }
+.star.on { color: #f5b400; }
+button.star:hover { transform: scale(1.15); }
+span.star { cursor: default; }
+.stars-label { margin-left: 8px; color: #aaa; font-size: 13px; }
+
+/* Leaderboard rule + divider between rated 3.5+ and the rest */
+.board-rule { margin: 0; color: #aaa; font-size: 14px; text-align: center; }
+.board-rule b { color: #f5b400; }
+.board li { flex-wrap: wrap; }
+.board .divider { flex-basis: 100%; margin: -4px 0 4px; color: #888; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; }
+.board li.below { border-top: 2px dashed #444; }
