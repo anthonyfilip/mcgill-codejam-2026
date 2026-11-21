@@ -1,7 +1,8 @@
 import { DrawingUtils, HandLandmarker, PoseLandmarker } from '@mediapipe/tasks-vision'
 import { useEffect, useRef, useState } from 'react'
 import { attachMeter } from '../audio/meter'
-import { type Crack, findCracks } from '../audio/offline'
+import { type Crack, findCracks, soundProfile } from '../audio/offline'
+import { cracksByContrast, type SoundProfile } from '../detect/cracks'
 import { type ClipLabel, type EditableField, loadLabels, saveLabel } from '../data/labels'
 import { detect, RULES } from '../detect/rules'
 import { computeSignals, type FrameSignals, pickContestant, signalsToCsv } from '../detect/signals'
@@ -17,6 +18,7 @@ interface SavedSignals {
 }
 
 const signalsUrl = (clip: string) => `/clips/signals/${encodeURIComponent(clip.replace(/\.\w+$/, ''))}.json`
+const soundUrl = (clip: string) => `/clips/signals/${encodeURIComponent(clip.replace(/\.\w+$/, ''))}.audio.json`
 
 /** Resolve when `event` fires on `el` (or reject after timeoutMs). */
 const waitFor = (el: HTMLElement, event: string, timeoutMs: number) =>
@@ -51,7 +53,11 @@ export function Lab() {
     for (const c of clipList) {
       const res = await fetch(signalsUrl(c))
       const saved = res.ok ? ((await res.json()) as SavedSignals) : null
-      out.push({ clip: c, label: labelMap.get(c), det: saved ? detect(saved.rows, saved.cracks) : null })
+      // With a saved sound profile, re-detect cracks with the current rules (so crack tuning
+      // applies without re-analysing video); otherwise use the cracks saved at analysis time.
+      const snd = await fetch(soundUrl(c))
+      const cracks = snd.ok ? cracksByContrast((await snd.json()) as SoundProfile, RULES) : (saved?.cracks ?? [])
+      out.push({ clip: c, label: labelMap.get(c), det: saved ? detect(saved.rows, cracks) : null })
     }
     setScores(out)
   }
@@ -208,6 +214,22 @@ export function Lab() {
     await fetch(signalsUrl(name), { method: 'POST', body: JSON.stringify(data) })
   }
 
+  // Sound profile of every clip (no playback needed — a few seconds in total).
+  const saveSoundProfiles = async () => {
+    setBatch(true)
+    try {
+      for (let i = 0; i < clips.length; i++) {
+        setStatus(`Measuring sound: ${clips[i]} (${i + 1}/${clips.length})`)
+        const p = await soundProfile(`/clips/${encodeURIComponent(clips[i])}`, RULES.crackHighFreqHz)
+        await fetch(soundUrl(clips[i]), { method: 'POST', body: JSON.stringify(p) })
+      }
+      await rescore(clips, labels)
+      setStatus(`Saved sound profiles for ${clips.length} clips`)
+    } finally {
+      setBatch(false)
+    }
+  }
+
   // Chrome stops delivering video frames to hidden tabs, so a clip analysed while the tab was
   // in the background ends up with almost no rows. Wait until visible, and redo thin results.
   const waitVisible = async () => {
@@ -307,6 +329,9 @@ export function Lab() {
         </button>
         <button onClick={() => void analyseAll()} disabled={!models || clips.length === 0 || batch}>
           Analyse all clips &amp; score (~8 min)
+        </button>
+        <button onClick={() => void saveSoundProfiles()} disabled={clips.length === 0 || batch}>
+          Measure sound of all clips
         </button>
         <button onClick={() => void rescore(clips, labels)} disabled={batch}>
           Re-score

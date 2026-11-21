@@ -40,6 +40,11 @@ Backup: a recorded run of the full demo, in case the live camera fails on stage.
   end found 8/8, avg error 0.40 s (6/8 within ±0.5 s). All clips: 17/18 found.
   Weak spots: crack only detected in 3 clips (others start from the mouth fallback → late),
   clip 05 false start from party noise, clip 11 person's arm never found.
+- New crack detector (sudden bright jump vs the previous 0.5 s; `app/src/detect/cracks.ts`,
+  same maths live). 8 runs now start on the crack, all within 0.5 s; 0 false cracks in a
+  live no-crack room recording; real Monster crack at ~2 m on the laptop mic = huge score.
+  Single-person clips: start error 1.00 → 0.64 s (5/8 within ±0.5 s), end 0.40 s.
+  ~9/18 phone clips have an inaudible crack → those still start from the mouth fallback.
 
 ## In progress
 - Filling in start/end times in `Chug_Examples/labels.csv` (team) — needed before tuning.

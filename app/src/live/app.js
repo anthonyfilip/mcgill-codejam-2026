@@ -9,15 +9,18 @@ import { handAngles, nearestHand, toPx } from "../detect/angles.ts";
 const CONFIG = {
   windowMs: 1500,          // how long a signal light stays on after it fires (display only)
   // Start rule: the can must be at the mouth FIRST, then the crack — the order of a real shotgun.
-  crackGraceMs: 600,       // a crack counts with the can at the mouth, or up to this long BEFORE it gets there
+  crackGraceMs: 1000,      // a crack counts with the can at the mouth, or up to this long BEFORE it gets there
                            // (people lift and crack almost at once — live test: crack 0.2 s after reaching the mouth)
   gapMs: 250,              // tracking dropouts shorter than this don't count as "left the mouth"
   visualStartMs: 800,      // fallback if no crack is heard: can at mouth AND tipped for this long
   // End rule: the 🤙 confirms the end, but the time stops when the can last left the mouth.
   maxBackdateMs: 4000,     // only back-date if the can left the mouth at most this long before the 🤙
-  crackRatio: 6,           // crack RMS must be this many times the background RMS
-  crackMinRms: 0.02,       // ...and at least this loud in absolute terms
-  crackHighFreqShare: 0.45,// share of spectral energy above crackHighFreqHz
+  // Crack = sudden bright jump vs the half-second before (same as src/detect/cracks.ts cracksByContrast).
+  // Tuned on the 18 labelled clips (8 crack starts, all within 0.5 s) + live laptop-mic recordings
+  // (0 false cracks in a noisy no-crack recording; a real Monster crack at ~2 m scored in the thousands).
+  crackScore: 4,           // jump (× louder than the last crackLookS) × brightness
+  crackMinRms: 0.01,       // ignore anything quieter than this
+  crackLookS: 0.5,
   crackHighFreqHz: 3000,
   // Tuned on the 18 labelled clips (lab → "Analyse all clips"): arm angle barely differed between
   // drinking and not (both ~25°), so "tipped" now just means the hand is raised above the shoulder.
@@ -48,14 +51,13 @@ const ELBOW_L = 13, ELBOW_R = 14, WRIST_L = 15, WRIST_R = 16;
 const $ = (id) => document.getElementById(id);
 const video = $("video"), canvas = $("overlay"), ctx2d = canvas.getContext("2d");
 
-let pose, gesture, handCrop, stream, analyser, audioCtx, recorder, chunks = [];
+let pose, gesture, handCrop, stream, analyser, highAnalyser, audioCtx, recorder, chunks = [];
 const cropCanvas = document.createElement("canvas");
 const cropCtx = cropCanvas.getContext("2d", { willReadFrequently: true });
 let state = "idle"; // idle → armed → running → done
 
 // Last time each start signal was true (ms, performance.now()).
 const seen = { crack: -Infinity, angle: -Infinity, mouth: -Infinity };
-let bgRms = 0.01;
 let run = null;     // { startAt, startedBy, angles: [] }
 let sendSince = null;
 let live = {};      // latest readings, for the debug panel
@@ -121,7 +123,15 @@ async function setup() {
   analyser = audioCtx.createAnalyser();
   analyser.fftSize = 2048;
   analyser.smoothingTimeConstant = 0;
-  audioCtx.createMediaStreamSource(stream).connect(analyser);
+  const mic = audioCtx.createMediaStreamSource(stream);
+  mic.connect(analyser);
+  // Same mic through a steep high-pass (two filters), to measure how "bright" the sound is.
+  const hp1 = audioCtx.createBiquadFilter(), hp2 = audioCtx.createBiquadFilter();
+  for (const hp of [hp1, hp2]) { hp.type = "highpass"; hp.frequency.value = CONFIG.crackHighFreqHz; }
+  highAnalyser = audioCtx.createAnalyser();
+  highAnalyser.fftSize = 2048;
+  highAnalyser.smoothingTimeConstant = 0;
+  mic.connect(hp1).connect(hp2).connect(highAnalyser);
 
   const vision = await FilesetResolver.forVisionTasks(
     "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm"
@@ -150,41 +160,45 @@ async function setup() {
 
 // ---------- Signal 1: crack (microphone) ----------
 
+// Crack = a sudden, BRIGHT jump compared with the half-second just before it. Measured exactly
+// like the lab's sound profiles (src/audio/offline.ts) — loudness of the last 2048 samples, and
+// brightness = share of that energy left after a steep 3 kHz high-pass — so the threshold tuned
+// on the 18 labelled clips (src/detect/cracks.ts cracksByContrast) applies here unchanged.
 const timeBuf = new Float32Array(2048);
-const freqBuf = new Float32Array(1024);
+const highBuf = new Float32Array(2048);
+const recentRms = [], recentHigh = []; // last crackLookS of readings
+const median = (a) => { const s = [...a].sort((x, y) => x - y); return s[s.length >> 1] ?? 0; };
 
 function checkCrack() {
   analyser.getFloatTimeDomainData(timeBuf);
-  let sum = 0;
-  for (const s of timeBuf) sum += s * s;
-  const rms = Math.sqrt(sum / timeBuf.length);
+  highAnalyser.getFloatTimeDomainData(highBuf);
+  let e = 0, eh = 0;
+  for (let i = 0; i < timeBuf.length; i++) { e += timeBuf[i] * timeBuf[i]; eh += highBuf[i] * highBuf[i]; }
+  const rms = Math.sqrt(e / timeBuf.length);
+  const highShare = e > 0 ? eh / e : 0;
 
-  analyser.getFloatFrequencyData(freqBuf);
-  const hzPerBin = audioCtx.sampleRate / analyser.fftSize;
-  let total = 0, high = 0;
-  for (let i = 0; i < freqBuf.length; i++) {
-    const p = Math.pow(10, freqBuf[i] / 10);
-    total += p;
-    if (i * hzPerBin >= CONFIG.crackHighFreqHz) high += p;
-  }
-  const highShare = total > 0 ? high / total : 0;
+  const look = Math.round(CONFIG.crackLookS / 0.02);
+  const prevR = recentRms.length ? median(recentRms) : rms;
+  const prevH = recentHigh.length ? median(recentHigh) : highShare;
+  const jump = rms / Math.max(prevR, 1e-4);
+  const score = highShare > prevH + 0.3 ? jump * Math.min(highShare, 1.5) : 0;
+  recentRms.push(rms); recentHigh.push(highShare);
+  if (recentRms.length > look) { recentRms.shift(); recentHigh.shift(); }
 
-  const isCrack = rms > CONFIG.crackMinRms && rms > bgRms * CONFIG.crackRatio && highShare > CONFIG.crackHighFreqShare;
+  const isCrack = recentRms.length >= look && rms >= CONFIG.crackMinRms && score >= CONFIG.crackScore;
   const t = performance.now();
-  if (isCrack && state === "armed" && t - seen.crack > 150) { // one crack = one event, not every 20 ms poll
+  if (isCrack && state === "armed" && t - seen.crack > 300) { // one crack = one event, not every 20 ms poll
     seen.crack = t;
     // Sequence rule: the crack must happen with the can at the mouth. A crack with the can
     // elsewhere (or someone else's can) is ignored — unless the can reaches the mouth within
     // crackGraceMs AFTER it (checked in loop()), since people lift and crack almost at once.
     const atMouthNow = mouthHeldMs(t) > 0;
-    live.crackLog = [{ t, rms, ratio: rms / bgRms, high: highShare, atMouth: atMouthNow }, ...(live.crackLog ?? [])].slice(0, 5);
+    live.crackLog = [{ t, rms, ratio: jump, high: highShare, score, atMouth: atMouthNow }, ...(live.crackLog ?? [])].slice(0, 5);
     if (atMouthNow) startRun(t, ["can at mouth", "crack"]);
     else live.ignoredCrack = t;
   }
-  // Only learn the background from non-spikes.
-  if (rms < bgRms * 2) bgRms = bgRms * 0.98 + rms * 0.02;
-
-  live.rms = rms; live.bgRms = bgRms; live.highShare = highShare;
+  live.rms = rms; live.jump = jump; live.highShare = highShare; live.crackScore = score;
+  live.peakScore = Math.max(score, (live.peakScore ?? 0) * 0.97); // decays, so a brief pop stays readable
 }
 
 // ---------- Signals 2 + 3: angle and mouth (pose) ----------
@@ -409,12 +423,12 @@ function loop() {
   $("debug").textContent =
     `state ${state}\n` +
     `camera ${video.videoWidth}×${video.videoHeight} · person ${shoulderPx ? `${shoulderPx.toFixed(0)} px shoulders` : "not found"} · hands via ${live.handMode ?? "-"}\n` +
-    `audio rms ${live.rms?.toFixed(3)} bg ${live.bgRms?.toFixed(3)} (×${(live.rms / live.bgRms).toFixed(1)}) high ${live.highShare?.toFixed(2)}\n` +
+    `audio rms ${live.rms?.toFixed(3)} · jump ×${live.jump?.toFixed(1)} · bright ${live.highShare?.toFixed(2)} · crack score ${live.crackScore?.toFixed(1)} (recent peak ${live.peakScore?.toFixed(1)}, need ${CONFIG.crackScore})\n` +
     `angle ${p?.angle?.toFixed(0) ?? "-"}°  mouth ${p?.mouthDist?.toFixed(2) ?? "-"}\n` +
     `drinking hand: ${ang ? `arm ${ang.arm?.toFixed(0) ?? "-"}° · hand ${ang.hand.toFixed(0)}° · wrist bend ${ang.wristFlex?.toFixed(0) ?? "-"}° · can ~${ang.can.toFixed(0)}° from upright` : "not matched"}\n` +
     `at mouth for ${(mouthHeldMs(now) / 1000).toFixed(1)}s` +
     `${now - (live.ignoredCrack ?? -Infinity) < 2000 ? "  · crack IGNORED (can not at mouth)" : ""}\n` +
-    `cracks heard: ${(live.crackLog ?? []).map((c) => `${((now - c.t) / 1000).toFixed(1)}s ago rms ${c.rms.toFixed(3)} high ${c.high.toFixed(2)}${c.atMouth ? " @mouth" : ""}`).join(" · ") || "none"}\n` +
+    `cracks heard: ${(live.crackLog ?? []).map((c) => `${((now - c.t) / 1000).toFixed(1)}s ago score ${c.score.toFixed(0)} (×${c.ratio.toFixed(1)}, bright ${c.high.toFixed(2)})${c.atMouth ? " @mouth" : ""}`).join(" · ") || "none"}\n` +
     `hand ${fingerText(live.fingers)}  🤙 ${send ? "YES" : "no"}`;
 
   requestAnimationFrame(loop);

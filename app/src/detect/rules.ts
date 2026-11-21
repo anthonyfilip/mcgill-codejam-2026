@@ -14,13 +14,19 @@ export const RULES = {
   mouthDist: 0.8, // tuned on the 18 labelled clips (was 0.6: cut through the middle of real drinking)
   angleDeg: 0, // i.e. just "hand raised above the shoulder" — arm angle didn't separate drinking from not
   gapMs: 250,
-  crackGraceMs: 600,
+  crackGraceMs: 1000,
   visualStartMs: 800,
   minRunMs: 1000,
-  crackRatio: 6,
-  crackMinRms: 0.02,
-  crackHighFreqShare: 0.45,
+  // Crack = sudden bright jump vs the half-second before (src/detect/cracks.ts cracksByContrast).
+  // Tuned on the 18 clips: 8 runs started by a crack, all within 0.5 s; 0 false cracks in a
+  // live laptop-mic room recording; a real Monster crack at ~2 m scored in the thousands.
+  crackScore: 4,
+  crackMinRms: 0.01,
+  crackLookS: 0.5,
   crackHighFreqHz: 3000,
+  // old detector (cracksFromProfile), kept for comparison
+  crackRatio: 6,
+  crackHighFreqShare: 0.45,
   // clip-only: how long the can must stay away from the mouth to count as finished
   leaveMs: 800, // tuned on the labelled clips
 }
