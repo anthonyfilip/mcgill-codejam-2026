@@ -46,7 +46,7 @@ export function InstallApp() {
   if (isInstalled()) {
     return (
       <section className="install">
-        <b>Get Sendy app</b>
+        <b>getSendy! app</b>
         <p>You're using the app ✓</p>
       </section>
     )
@@ -67,7 +67,7 @@ export function InstallApp() {
       <img src="/icon-192.png" alt="" className="install-icon" />
       <div className="install-text">
         <b>Get the app</b>
-        <p>Put Get Sendy on your home screen. It opens full screen, like a real app.</p>
+        <p>Put getSendy! on your home screen. It opens full screen, like a real app.</p>
       </div>
       <button className="btn primary" onClick={add}>
         Add to Home Screen
@@ -110,7 +110,7 @@ export function InstallApp() {
                 .
               </li>
               <li>
-                Tap <b>Add</b> (top right). Get Sendy is now on your home screen.
+                Tap <b>Add</b> (top right). getSendy! is now on your home screen.
               </li>
             </ol>
           ) : (
@@ -122,7 +122,7 @@ export function InstallApp() {
                 Tap <b>Install app</b> or <b>Add to Home screen</b>.
               </li>
               <li>
-                Tap <b>Install</b>. Get Sendy is now on your home screen.
+                Tap <b>Install</b>. getSendy! is now on your home screen.
               </li>
             </ol>
           )}
