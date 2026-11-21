@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { MAX_TITLE, type Post } from './posts'
 import { getName, getProfile } from './me'
+import { Popup } from './Popup'
 import { Profile } from './Profile'
+import { saveClip } from './share-video'
 import { deleteDraft, isMine, loadDraft, loadPosts, samplePosts, savePost, type Draft } from './store'
 import { Tabs } from './Tabs'
 
@@ -18,6 +20,7 @@ export function Results() {
   const [draft, setDraft] = useState<Draft | null | undefined>(isDemo ? DEMO : undefined) // undefined = loading
   const [all, setAll] = useState<Post[]>([])
   const [title, setTitle] = useState('')
+  const [needTitle, setNeedTitle] = useState(false) // "Must title chug before post" pop-up
   const [desc, setDesc] = useState('')
   const [posting, setPosting] = useState(false)
 
@@ -50,7 +53,7 @@ export function Results() {
   async function post() {
     if (!draft) return
     if (!getProfile()) return alert('Make your profile first: tap your name at the top.')
-    if (!title.trim()) return
+    if (!title.trim()) return setNeedTitle(true)
     setPosting(true)
     try {
       await savePost({
@@ -117,14 +120,31 @@ export function Results() {
           onChange={(e) => setDesc(e.target.value)}
         />
         <div className="count">{desc.length} / {MAX_DESC}</div>
-        <button className="btn primary" onClick={post} disabled={posting || !title.trim()}>
-          {posting ? 'Posting…' : title.trim() ? 'Post to feed' : 'Name it to post'}
+        <button className="btn primary" onClick={post} disabled={posting}>
+          {posting ? 'Posting…' : 'Post'}
         </button>
 
         {/* Small and quiet on purpose: Post is the one main action. */}
-        <button className="delete-run" onClick={retake}>
-          Delete
-        </button>
+        <div className="result-foot">
+          {draft.clip ? (
+            <button className="small-link" onClick={() => saveClip(draft.clip!, title)}>
+              Save
+            </button>
+          ) : (
+            <span />
+          )}
+          <button className="small-link" onClick={retake}>
+            Delete
+          </button>
+        </div>
+
+        {needTitle && (
+          <Popup title="Must title chug before post" onClose={() => setNeedTitle(false)}>
+            <button className="btn primary popup-ok" onClick={() => setNeedTitle(false)}>
+              OK
+            </button>
+          </Popup>
+        )}
       </section>
     </main>
   )

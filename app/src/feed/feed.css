@@ -37,8 +37,8 @@ body { margin: 0; font-family: system-ui, sans-serif; background: #111; color: #
 .result video, .result .no-video { border-radius: 8px; }
 .desc-input { width: 100%; padding: 10px; border: 1px solid #444; border-radius: 8px; background: #111; color: #eee; font: inherit; resize: vertical; }
 .count { align-self: flex-end; margin-top: -6px; font-size: 12px; color: #888; }
-.btn { flex: 1; display: block; padding: 12px; border: 0; border-radius: 10px; background: #2a2a2a; color: #eee; font: inherit; font-weight: 700; text-decoration: none; cursor: pointer; }
-.btn.primary { background: #f5b400; color: #111; font-size: 18px; }
+.btn { flex: 1; display: block; padding: 10px; border: 0; border-radius: 10px; background: #2a2a2a; color: #eee; font: inherit; font-weight: 700; text-decoration: none; cursor: pointer; }
+.btn.primary { background: #f5b400; color: #111; font-size: 16px; }
 .row { display: flex; gap: 8px; }
 
 /* Leaderboard */
@@ -144,9 +144,10 @@ body:has(.reels) { overflow: hidden; }
 .reel-desc { margin: 6px 0 0; font-size: 14px; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 
 /* Action buttons down the right side */
-.reel-actions { position: absolute; right: 8px; bottom: 24px; z-index: 2; display: flex; flex-direction: column; align-items: center; gap: 16px; }
-.action { display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 52px; padding: 0; border: 0; background: none; color: #fff; font-size: 12px; font-weight: 600; text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7); cursor: pointer; }
-.action-icon { width: 46px; height: 46px; display: grid; place-items: center; border-radius: 50%; background: rgba(0, 0, 0, 0.35); font-size: 24px; }
+.reel-actions { position: absolute; right: 8px; bottom: 20px; z-index: 2; display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.action { display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 48px; padding: 0; border: 0; background: none; color: #fff; font-size: 11px; font-weight: 600; text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7); cursor: pointer; }
+.action-icon { width: 38px; height: 38px; display: grid; place-items: center; border-radius: 50%; background: rgba(0, 0, 0, 0.35); font-size: 20px; }
+.action-icon svg { width: 21px; height: 21px; }
 .action.on .action-icon { background: rgba(245, 180, 0, 0.85); }
 .action.delete { padding: 6px 10px; border-radius: 999px; background: rgba(0, 0, 0, 0.45); color: #f88; }
 .reel-message { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 24px; text-align: center; color: #aaa; }
@@ -201,7 +202,7 @@ body:has(.reels) { overflow: hidden; }
 .sheet-form button:disabled { opacity: 0.4; }
 
 /* "Record a chug": top-left over the feed, and under Save on your profile */
-.record-btn { position: fixed; z-index: 15; top: calc(12px + env(safe-area-inset-top)); left: max(12px, calc(50% - 240px + 12px)); padding: 8px 14px; border-radius: 999px; background: #f5b400; color: #111; font-size: 14px; font-weight: 800; text-decoration: none; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4); }
+.record-btn { position: fixed; z-index: 15; top: calc(12px + env(safe-area-inset-top)); left: max(12px, calc(50% - 240px + 12px)); padding: 6px 12px; border-radius: 999px; background: #f5b400; color: #111; font-size: 13px; font-weight: 800; text-decoration: none; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4); }
 .record-cta { text-align: center; }
 
 /* Pages only scroll up/down; sideways swipes are ours (src/feed/swipeNav.ts). */
@@ -218,9 +219,11 @@ body { min-height: 100dvh; }
 .board-switch { text-align: center; }
 .board-title { margin: 4px 0 0; font-size: 20px; text-align: center; }
 
-/* Results: small white "Delete" under the Post button */
-.delete-run { align-self: center; margin-top: 4px; padding: 6px 12px; border: 0; background: none; color: #fff; font-size: 14px; font-weight: 600; opacity: 0.8; cursor: pointer; }
-.delete-run:hover { opacity: 1; text-decoration: underline; }
+/* Results: small white "Save" (bottom left) and "Delete" (bottom right) under Post */
+.result-foot { display: flex; justify-content: space-between; align-items: center; }
+.small-link { padding: 6px 4px; border: 0; background: none; color: #fff; font-size: 14px; font-weight: 600; opacity: 0.8; cursor: pointer; }
+.small-link:hover { opacity: 1; text-decoration: underline; }
+.popup-ok { margin: 16px; }
 
 /* Outline icons in the action buttons, with a count badge (comments) */
 .action-icon { position: relative; color: #fff; }
