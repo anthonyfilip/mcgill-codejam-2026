@@ -28,3 +28,4 @@ Chug_Examples/
 
 # Playwright MCP scratch output
 .playwright-mcp/
+supabase/.temp/

@@ -153,8 +153,12 @@ export async function loadPosts(): Promise<Post[]> {
 
 export async function deletePost(post: Post): Promise<void> {
   if (!supabase) return write(POSTS, (s) => s.delete(post.id))
-  const { error } = await supabase.from('posts').delete().eq('id', post.id)
+  // Only the poster can delete: the database checks this browser's profile secret.
+  const me = getProfile()
+  if (!me) throw new Error('not your post')
+  const { error } = await supabase.rpc('delete_post', { p_post_id: post.id, p_profile_id: me.id, p_secret: me.secret })
   if (error) throw error
+  // The clip is only deletable now that its post is gone.
   if (post.videoPath) await supabase.storage.from(BUCKET).remove([post.videoPath])
   removeMyPost(post.id)
 }
@@ -233,7 +237,7 @@ export async function loadComments(): Promise<Comment[]> {
     const comments = await read<Comment[]>(COMMENTS, (s) => s.getAll())
     return comments.sort((a, b) => a.createdAt - b.createdAt)
   }
-  const { data, error } = await supabase.from('comments').select('*, profiles(username)').order('created_at')
+  const { data, error } = await supabase.from('comments').select('*, profiles!comments_profile_id_fkey(username)').order('created_at')
   if (error) throw error
   return (data as CommentRow[]).map((r) => ({
     id: r.id,

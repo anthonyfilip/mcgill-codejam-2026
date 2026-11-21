@@ -1,6 +1,7 @@
 -- Run in Supabase: Dashboard → SQL Editor → New query → paste this → Run.
 -- Safe to run again after changes: it only adds what's missing.
--- Shared feed: anyone with the site can view, post, cheer and delete (no logins yet).
+-- Shared feed: anyone with the site can view, post, comment, rate and cheer (no logins yet).
+-- Only the poster can delete their post (delete_post() checks the secret in their browser).
 
 -- Profiles: one per browser (no passwords yet). Usernames are unique, lowercase,
 -- letters/numbers/_/. only. Visitors can read profiles but only change them through
@@ -64,8 +65,8 @@ drop policy if exists "anyone can read posts" on public.posts;
 create policy "anyone can read posts"   on public.posts for select using (true);
 drop policy if exists "anyone can add posts" on public.posts;
 create policy "anyone can add posts"    on public.posts for insert with check (true);
+-- No delete policy: posts are deleted only through delete_post() below.
 drop policy if exists "anyone can delete posts" on public.posts;
-create policy "anyone can delete posts" on public.posts for delete using (true);
 
 -- Cheers go through this function so visitors can't edit any other column.
 create or replace function public.cheer(post_id uuid, delta integer)
@@ -87,8 +88,11 @@ drop policy if exists "anyone can read clips" on storage.objects;
 create policy "anyone can read clips"   on storage.objects for select using (bucket_id = 'clips');
 drop policy if exists "anyone can upload clips" on storage.objects;
 create policy "anyone can upload clips" on storage.objects for insert with check (bucket_id = 'clips');
+-- A clip can only be deleted once its post is gone (delete_post() runs first).
 drop policy if exists "anyone can delete clips" on storage.objects;
-create policy "anyone can delete clips" on storage.objects for delete using (bucket_id = 'clips');
+drop policy if exists "delete clips of deleted posts" on storage.objects;
+create policy "delete clips of deleted posts" on storage.objects for delete
+  using (bucket_id = 'clips' and not exists (select 1 from public.posts where video_path = name));
 
 -- Comments on posts. Deleting a post deletes its comments.
 create table if not exists public.comments (
@@ -158,3 +162,32 @@ begin
 end;
 $$;
 grant execute on function public.rate_post(uuid, uuid, uuid, integer) to anon, authenticated;
+
+-- Table access for the website (newer Supabase projects don't grant this by default).
+-- Row level security above still decides which rows; these decide which actions.
+grant usage on schema public to anon, authenticated;
+grant select                 on public.profiles to anon, authenticated;
+grant select, insert         on public.posts    to anon, authenticated;
+revoke delete                on public.posts    from anon, authenticated;
+grant select, insert         on public.comments to anon, authenticated;
+grant select                 on public.ratings  to anon, authenticated;
+-- profile_secrets: deliberately no grants.
+
+-- Delete your own post (and, via cascade, its comments and ratings).
+create or replace function public.delete_post(p_post_id uuid, p_profile_id uuid, p_secret uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if not exists (select 1 from profile_secrets where profile_id = p_profile_id and secret = p_secret) then
+    raise exception 'not your profile';
+  end if;
+  delete from posts where id = p_post_id and profile_id = p_profile_id;
+  if not found then
+    raise exception 'not your post';
+  end if;
+end;
+$$;
+grant execute on function public.delete_post(uuid, uuid, uuid) to anon, authenticated;
