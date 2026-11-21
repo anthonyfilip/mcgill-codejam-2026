@@ -9,7 +9,8 @@ import { handAngles, nearestHand, toPx } from "../detect/angles.ts";
 const CONFIG = {
   windowMs: 1500,          // how long a signal light stays on after it fires (display only)
   // Start rule: the can must be at the mouth FIRST, then the crack — the order of a real shotgun.
-  mouthHoldMs: 300,        // can at the mouth at least this long before a crack counts
+  crackGraceMs: 600,       // a crack counts with the can at the mouth, or up to this long BEFORE it gets there
+                           // (people lift and crack almost at once — live test: crack 0.2 s after reaching the mouth)
   gapMs: 250,              // tracking dropouts shorter than this don't count as "left the mouth"
   visualStartMs: 800,      // fallback if no crack is heard: can at mouth AND tipped for this long
   // End rule: the 🤙 confirms the end, but the time stops when the can last left the mouth.
@@ -18,7 +19,7 @@ const CONFIG = {
   crackMinRms: 0.02,       // ...and at least this loud in absolute terms
   crackHighFreqShare: 0.45,// share of spectral energy above crackHighFreqHz
   crackHighFreqHz: 3000,
-  angleDeg: 35,            // forearm tilt from vertical that counts as "can tipped" (live: drinking ≈ 40–47°)
+  angleDeg: 28,            // forearm tilt from vertical that counts as "can tipped" (live: close ≈ 40–47°, at 2–3 m ≈ 29–39°)
   mouthDist: 0.6,          // wrist-to-mouth distance, in body-scale units
   sendHoldMs: 300,         // how long the 🤙 "send it" (shaka) must be held
   sendAboveHead: false,    // false = a shaka anywhere in frame ends the run (true = must be above the nose)
@@ -167,13 +168,16 @@ function checkCrack() {
   const highShare = total > 0 ? high / total : 0;
 
   const isCrack = rms > CONFIG.crackMinRms && rms > bgRms * CONFIG.crackRatio && highShare > CONFIG.crackHighFreqShare;
-  if (isCrack && state === "armed") {
-    const now = performance.now();
-    seen.crack = now;
-    // Sequence rule: a crack only starts the run if the can was ALREADY at the mouth.
-    // A crack with the can elsewhere (or someone else's can) is ignored.
-    if (mouthHeldMs(now) >= CONFIG.mouthHoldMs) startRun(now, ["can at mouth", "crack"]);
-    else live.ignoredCrack = now;
+  const t = performance.now();
+  if (isCrack && state === "armed" && t - seen.crack > 150) { // one crack = one event, not every 20 ms poll
+    seen.crack = t;
+    // Sequence rule: the crack must happen with the can at the mouth. A crack with the can
+    // elsewhere (or someone else's can) is ignored — unless the can reaches the mouth within
+    // crackGraceMs AFTER it (checked in loop()), since people lift and crack almost at once.
+    const atMouthNow = mouthHeldMs(t) > 0;
+    live.crackLog = [{ t, rms, ratio: rms / bgRms, high: highShare, atMouth: atMouthNow }, ...(live.crackLog ?? [])].slice(0, 5);
+    if (atMouthNow) startRun(t, ["can at mouth", "crack"]);
+    else live.ignoredCrack = t;
   }
   // Only learn the background from non-spikes.
   if (rms < bgRms * 2) bgRms = bgRms * 0.98 + rms * 0.02;
@@ -338,6 +342,12 @@ function loop() {
     if (tipped) seen.angle = now;
   }
 
+  // Crack slightly BEFORE the can reached the mouth: start at the crack time.
+  if (state === "armed" && atMouth && track.mouthSince !== null &&
+      track.mouthSince - seen.crack >= 0 && track.mouthSince - seen.crack <= CONFIG.crackGraceMs) {
+    startRun(seen.crack, ["crack", "can at mouth right after"]);
+  }
+
   // Start (main path) happens in checkCrack: can at mouth, THEN crack.
   // Fallback when no crack is heard (quiet mic, loud room): can at the mouth AND tipped,
   // together for visualStartMs. The clock is back-dated to when both became true.
@@ -400,8 +410,9 @@ function loop() {
     `audio rms ${live.rms?.toFixed(3)} bg ${live.bgRms?.toFixed(3)} (×${(live.rms / live.bgRms).toFixed(1)}) high ${live.highShare?.toFixed(2)}\n` +
     `angle ${p?.angle?.toFixed(0) ?? "-"}°  mouth ${p?.mouthDist?.toFixed(2) ?? "-"}\n` +
     `drinking hand: ${ang ? `arm ${ang.arm?.toFixed(0) ?? "-"}° · hand ${ang.hand.toFixed(0)}° · wrist bend ${ang.wristFlex?.toFixed(0) ?? "-"}° · can ~${ang.can.toFixed(0)}° from upright` : "not matched"}\n` +
-    `at mouth for ${(mouthHeldMs(now) / 1000).toFixed(1)}s (need ${CONFIG.mouthHoldMs / 1000}s before crack)` +
+    `at mouth for ${(mouthHeldMs(now) / 1000).toFixed(1)}s` +
     `${now - (live.ignoredCrack ?? -Infinity) < 2000 ? "  · crack IGNORED (can not at mouth)" : ""}\n` +
+    `cracks heard: ${(live.crackLog ?? []).map((c) => `${((now - c.t) / 1000).toFixed(1)}s ago rms ${c.rms.toFixed(3)} high ${c.high.toFixed(2)}${c.atMouth ? " @mouth" : ""}`).join(" · ") || "none"}\n` +
     `hand ${fingerText(live.fingers)}  🤙 ${send ? "YES" : "no"}`;
 
   requestAnimationFrame(loop);
