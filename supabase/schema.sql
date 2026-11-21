@@ -118,3 +118,38 @@ drop policy if exists "anyone can read avatars" on storage.objects;
 create policy "anyone can read avatars"   on storage.objects for select using (bucket_id = 'avatars');
 drop policy if exists "anyone can upload avatars" on storage.objects;
 create policy "anyone can upload avatars" on storage.objects for insert with check (bucket_id = 'avatars');
+
+-- Spill ratings: 1 (clean) to 5 (soaked), one per person per post, changeable.
+-- Saved through rate_spill(), which checks the rater's secret and blocks rating your own post.
+create table if not exists public.spill_ratings (
+  post_id    uuid not null references public.posts (id) on delete cascade,
+  profile_id uuid not null references public.profiles (id) on delete cascade,
+  stars      smallint not null check (stars between 1 and 5),
+  created_at timestamptz not null default now(),
+  primary key (post_id, profile_id)
+);
+
+alter table public.spill_ratings enable row level security;
+
+drop policy if exists "anyone can read spill ratings" on public.spill_ratings;
+create policy "anyone can read spill ratings" on public.spill_ratings for select using (true);
+
+create or replace function public.rate_spill(p_post_id uuid, p_profile_id uuid, p_secret uuid, p_stars integer)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if not exists (select 1 from profile_secrets where profile_id = p_profile_id and secret = p_secret) then
+    raise exception 'not your profile';
+  end if;
+  if exists (select 1 from posts where id = p_post_id and profile_id = p_profile_id) then
+    raise exception 'you can''t rate your own post';
+  end if;
+  insert into spill_ratings (post_id, profile_id, stars)
+  values (p_post_id, p_profile_id, p_stars)
+  on conflict (post_id, profile_id) do update set stars = excluded.stars, created_at = now();
+end;
+$$;
+grant execute on function public.rate_spill(uuid, uuid, uuid, integer) to anon, authenticated;

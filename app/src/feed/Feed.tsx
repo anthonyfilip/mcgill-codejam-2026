@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Avatar } from './Avatar'
 import { getName, getProfile, hasCheered, setCheered as rememberCheer } from './me'
-import { MAX_COMMENT, type Comment, type Post } from './posts'
+import { MAX_COMMENT, type Comment, type Post, type SpillRating } from './posts'
 import { Profile } from './Profile'
-import { addComment, cheer, deletePost, isMine, loadComments, loadPosts, samplePosts } from './store'
+import { SpillStars } from './SpillStars'
+import { addComment, cheer, deletePost, isMine, loadComments, loadPosts, loadRatings, rateSpill, samplePosts } from './store'
 import { Tabs } from './Tabs'
 
 function timeAgo(ms: number) {
@@ -13,7 +14,15 @@ function timeAgo(ms: number) {
   return `${Math.round(min / 60)}h ago`
 }
 
-function Comments({ comments, onAdd }: { comments: Comment[]; onAdd: (body: string) => Promise<void> }) {
+function Comments({
+  comments,
+  onAdd,
+  justRated,
+}: {
+  comments: Comment[]
+  onAdd: (body: string) => Promise<void>
+  justRated: boolean // opened by a spill rating: focus the box and ask why
+}) {
   const [text, setText] = useState('')
   const [sending, setSending] = useState(false)
 
@@ -43,7 +52,8 @@ function Comments({ comments, onAdd }: { comments: Comment[]; onAdd: (body: stri
         <input
           value={text}
           maxLength={MAX_COMMENT}
-          placeholder="Add a comment…"
+          placeholder={justRated ? 'Rated! Say why…' : 'Add a comment…'}
+          autoFocus={justRated}
           onChange={(e) => setText(e.target.value)}
         />
         <button disabled={sending || !text.trim()}>Send</button>
@@ -56,15 +66,34 @@ function Comments({ comments, onAdd }: { comments: Comment[]; onAdd: (body: stri
 function PostCard({
   post,
   comments,
+  ratings,
+  canRate,
+  onRate,
   onComment,
   onDelete,
 }: {
   post: Post
   comments: Comment[]
+  ratings: SpillRating[]
+  canRate: boolean
+  onRate: (stars: number) => Promise<void>
   onComment: (body: string) => Promise<void>
   onDelete?: () => void
 }) {
   const [showComments, setShowComments] = useState(false)
+  const [justRated, setJustRated] = useState(false)
+  const myStars = ratings.find((r) => r.profileId === getProfile()?.id)?.stars ?? null
+
+  // Rating opens the comments so you can add why.
+  async function rate(stars: number) {
+    try {
+      await onRate(stars)
+      setJustRated(true)
+      setShowComments(true)
+    } catch (e) {
+      alert(`Couldn't rate: ${(e as Error).message}`)
+    }
+  }
   const [cheered, setCheered] = useState(() => hasCheered(post.id))
   const [count, setCount] = useState(post.cheers)
   const videoUrl = useMemo(() => post.videoUrl ?? (post.clip ? URL.createObjectURL(post.clip) : null), [post])
@@ -101,16 +130,24 @@ function PostCard({
 
       {post.description && <p className="desc">{post.description}</p>}
 
+      <SpillStars ratings={ratings} myStars={myStars} canRate={canRate} onRate={rate} />
+
       <div className="actions">
         <button className={cheered ? 'cheer on' : 'cheer'} onClick={toggleCheer}>
           🍻 {count}
         </button>
-        <button className={showComments ? 'cheer on' : 'cheer'} onClick={() => setShowComments(!showComments)}>
+        <button
+          className={showComments ? 'cheer on' : 'cheer'}
+          onClick={() => {
+            setShowComments(!showComments)
+            setJustRated(false)
+          }}
+        >
           💬 {comments.length}
         </button>
       </div>
 
-      {showComments && <Comments comments={comments} onAdd={onComment} />}
+      {showComments && <Comments comments={comments} onAdd={onComment} justRated={justRated} />}
     </article>
   )
 }
@@ -119,6 +156,7 @@ export function Feed() {
   // Everyone's posts, newest first (in the local feed: yours, then the samples).
   const [posts, setPosts] = useState<Post[]>([])
   const [comments, setComments] = useState<Comment[]>([])
+  const [ratings, setRatings] = useState<SpillRating[]>([])
   const [error, setError] = useState('')
 
   useEffect(() => {
@@ -126,6 +164,7 @@ export function Feed() {
       .then(setPosts)
       .catch((e) => setError(`Couldn't load the feed: ${e.message}`))
     loadComments().then(setComments).catch(console.error)
+    loadRatings().then(setRatings).catch(console.error)
   }, [])
 
   async function comment(post: Post, body: string) {
@@ -135,13 +174,22 @@ export function Feed() {
     setComments((all) => [...all, c])
   }
 
-  const card = (p: Post, canDelete: boolean) => (
+  async function rate(post: Post, stars: number) {
+    const r = await rateSpill(post.id, stars)
+    setRatings((all) => [...all.filter((x) => x.id !== r.id), r])
+  }
+
+  // Your own posts: you can delete them but not rate them.
+  const card = (p: Post, mine: boolean) => (
     <PostCard
       key={p.id}
       post={p}
       comments={comments.filter((c) => c.postId === p.id)}
+      ratings={ratings.filter((r) => r.postId === p.id)}
+      canRate={!mine}
+      onRate={(stars) => rate(p, stars)}
       onComment={(body) => comment(p, body)}
-      onDelete={canDelete ? () => remove(p) : undefined}
+      onDelete={mine ? () => remove(p) : undefined}
     />
   )
 

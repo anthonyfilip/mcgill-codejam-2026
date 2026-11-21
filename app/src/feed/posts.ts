@@ -26,6 +26,14 @@ export type Comment = {
 
 export const MAX_COMMENT = 200
 
+// One person's spill rating of a post: 1 = clean ... 5 = soaked.
+export type SpillRating = {
+  id: string // `${postId}:${profileId}`: one rating per person per post
+  postId: string
+  profileId: string
+  stars: number
+}
+
 const minutesAgo = (m: number) => Date.now() - m * 60_000
 
 // Placeholder posts for the local (no Supabase) feed. No videos: the real test clips are
