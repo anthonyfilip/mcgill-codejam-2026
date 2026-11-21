@@ -46,6 +46,16 @@ body {
   padding: 6px 10px;
 }
 
+.timecode {
+  justify-content: center;
+}
+
+.timecode strong {
+  font-variant-numeric: tabular-nums;
+  min-width: 70px;
+  text-align: center;
+}
+
 .label-info {
   font-size: 13px;
   color: #495057;

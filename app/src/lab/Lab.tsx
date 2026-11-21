@@ -106,6 +106,13 @@ export function Lab() {
     await video.play()
   }
 
+  const step = (seconds: number) => {
+    const video = videoRef.current
+    if (!video) return
+    video.pause()
+    video.currentTime = Math.min(Math.max(0, video.currentTime + seconds), video.duration || 0)
+  }
+
   const downloadCsv = () => {
     const blob = new Blob([signalsToCsv(rows)], { type: 'text/csv' })
     const a = document.createElement('a')
@@ -161,8 +168,19 @@ export function Lab() {
           controls
           playsInline
           onLoadedMetadata={(e) => setDuration(e.currentTarget.duration)}
+          onTimeUpdate={(e) => setTime(e.currentTarget.currentTime)}
+          onSeeked={(e) => setTime(e.currentTarget.currentTime)}
         />
         <canvas ref={overlayRef} className="overlay" />
+      </div>
+
+      {/* Labelling helper: pause, step to the exact frame, read the time into labels.csv */}
+      <div className="controls timecode">
+        <button onClick={() => step(-1)}>−1 s</button>
+        <button onClick={() => step(-0.1)}>−0.1 s</button>
+        <strong>{time.toFixed(2)} s</strong>
+        <button onClick={() => step(0.1)}>+0.1 s</button>
+        <button onClick={() => step(1)}>+1 s</button>
       </div>
 
       <SignalChart
