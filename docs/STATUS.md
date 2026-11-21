@@ -1,64 +1,54 @@
 # Status
 
-Hackathon started Fri 19:00 · submission ~Sun 07:00 (confirm) · demo with a Celsius can.
+Updated Sat 2026-11-21 ~01:00 · submission ~Sun 07:00 (confirm) · demo with a Celsius can.
+Tomorrow's plan: [TODO.md](TODO.md).
 
 ## Demo path (the one flow that must work for judges)
-1. Drinker steps in front of the camera holding a Celsius can; the app shows "Ready" once it sees them.
-2. Tab pops → timer starts on its own.
-3. Can is empty / lowered → timer stops on its own.
-4. Results screen: time, form score, short replay.
-5. Name goes onto the leaderboard (individual + school vs school tabs).
-6. Show accuracy: "within X s of the hand-labelled time on 18 real clips."
+1. Drinker stands ~2 m back, head + shoulders + elbows in frame, Celsius can in hand.
+2. Press **GET SENDY!** → crack the can at the mouth → timer starts on its own.
+3. Drink, lower the can, flash a 🤙 → timer stops (back-dated to when the can left the mouth).
+4. Results page: time, replay, personal best, rank → name the run → post.
+5. Feed shows it (rate ★, comment) → Leaderboard ranks it.
+6. Accuracy slide: "finish within 0.4 s of frame-by-frame timing on real videos."
 
 Backup: a recorded run of the full demo, in case the live camera fails on stage.
 
-## Plan by phase
-- [ ] **Hours 3–10 — Detection lab (riskiest part first):** page that plays a clip from
-      `Chug_Examples`, draws MediaPipe pose/hands/face, and graphs wrist-to-mouth distance,
-      head tilt and audio loudness against the labelled start/end.
-- [ ] **Hours 10–16 — Start/stop rules:** turn those signals into automatic start/stop;
-      score every clip against `labels.csv`.
-- [ ] **Hours 16–20 — Live mode:** same detection on the webcam + mic.
-- [ ] **Hours 20–26 — Results + leaderboard:** results screen, Supabase table, school tab.
-- [ ] **Hours 26–31 — Polish:** Celsius branding, replay clip, form score.
-- [ ] **Hours 31–36 — Ship:** deploy, backup video, Devpost writeup, rehearse pitch.
+## Working (end-to-end tested Sat ~01:00)
+- Water-bottle run on Anthony's laptop: tracker → results → posted (5.54 s) → in Supabase with
+  its clip → shared feed → leaderboard. Lana's profile is on the same database.
+- **Tracker:** HD webcam, full pose model, zoomed wrist crops (works ~2–3 m back), hand skeleton
+  overlay, debug panel (person size, crack score, finger readings).
+- **Start:** crack with the can at the mouth (or up to 1 s before it gets there); fallback = can
+  at mouth + hand raised for 0.8 s, back-dated. Cracks with the can elsewhere are ignored.
+- **End:** 🤙 shaka anywhere in frame (3D finger bends; works back-of-hand too), no hold — one frame ends it; refused
+  while the can is still at the mouth; time = last moment the can was at the mouth.
+- **Crack detector:** sudden bright jump vs the previous 0.5 s. Real Monster crack at ~2 m on the
+  laptop mic scored in the thousands (threshold 4); 0 false cracks in a noisy no-crack recording.
+- **Accuracy (lab, 18 labelled clips):** single-person — start 8/8, avg error 0.64 s (5/8 within
+  ±0.5 s); end 8/8, avg error 0.40 s (6/8 within ±0.5 s). All clips: 17/18 found.
+- **Feed side (Lana):** results page (PB, rank, retake, name + description), shared feed with
+  clips, ★ ratings (final once given), comments, profiles (username + photo), leaderboard (★3.5+
+  first, then fastest), only the poster can delete their post.
+- **Docs:** README, Devpost draft (`docs/DEVPOST.md`), this file, architecture, CLAUDE.md.
 
-## Done
-- Repo, CLAUDE.md, MCP servers (playwright, context7), `/demo-check` skill.
-- 18 example clips collected and renamed; `labels.csv` created.
+## Not yet verified
+- A **real can** cracked live in the tracker (the bottle-crush test started from the fallback).
+- The app on **Lana's laptop** end to end, and each of you seeing the other's posts.
+- Anything deployed / on a phone / over HTTPS.
 
-- Detection lab (`app/src/lab/`): pick a clip, Analyse → pose + hands overlay, six signal
-  graphs vs labelled start/end, "Download signals CSV". Runs ~8 frames/s with both models.
+## Known issues / limits
+- Groups: the tracker follows the most prominent person, not necessarily the drinker (multi-person
+  clips: end error 1.2 s). Audio can't tell two people apart.
+- ~Half the phone clips have an inaudible crack → those start from the fallback (a bit late).
+- Live rules (`src/live/app.js`) and the lab's mirror (`src/detect/rules.ts`) are separate copies —
+  keep thresholds in sync by hand.
+- Profiles have no passwords; a profile belongs to the browser that made it.
+- `Chug_Examples/` (clips, labels, analysis) exists only on Anthony's laptop — not backed up.
+- Lana's branch `fix-local-profile-upload` (upload profiles made before Supabase) is not merged yet.
 
-- Live tracker (Lana): webcam + mic, auto-start on 2 of 3 signals (crack / arm angle /
-  wrist at mouth), 🤘 to end, results with time + angles + replay clip. Main page of the app.
-  Not yet tested against the labelled clips.
-
-- Accuracy scoring (lab → "Analyse all clips & score"): all 18 clips labelled and analysed;
-  rules in `app/src/detect/rules.ts` mirror the live tracker. Tuned mouthDist 0.6→0.8 and
-  dropped the arm-angle requirement. Single-person clips: start found 8/8, avg error 1.0 s;
-  end found 8/8, avg error 0.40 s (6/8 within ±0.5 s). All clips: 17/18 found.
-  Weak spots: crack only detected in 3 clips (others start from the mouth fallback → late),
-  clip 05 false start from party noise, clip 11 person's arm never found.
-- New crack detector (sudden bright jump vs the previous 0.5 s; `app/src/detect/cracks.ts`,
-  same maths live). 8 runs now start on the crack, all within 0.5 s; 0 false cracks in a
-  live no-crack room recording; real Monster crack at ~2 m on the laptop mic = huge score.
-  Single-person clips: start error 1.00 → 0.64 s (5/8 within ±0.5 s), end 0.40 s.
-  ~9/18 phone clips have an inaudible crack → those still start from the mouth fallback.
-
-## In progress
-- Filling in start/end times in `Chug_Examples/labels.csv` (team) — needed before tuning.
-- Next: run every clip through the lab, look at what the signals do at the labelled
-  start/end, then write the start/stop rules in `app/src/detect/`.
-
-## Next / cut list (drop from the bottom if time runs out)
-- Form score
-- Replay clip on the results screen
-- School vs school tab
+## Cut list (drop from the bottom if time runs out)
+- Verified badge + sanity checks (left frame, impossible times)
+- Follow the person whose hand is at the mouth (groups)
+- School vs school leaderboard
 - Two-person race mode (split frame)
-- Comments / ratings / reviews
-- Spillage detection
-- Other games (boat races, beer die)
-
-## Known issues
-- Audio can't tell two people apart; with several people in frame the camera decides who's timed.
+- Spillage detection, other games
