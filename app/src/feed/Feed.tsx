@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { SAMPLE_POSTS, type Post } from './posts'
 import { Profile } from './Profile'
-import { loadPosts } from './store'
+import { deletePost, loadPosts } from './store'
 import { Tabs } from './Tabs'
 
 function timeAgo(ms: number) {
@@ -11,7 +11,8 @@ function timeAgo(ms: number) {
   return `${Math.round(min / 60)}h ago`
 }
 
-function PostCard({ post }: { post: Post }) {
+// onDelete is only passed for your own posts.
+function PostCard({ post, onDelete }: { post: Post; onDelete?: () => void }) {
   const [cheered, setCheered] = useState(false)
   const videoUrl = useMemo(() => (post.clip ? URL.createObjectURL(post.clip) : null), [post.clip])
   return (
@@ -20,6 +21,11 @@ function PostCard({ post }: { post: Post }) {
         <span className="avatar">{post.user[0].toUpperCase()}</span>
         <b>{post.user}</b>
         <span className="when">{timeAgo(post.postedAt)}</span>
+        {onDelete && (
+          <button className="delete" onClick={onDelete} title="Delete post">
+            🗑
+          </button>
+        )}
       </header>
 
       {videoUrl ? (
@@ -42,19 +48,28 @@ function PostCard({ post }: { post: Post }) {
 }
 
 export function Feed() {
-  const [posts, setPosts] = useState<Post[]>(SAMPLE_POSTS)
+  // Your posts (saved in this browser), newest first, shown above the samples.
+  const [mine, setMine] = useState<Post[]>([])
 
-  // Runs posted from the tracker's results card, newest first, above the samples.
   useEffect(() => {
-    loadPosts().then((saved) => setPosts([...saved, ...SAMPLE_POSTS]))
+    loadPosts().then(setMine)
   }, [])
+
+  async function remove(post: Post) {
+    if (!confirm('Delete this post?')) return
+    await deletePost(post.id)
+    setMine(mine.filter((p) => p.id !== post.id))
+  }
 
   return (
     <main className="feed">
       <Tabs active="/feed.html" />
-      <Profile />
+      <Profile mine={mine} />
 
-      {posts.map((p) => (
+      {mine.map((p) => (
+        <PostCard key={p.id} post={p} onDelete={() => remove(p)} />
+      ))}
+      {SAMPLE_POSTS.map((p) => (
         <PostCard key={p.id} post={p} />
       ))}
     </main>

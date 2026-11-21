@@ -62,10 +62,17 @@ export function Results() {
     setPosted(true)
   }
 
+  // Throw this run away and go back to the tracker.
+  async function retake() {
+    if (!draft) return
+    if (draft.id !== 'demo') await deleteDraft(draft.id)
+    location.href = '/'
+  }
+
   return (
     <main className="feed">
       <Tabs />
-      <Profile />
+      <Profile mine={mine} />
 
       <section className="result">
         <div className="big-time">{secs(draft.timeMs)} s</div>
@@ -94,7 +101,11 @@ export function Results() {
         )}
 
         <div className="row">
-          <a className="btn" href="/">Go again</a>
+          {posted ? (
+            <a className="btn" href="/">Go again</a>
+          ) : (
+            <button className="btn" onClick={retake}>Retake</button>
+          )}
           {videoUrl && <a className="btn" href={videoUrl} download="shotgun.webm">Download</a>}
         </div>
       </section>

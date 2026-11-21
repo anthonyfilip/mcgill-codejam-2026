@@ -55,6 +55,8 @@ export async function loadPosts(): Promise<Post[]> {
   return posts.sort((a, b) => b.postedAt - a.postedAt)
 }
 
+export const deletePost = (id: string) => write(POSTS, (s) => s.delete(id))
+
 export const saveDraft = (draft: Draft) => write(DRAFTS, (s) => s.put(draft))
 export const loadDraft = (id: string) => read<Draft | undefined>(DRAFTS, (s) => s.get(id))
 export const deleteDraft = (id: string) => write(DRAFTS, (s) => s.delete(id))

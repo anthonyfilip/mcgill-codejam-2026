@@ -1,18 +1,13 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import type { Post } from './posts'
 import { getName, setName } from './name'
-import { loadPosts } from './store'
 
 const secs = (ms: number) => (ms / 1000).toFixed(2)
 
 // "Your profile" strip at the top of the feed, results and leaderboard pages.
-export function Profile() {
+// `mine` = your posted runs; the page passes them in so the stats update on post/delete.
+export function Profile({ mine }: { mine: Post[] }) {
   const [name, setLocalName] = useState(getName)
-  const [mine, setMine] = useState<Post[]>([])
-
-  useEffect(() => {
-    loadPosts().then(setMine)
-  }, [])
 
   function rename() {
     const next = prompt('Your name', name)?.trim().slice(0, 24)

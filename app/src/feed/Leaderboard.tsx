@@ -22,17 +22,18 @@ function rank(posts: Post[]): Row[] {
 const MEDALS = ['🥇', '🥈', '🥉']
 
 export function Leaderboard() {
-  const [rows, setRows] = useState<Row[]>(rank(SAMPLE_POSTS))
+  const [mine, setMine] = useState<Post[]>([])
+  const rows = rank([...mine, ...SAMPLE_POSTS])
   const me = getName()
 
   useEffect(() => {
-    loadPosts().then((mine) => setRows(rank([...mine, ...SAMPLE_POSTS])))
+    loadPosts().then(setMine)
   }, [])
 
   return (
     <main className="feed">
       <Tabs active="/leaderboard.html" />
-      <Profile />
+      <Profile mine={mine} />
 
       <ol className="board">
         {rows.map((r, i) => (
