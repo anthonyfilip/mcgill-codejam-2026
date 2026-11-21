@@ -32,11 +32,16 @@
     <section id="results" hidden>
       <h2>Results</h2>
       <p>Time: <b id="r-time"></b> s</p>
-      <p>Max angle: <b id="r-max"></b>° · Avg angle: <b id="r-avg"></b>°</p>
-      <p>Started by: <b id="r-by"></b></p>
+      <!-- Hidden, not removed: the tracker still writes these and would crash without them. -->
+      <p hidden>Max angle: <b id="r-max"></b>° · Avg angle: <b id="r-avg"></b>°</p>
+      <p hidden>Started by: <b id="r-by"></b></p>
       <video id="replay" controls playsinline></video>
       <a id="download" download>Download clip</a>
-      <button id="post-feed" hidden>Post to feed</button>
+      <div id="post-area" hidden>
+        <textarea id="post-desc" maxlength="300" rows="3" placeholder="Say something about this one…"></textarea>
+        <div id="post-count">0 / 300</div>
+        <button id="post-feed">Post to feed</button>
+      </div>
     </section>
 
     <pre id="debug"></pre>

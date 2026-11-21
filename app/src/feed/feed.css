@@ -22,3 +22,4 @@ body { margin: 0; font-family: system-ui, sans-serif; background: #111; color: #
 
 .cheer { margin: 12px; padding: 8px 14px; border: 0; border-radius: 999px; background: #2a2a2a; color: #eee; font-size: 16px; cursor: pointer; }
 .cheer.on { background: #f5b400; color: #111; }
+.desc { margin: 8px 12px 0; white-space: pre-wrap; overflow-wrap: anywhere; }

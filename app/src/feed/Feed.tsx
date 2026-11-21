@@ -30,6 +30,8 @@ function PostCard({ post }: { post: Post }) {
         <span className="time">{(post.timeMs / 1000).toFixed(2)} s</span>
       </div>
 
+      {post.description && <p className="desc">{post.description}</p>}
+
       <button className={cheered ? 'cheer on' : 'cheer'} onClick={() => setCheered(!cheered)}>
         🍻 {post.cheers + (cheered ? 1 : 0)}
       </button>

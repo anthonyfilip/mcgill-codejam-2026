@@ -6,6 +6,7 @@ export type Post = {
   timeMs: number
   maxAngle: number | null
   startedBy: string[]
+  description?: string // up to 300 characters, written when posting
   clip: Blob | null
   cheers: number
 }
