@@ -33,9 +33,3 @@ body { min-height: 100dvh; }
 /* The tracker's own results box would flash up between the run and our results page. Keep it
    hidden; it only shows if handing the run to our results page fails (share.ts). */
 body:not(.handoff-failed) #results { display: none !important; }
-
-/* One-time iPhone tip on the camera: how to stop the camera prompts */
-.camera-tip { position: absolute; z-index: 4; left: 12px; right: 12px; top: calc(64px + env(safe-area-inset-top)); display: flex; flex-direction: column; gap: 4px; padding: 12px; border-radius: 12px; background: rgba(0, 0, 0, 0.8); color: #fff; font-size: 13px; }
-.camera-tip span { color: #ccc; }
-.camera-tip button { align-self: flex-end; width: auto; margin-top: 4px; padding: 6px 14px; border-radius: 999px; font-size: 13px; }
-
