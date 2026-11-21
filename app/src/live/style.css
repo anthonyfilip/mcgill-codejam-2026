@@ -15,8 +15,11 @@ html.record-fixed, html.record-fixed body { height: 100%; overflow: hidden; over
 #flip, #light { position: absolute; top: calc(12px + env(safe-area-inset-top)); left: 12px; z-index: 2; width: 44px; height: 44px; padding: 0; font-size: 22px; border-radius: 50%; background: rgba(0, 0, 0, 0.5); color: #fff; }
 #light { left: 64px; }
 #light.on { background: #f5b400; }
-/* Front-camera "ring light": the page around the camera view goes white while armed/running. */
+/* Front-camera "ring light" (light on, armed/running): the camera now fills the screen, so a white
+   page behind it no longer showed (Sat). Instead the camera view gets a thick white frame — like
+   Instagram's front flash — that lights the face; the picture shrinks inside it. */
 body.screen-light { background: #fff; }
+body.screen-light #stage { border: 36px solid #fff; border-top-width: calc(36px + env(safe-area-inset-top)); border-radius: 0; }
 /* The timer only shows once the chug has started (app.js setState → body.timing). */
 body:not(.timing) #timer { visibility: hidden; }
 #timer { position: absolute; top: calc(8px + env(safe-area-inset-top)); right: 16px; z-index: 2; font-size: 44px; font-weight: 700; font-variant-numeric: tabular-nums; text-shadow: 0 2px 6px #000; }
