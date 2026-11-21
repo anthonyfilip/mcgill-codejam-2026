@@ -1,0 +1,30 @@
+# Redeploy the live site (https://shotgun-tracker-xi.vercel.app) on every push to main,
+# whoever pushed. Needs one repo secret: VERCEL_TOKEN (Settings → Secrets and variables →
+# Actions), a token from vercel.com/account/tokens on the account that owns the project.
+name: Deploy to Vercel
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: # also allow a manual run from the Actions tab
+
+env:
+  # Not secret: they only name the Vercel team and project.
+  VERCEL_ORG_ID: team_tEENSma1OruqYGLTE6AjWeSR
+  VERCEL_PROJECT_ID: prj_lVt7e5NHzG7iSje0AyvlNgfvrTnD
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      # Pulls the project settings and the Supabase env vars stored in Vercel.
+      - run: npx --yes vercel@latest pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+      - run: npx --yes vercel@latest build --prod --token=${{ secrets.VERCEL_TOKEN }}
+      - run: npx --yes vercel@latest deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
