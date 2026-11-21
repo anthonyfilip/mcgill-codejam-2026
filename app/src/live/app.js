@@ -91,12 +91,13 @@ const ELBOW_L = 13, ELBOW_R = 14, WRIST_L = 15, WRIST_R = 16;
 
 const $ = (id) => document.getElementById(id);
 const video = $("video"), canvas = $("overlay"), ctx2d = canvas.getContext("2d");
+// The Crack / Angle / Mouth / 🤙 lights are gone everywhere (the dev debug readout has the same
+// readings). Hidden, not removed: share.ts puts the upload button after them.
+$("signals").style.display = "none";
 if (!DEV) {
   $("debug").remove();
   document.querySelector(".devlink")?.remove();
-  // No tracking visuals for users: the signal lights go too (hidden, not removed — share.ts puts
-  // the upload button after them), the overlay isn't drawn (frame()), and the page doesn't scroll.
-  $("signals").style.display = "none";
+  // No tracking visuals for users: the overlay isn't drawn (frame()), and the page doesn't scroll.
   document.documentElement.classList.add("record-fixed");
 }
 
@@ -176,17 +177,39 @@ function mouthHeldMs(now) {
   return track.lastMouthAt - track.mouthSince;
 }
 
+// The camera, mic and models start as soon as the Record page opens (Sat: "like Instagram" — no
+// extra tap), so the browser asks for camera + mic permission straight away. GET SENDY! stays
+// hidden (disabled) until they're ready, then starts the recording. If permission is refused,
+// tapping GET SENDY! asks again.
+let ready = false, starting = null;
+function startCamera() {
+  starting ??= setup()
+    .then(() => { ready = true; })
+    .finally(() => { starting = null; });
+  return starting;
+}
+// share.ts sends visitors who arrive from outside the site to the feed first — don't ask for the
+// camera on a page that's about to be left.
+if (document.referrer.startsWith(location.origin)) {
+  $("arm").disabled = true;
+  audioCtx = new AudioContext(); // starts suspended until the GET SENDY! tap resumes it (iPhone)
+  startCamera()
+    .then(() => setStateText(""))
+    .catch((err) => setStateText(`Camera or mic blocked (${err.message}). Tap GET SENDY! to try again.`))
+    .finally(() => { $("arm").disabled = false; });
+}
+
 $("arm").onclick = async () => {
   $("arm").disabled = true;
   // iPhone: audio only runs if the AudioContext is created/resumed inside the tap itself, before
   // any await — otherwise it stays suspended and no crack is ever heard.
   audioCtx ??= new AudioContext();
   audioCtx.resume();
-  if (!stream) {
+  if (!ready) {
     try {
-      await setup();
+      await startCamera();
     } catch (err) {
-      setStateText(`Setup failed: ${err.message}`);
+      setStateText(`Camera or mic blocked (${err.message}). Allow them and tap GET SENDY! again.`);
       $("arm").disabled = false;
       return;
     }
@@ -250,9 +273,12 @@ $("light").classList.toggle("on", lightOn);
 async function openCamera() {
   if (!navigator.mediaDevices?.getUserMedia) throw new Error("camera needs a secure (https) page");
   stream?.getTracks().forEach((t) => t.stop()); // phones can't open two cameras at once
+  // The picture fills the screen (Instagram-style); a phone held upright asks for a portrait
+  // picture so it matches the screen's shape and as little as possible is cropped off.
+  const upright = PHONE && innerHeight > innerWidth;
   stream = await navigator.mediaDevices.getUserMedia({
     // Ask for HD: someone across the room needs the pixels. The browser falls back if unsupported.
-    video: { facingMode: facing, width: { ideal: 1280 }, height: { ideal: 720 } },
+    video: { facingMode: facing, width: { ideal: upright ? 720 : 1280 }, height: { ideal: upright ? 1280 : 720 } },
     // Raw audio: noise suppression would eat the crack transient.
     audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
   });
@@ -267,22 +293,15 @@ async function openCamera() {
   applyLight(); // a new camera track starts with its flashlight off
 }
 
-// The camera view fills the screen (style.css #stage). The picture fills it too when that crops
-// at most a quarter of it; otherwise — e.g. a landscape back camera on an upright phone, which
-// looked far too zoomed in (phone test, Sat) — the whole picture shows with black bars. The overlay
-// matches the video's pixels. Runs again when the picture or the screen changes size (rotation).
+// The camera picture fills the whole screen, like Instagram's camera (style.css #stage, object-fit:
+// cover). The overlay matches the video's pixels. Runs again when the picture changes size.
 function fitStage() {
   const w = video.videoWidth, h = video.videoHeight;
   if (!w || !h) return;
   canvas.width = w;
   canvas.height = h;
-  const box = $("stage").getBoundingClientRect();
-  if (!box.width || !box.height) return;
-  const kept = Math.min((w / h) / (box.width / box.height), (box.width / box.height) / (w / h)); // share of the picture left after filling
-  $("stage").classList.toggle("fit-contain", kept < 0.75);
 }
 video.addEventListener("resize", fitStage);
-addEventListener("resize", fitStage);
 
 // Keep the screen on while waiting for / timing a run (phones dim and lock otherwise).
 async function keepAwake(on) {
@@ -301,9 +320,14 @@ document.addEventListener("visibilitychange", () => {
 });
 
 async function setup() {
-  setStateText("Loading models…");
+  setStateText("Getting the camera ready…");
   await openCamera();
+  // A retry (camera refused, or a model download failed) only builds what's still missing.
+  if (!analyser) buildAudio();
+  await loadModels();
+}
 
+function buildAudio() {
   analyser = audioCtx.createAnalyser();
   analyser.fftSize = 2048;
   analyser.smoothingTimeConstant = 0;
@@ -325,27 +349,32 @@ async function setup() {
   micTargets = [analyser, hp1, hp3];
   mic = audioCtx.createMediaStreamSource(stream);
   for (const node of micTargets) mic.connect(node);
+}
 
+let loopsStarted = false;
+async function loadModels() {
   const vision = await FilesetResolver.forVisionTasks(
     "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm"
   );
-  pose = await PoseLandmarker.createFromOptions(vision, {
+  pose ??= await PoseLandmarker.createFromOptions(vision, {
     baseOptions: { modelAssetPath: POSE_MODEL, delegate: "GPU" },
     runningMode: "VIDEO",
     numPoses: 1,
   });
-  gesture = await GestureRecognizer.createFromOptions(vision, {
+  gesture ??= await GestureRecognizer.createFromOptions(vision, {
     baseOptions: { modelAssetPath: GESTURE_MODEL, delegate: "GPU" },
     runningMode: "VIDEO",
     numHands: 2,
   });
   // Second instance for zoomed-in wrist crops: IMAGE mode, one hand per crop.
-  handCrop = await GestureRecognizer.createFromOptions(vision, {
+  handCrop ??= await GestureRecognizer.createFromOptions(vision, {
     baseOptions: { modelAssetPath: GESTURE_MODEL, delegate: "GPU" },
     runningMode: "IMAGE",
     numHands: 1,
   });
 
+  if (loopsStarted) return;
+  loopsStarted = true;
   // Audio runs on its own timer so a slow video frame doesn't hide a crack.
   setInterval(checkCrack, 20);
   requestAnimationFrame(loop);
@@ -839,6 +868,8 @@ function setState(s) {
   // While recording, only the camera, timer and prompt show (style.css hides the upload button;
   // GET SENDY! hides itself while disabled).
   document.body.classList.toggle("recording", s === "armed" || s === "running");
+  // The timer only appears once the chug starts (GET SENDY! starts the recording, not the clock).
+  document.body.classList.toggle("timing", s === "running" || s === "done");
 }
 
 function setStateText(t) { $("state").textContent = t; }

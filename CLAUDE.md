@@ -32,7 +32,9 @@ Rule of thumb: if a line here wouldn't change Claude's behaviour, delete it.
 ## Stack & commands
 Multi-page Vite app in `app/`. Detection runs in the browser (MediaPipe + Web Audio API);
 Supabase stores posts, clips, profiles, comments and ratings.
-- **Record Chug (tracker)** — `app/index.html` + `app/src/live/app.js` (plain JS). GET SENDY! →
+- **Record Chug (tracker)** — `app/index.html` + `app/src/live/app.js` (plain JS). Opening the page
+  asks for camera + mic and starts a full-screen camera straight away; GET SENDY! (bottom centre)
+  starts the *recording*; the timer appears and the clock starts only with the chug:
   start once a crack/click is heard with the can at the mouth AND the head tips back + arm comes up
   (no sound = no start; clock = the sound) →
   🤙 shaka confirms the end; time stops when the can last left the mouth. All thresholds are in
@@ -47,9 +49,10 @@ Supabase stores posts, clips, profiles, comments and ratings.
 All commands run from `app/`:
 - Install: `npm install`
 - Dev server: `npm run dev` → http://localhost:5173 (tracker), `/feed.html`, `/leaderboard.html`, `/lab.html`.
-  The tracker's debug panel, signal lights, tracking overlay (skeleton/hands/mouth dot) and
-  Detection-lab link show only here (`import.meta.env.DEV`, below the full-screen camera — scroll);
-  the deployed site friends test on is a fixed full-screen camera without them.
+  The tracker's debug panel, tracking overlay (skeleton/hands/mouth dot) and Detection-lab link
+  show only here (`import.meta.env.DEV`, below the full-screen camera — scroll); the deployed site
+  friends test on is a fixed full-screen camera without them. The Crack/Angle/Mouth/🤙 lights are
+  hidden everywhere (the debug readout has the same readings).
   Production build locally: `npm run build; npm run preview`.
 - Build / type-check: `npm run build` · Lint: `npm run lint` · Tracker syntax: `node --check src/live/app.js`
 - Deploy: automatic — every push to `main` runs `.github/workflows/deploy.yml` (Vercel CLI, repo
