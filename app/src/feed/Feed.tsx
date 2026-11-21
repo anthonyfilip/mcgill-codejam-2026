@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Avatar } from './Avatar'
+import { FeedVideo } from './FeedVideo'
 import { getName, getProfile, hasCheered, setCheered as rememberCheer } from './me'
 import { MAX_COMMENT, type Comment, type Post, type PostRating } from './posts'
 import { Profile } from './Profile'
@@ -113,13 +114,13 @@ function PostCard({
         <span className="when">{timeAgo(post.postedAt)}</span>
         {onDelete && (
           <button className="delete" onClick={onDelete} title="Delete post">
-            🗑
+            Delete
           </button>
         )}
       </header>
 
       {videoUrl ? (
-        <video src={videoUrl} controls playsInline loop muted autoPlay />
+        <FeedVideo src={videoUrl} />
       ) : (
         <div className="no-video">🍺</div>
       )}
@@ -146,7 +147,7 @@ function PostCard({
             setJustRated(false)
           }}
         >
-          💬 {comments.length}
+          Comment{comments.length > 0 && ` · ${comments.length}`}
         </button>
       </div>
 

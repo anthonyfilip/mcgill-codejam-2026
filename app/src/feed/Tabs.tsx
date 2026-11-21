@@ -1,6 +1,6 @@
 const TABS = [
-  { href: '/', label: 'Record Chug' },
   { href: '/feed.html', label: 'Feed' },
+  { href: '/', label: 'Record Chug' },
   { href: '/leaderboard.html', label: 'Leaderboard' },
 ]
 

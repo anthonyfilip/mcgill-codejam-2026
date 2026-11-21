@@ -52,7 +52,7 @@ body { margin: 0; font-family: system-ui, sans-serif; background: #111; color: #
 .board .place { width: 28px; text-align: center; font-weight: 700; font-size: 18px; }
 .board .who { font-weight: 600; }
 .board .best { font-variant-numeric: tabular-nums; font-size: 18px; }
-.post .delete { padding: 4px 6px; border: 0; background: none; font-size: 16px; cursor: pointer; opacity: 0.6; }
+.post .delete { padding: 4px 10px; border: 1px solid #444; border-radius: 999px; background: none; color: #f88; font-size: 13px; cursor: pointer; opacity: 0.8; }
 .post .delete:hover { opacity: 1; }
 .error { padding: 12px; border-radius: 8px; background: #3a1d1d; color: #f88; }
 .btn:disabled { opacity: 0.6; }

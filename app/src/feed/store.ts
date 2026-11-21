@@ -3,7 +3,7 @@
 // saved in this browser only (IndexedDB) so the app still works offline.
 // Drafts (finished runs not yet posted) always stay in this browser.
 import { createClient } from '@supabase/supabase-js'
-import { addMyPost, getProfile, myPosts, removeMyPost, type MyProfile } from './me'
+import { addMyPost, getProfile, myPosts, removeMyPost, setProfile, type MyProfile } from './me'
 import { SAMPLE_POSTS, type Comment, type Post, type PostRating } from './posts'
 
 const url = import.meta.env.VITE_SUPABASE_URL as string | undefined
@@ -113,6 +113,7 @@ async function read<T>(store: string, fn: (s: IDBObjectStore) => IDBRequest): Pr
 
 export async function savePost(post: Post): Promise<void> {
   if (!supabase) return write(POSTS, (s) => s.put(post))
+  if (!(await ensureProfileSaved())) throw new Error('your username was taken by someone else. Tap your name to pick a new one')
 
   let videoPath: string | null = null
   if (post.clip) {
@@ -187,6 +188,23 @@ export async function isUsernameTaken(username: string, myId?: string): Promise<
   return data.length > 0
 }
 
+// A profile made before Supabase was connected only exists in this browser: upload it now.
+// Returns false if someone else has since taken its name (the pop-up should ask for a new one).
+export async function ensureProfileSaved(): Promise<boolean> {
+  const me = getProfile()
+  if (!supabase || !me) return true
+  const { data, error } = await supabase.from('profiles').select('id').eq('id', me.id)
+  if (error) throw error
+  if (data.length) return true
+  try {
+    setProfile(await saveProfile(me, null))
+    return true
+  } catch (e) {
+    if ((e as Error).message === 'taken') return false
+    throw e
+  }
+}
+
 // Create or update your profile; `photo` = a new picture to upload (already resized).
 // Throws Error('taken') if someone else has the name.
 export async function saveProfile(p: MyProfile, photo: Blob | null): Promise<MyProfile> {
@@ -195,6 +213,8 @@ export async function saveProfile(p: MyProfile, photo: Blob | null): Promise<MyP
     const avatarUrl = photo ? await blobToDataUrl(photo) : p.avatarUrl
     return { ...p, avatarUrl }
   }
+  // A photo picked before Supabase was connected is stored inline (data: URL): upload it.
+  if (!photo && p.avatarUrl?.startsWith('data:')) photo = await (await fetch(p.avatarUrl)).blob()
   let avatarPath = p.avatarUrl ? p.avatarUrl.split(`/${AVATARS}/`)[1] ?? null : null
   if (photo) {
     avatarPath = `${p.id}-${Date.now()}.jpg` // new name each time so old copies aren't cached
