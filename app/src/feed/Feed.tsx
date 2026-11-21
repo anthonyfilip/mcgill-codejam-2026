@@ -415,9 +415,8 @@ export function Feed() {
         {error && <p className="error reel-message">{error}</p>}
         {posts === null && <p className="reel-message">Loading…</p>}
         {posts !== null && !all.length && (
-          <div className="reel-message">
-            <p>No runs yet. Be the first!</p>
-            <a className="btn primary" href="/">Record a chug</a>
+          <div className="reel-message crickets">
+            <p>crickets...</p>
           </div>
         )}
         {(posts ?? []).map((p) => reel(p, isMine(p)))}
