@@ -57,7 +57,7 @@ export function ProfilePage() {
         <section className="profile-page">
           <ProfileForm nameTaken={nameTaken} />
           <a className="btn record-cta" href="/">
-            📷 Record a chug
+            Record a chug
           </a>
         </section>
       ) : (
