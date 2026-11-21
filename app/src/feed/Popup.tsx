@@ -17,3 +17,15 @@ export function Popup({ title, onClose, children }: { title: string; onClose: ()
     document.body,
   )
 }
+
+// "Delete this …?" in the same pop-up: ✕ cancels, the small Delete button confirms.
+export function DeletePopup({ title, onConfirm, onClose }: { title: string; onConfirm: () => void; onClose: () => void }) {
+  return (
+    <Popup title={title} onClose={onClose}>
+      <button className="popup-delete" onClick={onConfirm}>
+        Delete
+      </button>
+    </Popup>
+  )
+}
+
