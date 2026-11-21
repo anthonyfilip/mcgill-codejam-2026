@@ -7,6 +7,29 @@ export interface SoundProfile {
   rms: number[] // loudness of each ~46 ms window (2048 samples)
   high: number[] // share of that window's energy above highHz (0–1)
   highHz: number
+  click?: number[] // energy of the loudest ~6 ms above clickHz in the newest 20 ms (older profiles: missing)
+  clickHz?: number
+}
+
+export interface Click {
+  t: number // seconds into the clip
+  db: number // how far above the median click of the previous crackLookS
+}
+
+/**
+ * Clicks = moments when the loudest ~6 ms of high-pitched sound (above 6 kHz) jumps clickDb above
+ * the half-second before. A can crack is a click a few ms long: averaged over 46 ms (rms/high
+ * above) it drowns in a noisy room, but at 6 ms it was the strongest click in 7/8 single-person clips.
+ */
+export function clicksFromProfile(p: SoundProfile, R: { clickDb: number; crackLookS: number }, windowS = 2048 / 44100): Click[] {
+  if (!p.click) return []
+  const look = Math.max(1, Math.round(R.crackLookS / p.hopS))
+  const out: Click[] = []
+  for (let i = look; i < p.click.length; i++) {
+    const db = 10 * Math.log10((p.click[i] + 1e-12) / (median(p.click.slice(i - look, i)) + 1e-12))
+    if (db >= R.clickDb) out.push({ t: i * p.hopS + windowS, db })
+  }
+  return out
 }
 
 export interface CrackRules {

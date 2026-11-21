@@ -105,3 +105,4 @@ both `git switch main; git pull`. Merge small and often.
 - Supabase embeds: `posts` ↔ `profiles` has several paths (direct, via comments, via ratings) — always hint the FK, e.g. `profiles!profile_id(...)`.
 - `gh pr create --body "..."` breaks on quotes in PowerShell — write the body to a file and use `--body-file`.
 - Vite only reads env files inside `app/` (`app/.env.local`), not the repo root.
+- Same for `git commit -m @'...'@` in PowerShell 5.1: a `"` in the message splits it into pathspecs — use `git commit -F <file>`.
