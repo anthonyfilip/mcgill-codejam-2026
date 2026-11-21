@@ -16,14 +16,16 @@ function timeAgo(ms: number) {
   return `${Math.round(min / 60)}h ago`
 }
 
-function Comments({
+// Instagram-style comments: a panel that slides up from the bottom. The comments scroll;
+// the "Add a comment…" box stays pinned at the bottom.
+function CommentSheet({
   comments,
   onAdd,
-  justRated,
+  onClose,
 }: {
   comments: Comment[]
   onAdd: (body: string) => Promise<void>
-  justRated: boolean // opened by a rating: focus the box and ask why
+  onClose: () => void
 }) {
   const [text, setText] = useState('')
   const [sending, setSending] = useState(false)
@@ -44,22 +46,34 @@ function Comments({
   }
 
   return (
-    <div className="comments">
-      {comments.map((c) => (
-        <p key={c.id} className="comment">
-          <b>{c.user}</b> {c.body} <span className="when">{timeAgo(c.createdAt)}</span>
-        </p>
-      ))}
-      <form onSubmit={send}>
-        <input
-          value={text}
-          maxLength={MAX_COMMENT}
-          placeholder={justRated ? 'Rated! Say why…' : 'Add a comment…'}
-          autoFocus={justRated}
-          onChange={(e) => setText(e.target.value)}
-        />
-        <button disabled={sending || !text.trim()}>Send</button>
-      </form>
+    <div className="sheet-backdrop" onClick={onClose}>
+      <div className="sheet" role="dialog" aria-modal="true" aria-label="Comments" onClick={(e) => e.stopPropagation()}>
+        <div className="sheet-grip" />
+        <div className="sheet-head">
+          <b>Comments</b>
+          <button className="sheet-close" onClick={onClose} aria-label="Close">✕</button>
+        </div>
+        <div className="sheet-list">
+          {comments.length ? (
+            comments.map((c) => (
+              <div key={c.id} className="comment">
+                <Avatar name={c.user} />
+                <p>
+                  <b>{c.user}</b> <span className="when">{timeAgo(c.createdAt)}</span>
+                  <br />
+                  {c.body}
+                </p>
+              </div>
+            ))
+          ) : (
+            <p className="sheet-empty">No comments yet. Start the conversation.</p>
+          )}
+        </div>
+        <form className="sheet-form" onSubmit={send}>
+          <input value={text} maxLength={MAX_COMMENT} placeholder="Add a comment…" onChange={(e) => setText(e.target.value)} />
+          <button disabled={sending || !text.trim()}>Post</button>
+        </form>
+      </div>
     </div>
   )
 }
@@ -88,8 +102,8 @@ function Reel({
   onToggleMute: () => void
   onBlocked: () => void
 }) {
-  const [open, setOpen] = useState(false) // rating + comments pop-up
-  const [justRated, setJustRated] = useState(false)
+  const [rating, setRating] = useState(false) // stars pop-up
+  const [commenting, setCommenting] = useState(false) // comments panel
   const [cheered, setCheered] = useState(() => hasCheered(post.id))
   const [count, setCount] = useState(post.cheers)
   const videoUrl = useMemo(() => post.videoUrl ?? (post.clip ? URL.createObjectURL(post.clip) : null), [post])
@@ -103,11 +117,11 @@ function Reel({
     cheer(post, on ? 1 : -1).catch(console.error)
   }
 
-  // Rating keeps the pop-up open and moves you on to the comment box.
+  // Save the rating, show "You rated: Epic" for a moment, then close.
   async function rate(stars: number) {
     try {
       await onRate(stars)
-      setJustRated(true)
+      setTimeout(() => setRating(false), 900)
     } catch (e) {
       alert(`Couldn't rate: ${(e as Error).message}`)
     }
@@ -140,11 +154,11 @@ function Reel({
           <span className="action-icon">🍻</span>
           {count}
         </button>
-        <button className={myStars ? 'action on' : 'action'} onClick={() => setOpen(true)} aria-label="Rate">
+        <button className={myStars ? 'action on' : 'action'} onClick={() => setRating(true)} aria-label="Rate">
           <span className="action-icon">⭐</span>
           Rate
         </button>
-        <button className="action" onClick={() => setOpen(true)} aria-label="Comments">
+        <button className="action" onClick={() => setCommenting(true)} aria-label="Comments">
           <span className="action-icon">💬</span>
           {comments.length}
         </button>
@@ -155,18 +169,12 @@ function Reel({
         )}
       </div>
 
-      {open && (
-        <Popup
-          title={`${post.title || 'Run'} · ${(post.timeMs / 1000).toFixed(2)} s`}
-          onClose={() => {
-            setOpen(false)
-            setJustRated(false)
-          }}
-        >
+      {rating && (
+        <Popup title="Rate this run" onClose={() => setRating(false)}>
           <Rating myStars={myStars} canRate={canRate} onRate={rate} />
-          <Comments comments={comments} onAdd={onComment} justRated={justRated} />
         </Popup>
       )}
+      {commenting && <CommentSheet comments={comments} onAdd={onComment} onClose={() => setCommenting(false)} />}
     </article>
   )
 }
