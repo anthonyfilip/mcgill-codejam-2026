@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Avatar } from './Avatar'
-import { getName, getProfile, hasCheered, setCheered as rememberCheer } from './me'
+import { FeedVideo } from './FeedVideo'
+import { getMuted, getName, getProfile, hasCheered, setMuted, setCheered as rememberCheer } from './me'
 import { MAX_COMMENT, type Comment, type Post, type PostRating } from './posts'
 import { Profile } from './Profile'
 import { AvgRating, Rating } from './Rating'
@@ -71,6 +72,8 @@ function PostCard({
   onRate,
   onComment,
   onDelete,
+  muted,
+  onToggleMute,
 }: {
   post: Post
   comments: Comment[]
@@ -79,6 +82,8 @@ function PostCard({
   onRate: (stars: number) => Promise<void>
   onComment: (body: string) => Promise<void>
   onDelete?: () => void
+  muted: boolean
+  onToggleMute: () => void
 }) {
   const [showComments, setShowComments] = useState(false)
   const [justRated, setJustRated] = useState(false)
@@ -119,7 +124,7 @@ function PostCard({
       </header>
 
       {videoUrl ? (
-        <video src={videoUrl} controls playsInline loop muted autoPlay />
+        <FeedVideo src={videoUrl} muted={muted} onToggleMute={onToggleMute} />
       ) : (
         <div className="no-video">🍺</div>
       )}
@@ -158,6 +163,7 @@ function PostCard({
 export function Feed() {
   // Everyone's posts, newest first (in the local feed: yours, then the samples).
   const [posts, setPosts] = useState<Post[]>([])
+  const [muted, setMutedState] = useState(getMuted)
   const [comments, setComments] = useState<Comment[]>([])
   const [ratings, setRatings] = useState<PostRating[]>([])
   const [error, setError] = useState('')
@@ -200,6 +206,11 @@ export function Feed() {
       onRate={(stars) => rate(p, stars)}
       onComment={(body) => comment(p, body)}
       onDelete={mine ? () => remove(p) : undefined}
+      muted={muted}
+      onToggleMute={() => {
+        setMuted(!muted)
+        setMutedState(!muted)
+      }}
     />
   )
 
