@@ -7,23 +7,17 @@ import { ensureProfileSaved } from './store'
 
 const secs = (ms: number) => (ms / 1000).toFixed(2)
 
-// "Your profile" strip at the top of the feed, results and leaderboard pages.
-// `mine` = your posted runs; the page passes them in so the stats update on post/delete.
-// With no profile yet, the set-up pop-up opens straight away.
+// "Your profile" strip at the top of the feed, results and leaderboard pages; tap it to
+// open the profile page. `mine` = your posted runs, so the stats update on post/delete.
+// With no profile yet (or your name taken), the must-do pop-up opens instead.
 export function Profile({ mine }: { mine: Post[] }) {
   const profile = getProfile()
-  const [editing, setEditing] = useState(!profile)
   const [nameTaken, setNameTaken] = useState(false)
 
   // Make sure a profile made before the shared database existed gets uploaded to it.
   useEffect(() => {
     ensureProfileSaved()
-      .then((ok) => {
-        if (!ok) {
-          setNameTaken(true)
-          setEditing(true)
-        }
-      })
+      .then((ok) => setNameTaken(!ok))
       .catch(console.error)
   }, [])
 
@@ -33,20 +27,20 @@ export function Profile({ mine }: { mine: Post[] }) {
 
   return (
     <section className="profile">
-      <button className="avatar-btn" onClick={() => setEditing(true)} title="Edit profile">
+      <a className="avatar-btn" href="/profile.html" title="Your profile">
         <Avatar name={name} url={profile?.avatarUrl} big />
-      </button>
+      </a>
       <div className="who">
-        <button className="name" onClick={() => setEditing(true)} title="Edit profile">
+        <a className="name" href="/profile.html" title="Your profile">
           {name} ✎
-        </button>
+        </a>
         <div className="profile-stats">
           <span><b>{mine.length}</b> runs</span>
           <span><b>{best !== null ? `${secs(best)} s` : '–'}</b> best</span>
           <span><b>{cheers}</b> 🍻</span>
         </div>
       </div>
-      {editing && <ProfileModal required={!profile || nameTaken} nameTaken={nameTaken} onClose={() => setEditing(false)} />}
+      {(!profile || nameTaken) && <ProfileModal nameTaken={nameTaken} />}
     </section>
   )
 }

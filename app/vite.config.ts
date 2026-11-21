@@ -152,6 +152,7 @@ export default defineConfig({
         feed: path.resolve(import.meta.dirname, 'feed.html'),
         results: path.resolve(import.meta.dirname, 'results.html'),
         leaderboard: path.resolve(import.meta.dirname, 'leaderboard.html'),
+        profile: path.resolve(import.meta.dirname, 'profile.html'),
       },
     },
   },

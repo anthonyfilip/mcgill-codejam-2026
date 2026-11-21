@@ -26,18 +26,9 @@ function formatProblem(name: string): string | null {
   return null
 }
 
-// Pop-up in the middle of the screen to set your name and photo.
-// `required` = first visit: it can't be closed until you've made a profile.
+// The name + photo form, used on the profile page and in the must-do pop-up.
 // `nameTaken` = your saved name now belongs to someone else, so a new one is needed.
-export function ProfileModal({
-  required,
-  nameTaken = false,
-  onClose,
-}: {
-  required: boolean
-  nameTaken?: boolean
-  onClose: () => void
-}) {
+export function ProfileForm({ nameTaken = false }: { nameTaken?: boolean }) {
   const current = getProfile()
   const [username, setUsername] = useState(nameTaken ? '' : (current?.username ?? ''))
   const [photo, setPhoto] = useState<Blob | null>(null)
@@ -92,8 +83,7 @@ export function ProfileModal({
   const bad = !!problem || (!unchanged && taken === true)
 
   return (
-    <div className="modal-backdrop" onClick={required ? undefined : onClose}>
-      <div className="modal" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
+    <>
         <h2>{current ? 'Edit profile' : 'Make your profile'}</h2>
         {nameTaken && <p className="hint bad">Someone else took “{current?.username}”. Pick a new name.</p>}
 
@@ -129,11 +119,17 @@ export function ProfileModal({
         >
           {saving ? 'Saving…' : 'Save'}
         </button>
-        {!required && (
-          <button className="btn" onClick={onClose}>
-            Cancel
-          </button>
-        )}
+    </>
+  )
+}
+
+// Pop-up in the middle of the screen for when you must act before using the site:
+// first visit (no profile yet) or your name was taken. It can't be closed.
+export function ProfileModal({ nameTaken = false }: { nameTaken?: boolean }) {
+  return (
+    <div className="modal-backdrop">
+      <div className="modal" role="dialog" aria-modal="true">
+        <ProfileForm nameTaken={nameTaken} />
       </div>
     </div>
   )

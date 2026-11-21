@@ -28,7 +28,7 @@ body { margin: 0; font-family: system-ui, sans-serif; background: #111; color: #
 /* Profile strip */
 .profile { display: flex; align-items: center; gap: 12px; padding: 12px; background: #1d1d1d; border-radius: 12px; }
 .avatar.big { width: 48px; height: 48px; font-size: 20px; }
-.profile .name { padding: 0; border: 0; background: none; color: #eee; font-size: 18px; font-weight: 700; cursor: pointer; }
+.profile .name { color: #eee; font-size: 18px; font-weight: 700; text-decoration: none; }
 .profile-stats { display: flex; gap: 14px; margin-top: 2px; color: #888; font-size: 13px; }
 .profile-stats b { color: #eee; }
 
@@ -107,3 +107,17 @@ span.star { cursor: default; }
 .board .who small { color: #888; font-size: 12px; font-weight: 400; }
 .board .score { margin-left: auto; display: flex; flex-direction: column; align-items: flex-end; text-align: right; }
 .board .run-title { max-width: 160px; color: #f5b400; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Profile page */
+.profile-page { display: flex; flex-direction: column; gap: 12px; padding: 20px; border-radius: 12px; background: #1d1d1d; }
+.profile-page h2 { margin: 0; text-align: center; }
+.profile-page-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.profile-page-stats div { display: flex; flex-direction: column; align-items: center; padding: 12px; border-radius: 12px; background: #1d1d1d; color: #888; font-size: 13px; }
+.profile-page-stats b { color: #eee; font-size: 20px; }
+.section-title { margin: 8px 0 0; }
+.empty { color: #888; text-align: center; }
+.empty a { color: #f5b400; }
+
+/* Four tabs on a narrow phone */
+@media (max-width: 420px) { .tabs a { padding: 10px 4px; font-size: 13px; } }
+

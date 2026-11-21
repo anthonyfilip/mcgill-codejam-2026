@@ -14,7 +14,7 @@ if (!document.referrer.startsWith(location.origin)) location.replace('/feed.html
 const tabs = document.createElement('nav')
 tabs.className = 'tabs'
 tabs.innerHTML =
-  '<a href="/feed.html">Feed</a><a href="/" class="active">Record Chug</a><a href="/leaderboard.html">Leaderboard</a>'
+  '<a href="/feed.html">Feed</a><a href="/" class="active">Record Chug</a><a href="/leaderboard.html">Leaderboard</a><a href="/profile.html">Profile</a>'
 document.querySelector('main')?.prepend(tabs)
 
 // Our start button: renamed, and moved onto the camera view (styled in share.css).
