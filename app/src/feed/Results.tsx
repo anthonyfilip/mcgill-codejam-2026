@@ -140,9 +140,7 @@ export function Results() {
 
         {needTitle && (
           <Popup title="Must title chug before post" onClose={() => setNeedTitle(false)}>
-            <button className="btn primary popup-ok" onClick={() => setNeedTitle(false)}>
-              OK
-            </button>
+            {null}
           </Popup>
         )}
       </section>
