@@ -158,3 +158,12 @@ begin
 end;
 $$;
 grant execute on function public.rate_post(uuid, uuid, uuid, integer) to anon, authenticated;
+
+-- Table access for the website (newer Supabase projects don't grant this by default).
+-- Row level security above still decides which rows; these decide which actions.
+grant usage on schema public to anon, authenticated;
+grant select                 on public.profiles to anon, authenticated;
+grant select, insert, delete on public.posts    to anon, authenticated;
+grant select, insert         on public.comments to anon, authenticated;
+grant select                 on public.ratings  to anon, authenticated;
+-- profile_secrets: deliberately no grants.

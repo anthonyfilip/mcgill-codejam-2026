@@ -141,7 +141,7 @@ export async function loadPosts(): Promise<Post[]> {
     const posts = await read<Post[]>(POSTS, (s) => s.getAll())
     return posts.sort((a, b) => b.postedAt - a.postedAt)
   }
-  const { data, error } = await supabase.from('posts').select('*, profiles(username, avatar_path)').order('created_at', { ascending: false })
+  const { data, error } = await supabase.from('posts').select('*, profiles!posts_profile_id_fkey(username, avatar_path)').order('created_at', { ascending: false })
   if (error) throw error
   return (data as Row[]).map(fromRow)
 }
@@ -228,7 +228,7 @@ export async function loadComments(): Promise<Comment[]> {
     const comments = await read<Comment[]>(COMMENTS, (s) => s.getAll())
     return comments.sort((a, b) => a.createdAt - b.createdAt)
   }
-  const { data, error } = await supabase.from('comments').select('*, profiles(username)').order('created_at')
+  const { data, error } = await supabase.from('comments').select('*, profiles!comments_profile_id_fkey(username)').order('created_at')
   if (error) throw error
   return (data as CommentRow[]).map((r) => ({
     id: r.id,
