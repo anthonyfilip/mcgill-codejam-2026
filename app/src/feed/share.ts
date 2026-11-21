@@ -8,6 +8,22 @@ import { installSwipeNav } from './swipeNav'
 
 type RunFinished = { timeMs: number; maxAngle: number | null; startedBy: string[]; clip: Blob }
 
+// Installable-app tags for this page too (our own pages have them in their HTML), so
+// "Add to Home Screen" works from here as well. Settings: public/manifest.webmanifest.
+for (const [tag, attrs] of [
+  ['link', { rel: 'manifest', href: '/manifest.webmanifest' }],
+  ['meta', { name: 'theme-color', content: '#0d0d0d' }],
+  ['link', { rel: 'apple-touch-icon', href: '/apple-touch-icon.png' }],
+  ['meta', { name: 'apple-mobile-web-app-capable', content: 'yes' }],
+  ['meta', { name: 'mobile-web-app-capable', content: 'yes' }],
+  ['meta', { name: 'apple-mobile-web-app-status-bar-style', content: 'black' }],
+  ['meta', { name: 'apple-mobile-web-app-title', content: 'Get Sendy' }],
+] as const) {
+  const el = document.createElement(tag)
+  for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v)
+  document.head.append(el)
+}
+
 // Entering the site (typed address, bookmark, shared link) opens the feed first. Coming from
 // one of our own pages, e.g. the Record Chug tab or "Go again", stays here.
 if (!document.referrer.startsWith(location.origin)) location.replace('/feed.html')
