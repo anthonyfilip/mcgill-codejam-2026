@@ -9,7 +9,8 @@ Tomorrow's plan: [TODO.md](TODO.md).
 3. Drink, lower the can, flash a 🤙 → timer stops (back-dated to when the can left the mouth).
 4. Results page: time, replay, personal best, rank → name the run → post.
 5. Feed shows it (rate ★, comment) → Leaderboard ranks it.
-6. Accuracy slide: "finish within 0.4 s of frame-by-frame timing on real videos."
+6. Accuracy slide: "chug time within 0.16 s on average of frame-by-frame timing on real videos"
+   (8 single-person phone clips; 7/8 within a quarter second).
 
 Backup: a recorded run of the full demo, in case the live camera fails on stage.
 
@@ -31,11 +32,12 @@ Backup: a recorded run of the full demo, in case the live camera fails on stage.
 - **Crack detector:** sudden bright jump vs the previous 0.5 s. Real Monster crack at ~2 m on the
   laptop mic scored in the thousands (threshold 4); 0 false cracks in a noisy no-crack recording.
 - **Accuracy (lab, 18 labelled clips, Sat — head-tilt end + click start):** single-person — start
-  avg error 0.15 s (was 0.64), end 0.18 s (was 0.40), **run time 0.20 s (was 0.73; 6/8 within
-  ±0.25 s, worst 0.52 s)**. Groups — start 0.21 s (was 0.65), end 1.13 s (was 1.22). 17/18 found.
-  Clip 10 was re-analysed (old save had no frames 20.8–23.7 s): run time −1.57 → +0.06 s. Its crack
-  lands exactly where the can starts tilting from upright. Clip 04 (worst, −0.52 s) has the same
-  kind of problem — its saved frames stop at 13.2 s, before the 13.5 s end: re-analyse it too.
+  avg error 0.15 s (was 0.64), end 0.14 s (was 0.40), **run time 0.16 s (was 0.73; 7/8 within
+  ±0.25 s, worst 0.26 s; runs read ~0.1 s short on average)**. Groups — start 0.21 s (was 0.65),
+  end 1.13 s (was 1.22; follows the wrong person). 17/18 found.
+  Clips 10 and 04 were re-analysed (old saves had a 3 s gap at the crack / stopped before the end):
+  run time −1.57 → +0.06 s and −0.52 → −0.19 s. Clip 10's crack lands exactly where the can starts
+  tilting from upright.
   Head tilt was the signal closest to the labelled ends (median 0.13 s); no video signal times
   the tab pop — only the crack does. Sound profiles were re-saved with the new `click` field.
 - **Feed side (Lana):** results page (PB, rank, retake, name + description), shared feed with
