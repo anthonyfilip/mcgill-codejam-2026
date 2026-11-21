@@ -252,36 +252,36 @@ try { localStorage.removeItem("tracker.light"); } catch { /* storage blocked */ 
 // broke it on an iPhone (it worked earlier Sat in Brave — iOS browsers all share Safari's engine —
 // until the camera request changed). Both forms of the constraint are sent; a camera that can't do
 // it just ignores or refuses them.
-// Returns a short report of what the camera did, for the flashlight test below.
 async function setTorch(on) {
   const track = stream?.getVideoTracks()[0];
-  if (!track) return "no camera track";
-  const report = [];
-  for (const [name, c] of [["advanced", { advanced: [{ torch: on }] }], ["plain", { torch: on }]]) {
-    try { await track.applyConstraints(c); report.push(`${name} ok`); } catch (err) { report.push(`${name} refused (${err.name})`); }
+  if (!track) return;
+  for (const c of [{ advanced: [{ torch: on }] }, { torch: on }]) {
+    try { await track.applyConstraints(c); } catch { /* not supported in this form */ }
   }
-  const caps = track.getCapabilities?.() ?? {};
-  report.push(`listed: ${"torch" in caps ? JSON.stringify(caps.torch) : "no"}`, `now: ${track.getSettings?.().torch ?? "?"}`);
-  return report.join(" · ");
 }
 
 function applyLight() {
   $("light").classList.toggle("on", lightOn);
   const want = lightOn && !!stream && (state === "armed" || state === "running");
-  if (facing === "environment" && stream) setTorch(want);
+  if (facing === "environment" && stream) {
+    setTorch(want);
+    // ...and again just after the recorder has started (it can switch the flashlight off, below).
+    if (want) for (const ms of [300, 1000]) setTimeout(() => { if (lightOn && (state === "armed" || state === "running")) setTorch(true); }, ms);
+  }
   document.body.classList.toggle("screen-light", want && facing === "user");
 }
 
-$("light").onclick = async () => {
+// iPhone test (Sat): the flashlight turns on fine outside a run (every command accepted), but not
+// during one — starting the video recording reconfigures the camera and switches it back off. So
+// while armed/running with the light on and the back camera, check every second and turn it back on.
+setInterval(() => {
+  if (!lightOn || facing !== "environment" || !stream || (state !== "armed" && state !== "running")) return;
+  if (stream.getVideoTracks()[0]?.getSettings?.().torch !== true) setTorch(true);
+}, 1000);
+
+$("light").onclick = () => {
   lightOn = !lightOn;
   applyLight();
-  // TEMPORARY flashlight test (Sat, iPhone torch not working): switching the light ON with the back
-  // camera, outside a run, flashes the torch for 2 s and shows one line saying what the camera did.
-  if (lightOn && facing === "environment" && stream && state !== "armed" && state !== "running") {
-    setStateText(`Flashlight test: ${await setTorch(true)}`);
-    setTimeout(() => { if (state !== "armed" && state !== "running") setTorch(false); }, 2000);
-    setTimeout(() => { if (state !== "armed" && state !== "running") setStateText(""); }, 8000);
-  }
 };
 $("light").classList.toggle("on", lightOn);
 
