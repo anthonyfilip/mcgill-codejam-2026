@@ -4,6 +4,7 @@ import {
   GestureRecognizer,
 } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14";
 import { handAngles, nearestHand, toPx } from "../detect/angles.ts";
+import { refineEnd, pickSoftCrack } from "../detect/rules.ts"; // shared with the lab, so both time the same way
 
 // All thresholds in one place. Starting guesses — tune with real cans.
 const CONFIG = {
@@ -15,6 +16,20 @@ const CONFIG = {
   visualStartMs: 800,      // fallback if no crack is heard: can at mouth AND tipped for this long
   // End rule: the 🤙 confirms the end, but the time stops when the can last left the mouth.
   maxBackdateMs: 4000,     // only back-date if the can left the mouth at most this long before the 🤙
+  // Wrist lost right after 2+ frames at the mouth = arm/can covering the face at full tilt: still drinking
+  // for up to this long (clip 02 ended 1.24 s early without it).
+  hiddenHoldMs: 500,
+  // No loud crack: look for a quieter one just before the visual start (a lower bar is only safe in
+  // this small window — everywhere, it started clips 03 and 17 seconds early).
+  softCrackScore: 2,
+  softCrackBeforeMs: 1500,
+  softCrackAfterMs: 300,
+  // End = when the head comes forward (head tilt steps down) near when the can left the mouth.
+  // Closest signal to the labelled ends (median 0.13 s); visible even when the arm covers the face.
+  endSearchBeforeMs: 1500,
+  endSearchAfterMs: 500,
+  headStepMs: 400,         // compare head tilt this long after vs before each moment
+  headStepZ: 2,            // ...the drop must be at least this many standard deviations
   // Crack = sudden bright jump vs the half-second before (same as src/detect/cracks.ts cracksByContrast).
   // Tuned on the 18 labelled clips (8 crack starts, all within 0.5 s) + live laptop-mic recordings
   // (0 false cracks in a noisy no-crack recording; a real Monster crack at ~2 m scored in the thousands).
@@ -45,7 +60,7 @@ const POSE_MODEL = "https://storage.googleapis.com/mediapipe-models/pose_landmar
 const GESTURE_MODEL = "https://storage.googleapis.com/mediapipe-models/gesture_recognizer/gesture_recognizer/float16/1/gesture_recognizer.task";
 
 // Pose landmark indices
-const NOSE = 0, MOUTH_L = 9, MOUTH_R = 10, SHOULDER_L = 11, SHOULDER_R = 12;
+const NOSE = 0, EAR_L = 7, EAR_R = 8, MOUTH_L = 9, MOUTH_R = 10, SHOULDER_L = 11, SHOULDER_R = 12;
 const ELBOW_L = 13, ELBOW_R = 14, WRIST_L = 15, WRIST_R = 16;
 
 const $ = (id) => document.getElementById(id);
@@ -64,11 +79,17 @@ let live = {};      // latest readings, for the debug panel
 
 // Continuous "can at the mouth" / "can tipped" tracking (ms, performance.now()).
 // *Since = when the current stretch began (null if not currently true); last*At = last frame it was true.
-const track = { mouthSince: null, lastMouthAt: -Infinity, angleSince: null, lastAngleAt: -Infinity };
+// mouthFrames / lastSeenAtMouth: consecutive frames with the wrist seen at the mouth (for hiddenHoldMs).
+const track = { mouthSince: null, lastMouthAt: -Infinity, angleSince: null, lastAngleAt: -Infinity, mouthFrames: 0, lastSeenAtMouth: -Infinity };
+// Recent head tilt readings and quieter cracks: { t, headTilt } / { t, score }, last few seconds.
+let headLog = [], softCracks = [];
+const LOG_MS = 6000;
 
 function resetTrack() {
   track.mouthSince = track.angleSince = null;
-  track.lastMouthAt = track.lastAngleAt = -Infinity;
+  track.lastMouthAt = track.lastAngleAt = track.lastSeenAtMouth = -Infinity;
+  track.mouthFrames = 0;
+  softCracks = [];
 }
 
 // Update a stretch: true this frame extends it; false for longer than gapMs ends it.
@@ -187,6 +208,12 @@ function checkCrack() {
 
   const isCrack = recentRms.length >= look && rms >= CONFIG.crackMinRms && score >= CONFIG.crackScore;
   const t = performance.now();
+  // Quieter cracks, kept for the visual-start fallback (one per 300 ms, like cracksByContrast).
+  if (recentRms.length >= look && rms >= CONFIG.crackMinRms && score >= CONFIG.softCrackScore &&
+      t - (softCracks.at(-1)?.t ?? -Infinity) > 300) {
+    softCracks.push({ t, score });
+    while (softCracks.length && t - softCracks[0].t > LOG_MS) softCracks.shift();
+  }
   if (isCrack && state === "armed" && t - seen.crack > 300) { // one crack = one event, not every 20 ms poll
     seen.crack = t;
     // Sequence rule: the crack must happen with the can at the mouth. A crack with the can
@@ -349,8 +376,26 @@ function loop() {
   const lm = res.landmarks[0];
   const p = lm ? readPose(lm) : null;
 
-  const atMouth = !!p && p.mouthDist < CONFIG.mouthDist;
-  const tipped = !!p && p.angle !== null && p.angle >= CONFIG.angleDeg;
+  const seenAtMouth = !!p && p.mouthDist < CONFIG.mouthDist;
+  if (p) {
+    track.mouthFrames = seenAtMouth ? track.mouthFrames + 1 : 0;
+    if (track.mouthFrames >= 2) track.lastSeenAtMouth = now;
+  }
+  const hidden = !p && now - track.lastSeenAtMouth <= CONFIG.hiddenHoldMs; // arm/can covering the face
+  const atMouth = seenAtMouth || hidden;
+  const tipped = hidden || (!!p && p.angle !== null && p.angle >= CONFIG.angleDeg);
+
+  // Head tilt = how far the ears sit below the nose, in shoulder widths (src/detect/signals.ts headTilt).
+  // Drops when the head comes forward after drinking — used to time the end.
+  let headTilt = null;
+  if (lm) {
+    const W = canvas.width, H = canvas.height;
+    const shoulderPx = Math.hypot((lm[SHOULDER_L].x - lm[SHOULDER_R].x) * W, (lm[SHOULDER_L].y - lm[SHOULDER_R].y) * H);
+    if (shoulderPx > 0) headTilt = ((lm[EAR_L].y + lm[EAR_R].y) / 2 - lm[NOSE].y) * H / shoulderPx;
+  }
+  headLog.push({ t: now, headTilt });
+  while (headLog.length && now - headLog[0].t > LOG_MS) headLog.shift();
+  live.headTilt = headTilt;
   updateStretch(atMouth, now, "mouthSince", "lastMouthAt");
   updateStretch(tipped, now, "angleSince", "lastAngleAt");
   if (state === "armed") {
@@ -370,7 +415,9 @@ function loop() {
   if (state === "armed" && track.mouthSince !== null && track.angleSince !== null) {
     const bothSince = Math.max(track.mouthSince, track.angleSince);
     if (atMouth && tipped && now - bothSince >= CONFIG.visualStartMs) {
-      startRun(bothSince, ["can at mouth", "can tipped", "no crack heard"]);
+      const quiet = pickSoftCrack(softCracks, bothSince, CONFIG);
+      if (quiet !== null) startRun(quiet, ["quiet crack", "can at mouth", "can tipped"]);
+      else startRun(bothSince, ["can at mouth", "can tipped", "no crack heard"]);
     }
   }
 
@@ -405,10 +452,19 @@ function loop() {
         // Can still at the mouth → they're signing mid-drink. Don't end yet.
         setStateText("Lower the can to finish 🤙");
       } else {
-        // End = last moment the can was at the mouth, if that was recent; otherwise the 🤙 itself.
-        const lastMouth = track.lastMouthAt;
-        const backdate = lastMouth > run.startAt + CONFIG.minRunMs && sendSince - lastMouth <= CONFIG.maxBackdateMs;
-        endRun(backdate ? lastMouth : sendSince, backdate ? "can left mouth (🤙 confirmed)" : "🤙 (can not tracked)");
+        run.sendAt ??= sendSince; // remember the 🤙 even if the hand drops before we finish below
+      }
+    }
+    if (run.sendAt != null && atMouth) run.sendAt = null; // went back to drinking
+    if (run.sendAt != null) {
+      // End = when the head came forward near the last moment the can was at the mouth, if that
+      // was recent; otherwise the 🤙 itself. Wait until there's enough head tilt after it to search.
+      const lastMouth = track.lastMouthAt;
+      const backdate = lastMouth > run.startAt + CONFIG.minRunMs && run.sendAt - lastMouth <= CONFIG.maxBackdateMs;
+      if (!backdate) endRun(run.sendAt, "🤙 (can not tracked)");
+      else if (now - lastMouth >= CONFIG.endSearchAfterMs + CONFIG.headStepMs) {
+        const end = Math.max(refineEnd(headLog, lastMouth, CONFIG), run.startAt + CONFIG.minRunMs);
+        endRun(end, end === lastMouth ? "can left mouth (🤙 confirmed)" : "head came forward (🤙 confirmed)");
       }
     }
     if (state === "running") $("timer").textContent = ((now - run.startAt) / 1000).toFixed(2);
@@ -424,7 +480,7 @@ function loop() {
     `state ${state}\n` +
     `camera ${video.videoWidth}×${video.videoHeight} · person ${shoulderPx ? `${shoulderPx.toFixed(0)} px shoulders` : "not found"} · hands via ${live.handMode ?? "-"}\n` +
     `audio rms ${live.rms?.toFixed(3)} · jump ×${live.jump?.toFixed(1)} · bright ${live.highShare?.toFixed(2)} · crack score ${live.crackScore?.toFixed(1)} (recent peak ${live.peakScore?.toFixed(1)}, need ${CONFIG.crackScore})\n` +
-    `angle ${p?.angle?.toFixed(0) ?? "-"}°  mouth ${p?.mouthDist?.toFixed(2) ?? "-"}\n` +
+    `angle ${p?.angle?.toFixed(0) ?? "-"}°  mouth ${p?.mouthDist?.toFixed(2) ?? "-"}${hidden ? " (hidden — holding)" : ""}  head tilt ${live.headTilt?.toFixed(2) ?? "-"}\n` +
     `drinking hand: ${ang ? `arm ${ang.arm?.toFixed(0) ?? "-"}° · hand ${ang.hand.toFixed(0)}° · wrist bend ${ang.wristFlex?.toFixed(0) ?? "-"}° · can ~${ang.can.toFixed(0)}° from upright` : "not matched"}\n` +
     `at mouth for ${(mouthHeldMs(now) / 1000).toFixed(1)}s` +
     `${now - (live.ignoredCrack ?? -Infinity) < 2000 ? "  · crack IGNORED (can not at mouth)" : ""}\n` +

@@ -56,8 +56,11 @@ export function Lab() {
       // With a saved sound profile, re-detect cracks with the current rules (so crack tuning
       // applies without re-analysing video); otherwise use the cracks saved at analysis time.
       const snd = await fetch(soundUrl(c))
-      const cracks = snd.ok ? cracksByContrast((await snd.json()) as SoundProfile, RULES) : (saved?.cracks ?? [])
-      out.push({ clip: c, label: labelMap.get(c), det: saved ? detect(saved.rows, cracks) : null })
+      const profile = snd.ok ? ((await snd.json()) as SoundProfile) : null
+      const cracks = profile ? cracksByContrast(profile, RULES) : (saved?.cracks ?? [])
+      // Quieter cracks, only used in a small window before a visual start (RULES.softCrackScore).
+      const soft = profile ? cracksByContrast(profile, { ...RULES, crackScore: RULES.softCrackScore }) : []
+      out.push({ clip: c, label: labelMap.get(c), det: saved ? detect(saved.rows, cracks, RULES, soft) : null })
     }
     setScores(out)
   }

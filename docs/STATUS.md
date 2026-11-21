@@ -19,13 +19,20 @@ Backup: a recorded run of the full demo, in case the live camera fails on stage.
 - **Tracker:** HD webcam, full pose model, zoomed wrist crops (works ~2–3 m back), hand skeleton
   overlay, debug panel (person size, crack score, finger readings).
 - **Start:** crack with the can at the mouth (or up to 1 s before it gets there); fallback = can
-  at mouth + hand raised for 0.8 s, back-dated. Cracks with the can elsewhere are ignored.
+  at mouth + hand raised for 0.8 s, back-dated — and if a quieter crack (score ≥ 2) was heard in
+  the 1.5 s before that, the clock starts at it. Cracks with the can elsewhere are ignored.
 - **End:** 🤙 shaka anywhere in frame (3D finger bends; works back-of-hand too), no hold — one frame ends it; refused
-  while the can is still at the mouth; time = last moment the can was at the mouth.
+  while the can is still at the mouth; time = when the head came forward (head tilt drop) near the
+  last moment the can was at the mouth, else that moment. Wrist hidden right after being at the
+  mouth (arm covering the face) counts as still drinking for 0.5 s.
 - **Crack detector:** sudden bright jump vs the previous 0.5 s. Real Monster crack at ~2 m on the
   laptop mic scored in the thousands (threshold 4); 0 false cracks in a noisy no-crack recording.
-- **Accuracy (lab, 18 labelled clips):** single-person — start 8/8, avg error 0.64 s (5/8 within
-  ±0.5 s); end 8/8, avg error 0.40 s (6/8 within ±0.5 s). All clips: 17/18 found.
+- **Accuracy (lab, 18 labelled clips, Sat after head-tilt end):** single-person — start avg error
+  0.57 s (was 0.64), end 0.18 s (was 0.40; 6/8 within ±0.25 s), run time 0.66 s (was 0.73).
+  Groups — start 0.15 s (was 0.65), end 1.13 s (was 1.22). All clips: 17/18 found.
+  What's left on single-person clips is the no-crack start (03 +1.9 s; 10 +1.4 s has missing frames
+  near its start — re-analyse it in the lab). Head tilt was the signal closest to the labelled ends
+  (median 0.13 s); no video signal times the tab pop — only the crack does.
 - **Feed side (Lana):** results page (PB, rank, retake, name + description), shared feed with
   clips, ★ ratings (final once given), comments, profiles (username + photo), leaderboard (★3.5+
   first, then fastest), only the poster can delete their post.

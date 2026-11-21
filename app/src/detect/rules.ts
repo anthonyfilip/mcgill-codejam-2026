@@ -27,6 +27,21 @@ export const RULES = {
   // old detector (cracksFromProfile), kept for comparison
   crackRatio: 6,
   crackHighFreqShare: 0.45,
+  // Wrist lost right after 2+ frames at the mouth = the arm/can is covering the face (full tilt):
+  // still drinking for up to this long. Clip 02 ended 1.24 s early without it.
+  hiddenHoldMs: 500,
+  // No loud crack: the visual start says roughly when, so look for a quieter crack just before it.
+  // A lower bar is only safe in this small window (everywhere, it started 03 and 17 seconds early).
+  softCrackScore: 2,
+  softCrackBeforeMs: 1500,
+  softCrackAfterMs: 300,
+  // End = when the head comes forward (head tilt steps down), searched around the moment the can
+  // left the mouth. Head tilt was the closest signal to the labelled ends (median 0.13 s) and stays
+  // visible when the arm covers the face.
+  endSearchBeforeMs: 1500,
+  endSearchAfterMs: 500,
+  headStepMs: 400, // compare the head tilt this long after vs before each moment
+  headStepZ: 2, // ...the drop must be at least this many standard deviations
   // clip-only: how long the can must stay away from the mouth to count as finished
   leaveMs: 800, // tuned on the labelled clips
 }
@@ -40,8 +55,48 @@ export interface Detection {
   ignoredCracks: number // cracks heard with the can not at the mouth
 }
 
-export function detect(rows: FrameSignals[], cracks: Crack[], R: Rules = RULES): Detection {
+type Sample = { t: number; headTilt: number | null } // t in ms
+type SoftCrack = { t: number; score: number } // t in ms
+type EndRules = Pick<Rules, 'endSearchBeforeMs' | 'endSearchAfterMs' | 'headStepMs' | 'headStepZ'>
+type SoftRules = Pick<Rules, 'softCrackBeforeMs' | 'softCrackAfterMs'>
+
+/** Shared with the live tracker. Moves the end to where the head tilt drops most sharply near
+ *  `end` (the head coming forward). Returns `end` unchanged if there's no clear drop. */
+export function refineEnd(samples: Sample[], end: number, R: EndRules): number {
+  const s = samples.filter((x): x is { t: number; headTilt: number } => x.headTilt !== null)
+  const mean = (a: number[]) => a.reduce((x, y) => x + y, 0) / a.length
+  const sd = (a: number[]) => {
+    const m = mean(a)
+    return Math.sqrt(a.reduce((x, y) => x + (y - m) ** 2, 0) / Math.max(1, a.length - 1))
+  }
+  let best = { t: end, z: 0 }
+  for (const { t } of s) {
+    if (t < end - R.endSearchBeforeMs || t > end + R.endSearchAfterMs) continue
+    const b = s.filter((x) => x.t >= t - R.headStepMs && x.t < t).map((x) => x.headTilt)
+    const a = s.filter((x) => x.t >= t && x.t < t + R.headStepMs).map((x) => x.headTilt)
+    if (b.length < 3 || a.length < 3) continue
+    const drop = (mean(b) - mean(a)) / (Math.sqrt((sd(a) ** 2 + sd(b) ** 2) / 2) + 1e-6)
+    if (drop > best.z) best = { t, z: drop }
+  }
+  return best.z >= R.headStepZ ? best.t : end
+}
+
+/** Shared with the live tracker. The strongest quiet crack just before a visual start, or null. */
+export function pickSoftCrack(cracks: SoftCrack[], start: number, R: SoftRules): number | null {
+  const near = cracks.filter((c) => c.t >= start - R.softCrackBeforeMs && c.t <= start + R.softCrackAfterMs)
+  if (!near.length) return null
+  return near.reduce((a, b) => (b.score > a.score ? b : a)).t
+}
+
+/** Crack score as the detector computes it (jump × brightness), for pickSoftCrack. */
+export const crackScore = (c: Crack) => c.ratio * Math.min(c.high, 1.5)
+
+export function detect(rows: FrameSignals[], cracks: Crack[], R: Rules = RULES, softCracks: Crack[] = []): Detection {
   const ms = (s: number) => s * 1000
+  const head = rows.map((r) => ({ t: ms(r.t), headTilt: r.headTilt }))
+  const soft = softCracks.map((c) => ({ t: ms(c.t), score: crackScore(c) }))
+  let mouthFrames = 0 // consecutive frames with the wrist seen at the mouth
+  let lastSeenAtMouth = -Infinity
   let mouthSince: number | null = null
   let lastMouthAt = -Infinity
   let angleSince: number | null = null
@@ -74,8 +129,14 @@ export function detect(rows: FrameSignals[], cracks: Crack[], R: Rules = RULES):
       ci++
     }
 
-    const atMouth = row.liveMouthDist !== null && row.liveMouthDist < R.mouthDist
-    const tipped = row.liveAngle !== null && row.liveAngle >= R.angleDeg
+    const seenAtMouth = row.liveMouthDist !== null && row.liveMouthDist < R.mouthDist
+    if (row.liveMouthDist !== null) {
+      mouthFrames = seenAtMouth ? mouthFrames + 1 : 0
+      if (mouthFrames >= 2) lastSeenAtMouth = t
+    }
+    const hidden = row.liveMouthDist === null && t - lastSeenAtMouth <= R.hiddenHoldMs
+    const atMouth = seenAtMouth || hidden
+    const tipped = hidden || (row.liveAngle !== null && row.liveAngle >= R.angleDeg)
     ;[mouthSince, lastMouthAt] = stretch(atMouth, t, mouthSince, lastMouthAt)
     ;[angleSince, lastAngleAt] = stretch(tipped, t, angleSince, lastAngleAt)
 
@@ -89,8 +150,9 @@ export function detect(rows: FrameSignals[], cracks: Crack[], R: Rules = RULES):
       else if (atMouth && tipped && mouthSince !== null && angleSince !== null) {
         const both = Math.max(mouthSince, angleSince)
         if (t - both >= R.visualStartMs) {
-          start = both
-          startBy = 'mouth + tipped (no crack)'
+          const quiet = pickSoftCrack(soft, both, R)
+          start = quiet ?? both
+          startBy = quiet === null ? 'mouth + tipped (no crack)' : 'quiet crack, then mouth + tipped'
         }
       }
       continue
@@ -98,11 +160,12 @@ export function detect(rows: FrameSignals[], cracks: Crack[], R: Rules = RULES):
 
     // Running: finished once the can has been away from the mouth for leaveMs.
     if (!atMouth && lastMouthAt > start + R.minRunMs && t - lastMouthAt >= R.leaveMs) {
-      return { start: start / 1000, startBy, end: lastMouthAt / 1000, endBy: 'can left mouth', ignoredCracks: ignored }
+      const end = Math.max(refineEnd(head, lastMouthAt, R), start + R.minRunMs)
+      return { start: start / 1000, startBy, end: end / 1000, endBy: end === lastMouthAt ? 'can left mouth' : 'head came forward', ignoredCracks: ignored }
     }
   }
 
   if (start === null) return { start: null, startBy, end: null, endBy: '-', ignoredCracks: ignored }
-  const end = lastMouthAt > start + R.minRunMs ? lastMouthAt / 1000 : null
+  const end = lastMouthAt > start + R.minRunMs ? Math.max(refineEnd(head, lastMouthAt, R), start + R.minRunMs) / 1000 : null
   return { start: start / 1000, startBy, end, endBy: end === null ? 'never left mouth' : 'clip ended', ignoredCracks: ignored }
 }
