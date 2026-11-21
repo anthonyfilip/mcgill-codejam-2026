@@ -46,7 +46,7 @@ export function InstallApp() {
   if (isInstalled()) {
     return (
       <section className="install">
-        <b>getSendy! app</b>
+        <b className="install-title">getSendy! the app</b>
         <p>You're using the app ✓</p>
       </section>
     )
@@ -64,11 +64,9 @@ export function InstallApp() {
 
   return (
     <section className="install">
+      <b className="install-title">getSendy! the app</b>
       <img src="/icon-192.png" alt="" className="install-icon" />
-      <div className="install-text">
-        <b>Get the app</b>
-        <p>Put getSendy! on your home screen. It opens full screen, like a real app.</p>
-      </div>
+      <p className="install-text">Put getSendy! on your home screen. It opens full screen, like a real app.</p>
       <button className="btn primary" onClick={add}>
         Add to Home Screen
       </button>

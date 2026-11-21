@@ -8,6 +8,18 @@ const GO_PX = 60
 
 // `allowed` lets a page switch it off, e.g. the tracker while a run is armed or going.
 export function installSwipeNav(current: string, allowed: () => boolean = () => true) {
+  installSwipe((dir) => ORDER[ORDER.indexOf(current) + (dir < 0 ? 1 : -1)], allowed)
+}
+
+// Someone's shotguns opened from their profile: the "back" swipe (finger moving right, like
+// Leaderboard → Chugs) returns to that profile.
+export function installSwipeBack(href: string) {
+  installSwipe((dir) => (dir > 0 ? href : undefined))
+}
+
+// The shared gesture: `target(dir)` says where a swipe in that direction goes (dir < 0 = finger
+// moving left), or undefined for nowhere.
+function installSwipe(target: (dir: number) => string | undefined, allowed: () => boolean = () => true) {
   const body = document.body
   let x0 = 0
   let y0 = 0
@@ -15,7 +27,6 @@ export function installSwipeNav(current: string, allowed: () => boolean = () => 
   let tracking = false
   let sideways: boolean | null = null // decided after the first ~10 px of movement
 
-  const target = (dir: number) => ORDER[ORDER.indexOf(current) + (dir < 0 ? 1 : -1)]
   const slide = (px: number, animate: boolean) => {
     body.style.transition = animate ? 'transform 0.18s ease-out' : 'none'
     body.style.transform = px ? `translateX(${px}px)` : ''

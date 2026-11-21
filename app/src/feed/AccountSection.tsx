@@ -39,19 +39,15 @@ export function AccountSection() {
 
   return (
     <section className="account">
-      <b>Password</b>
       {has === false && (
         <p className="account-warn">
           Set a password so you can log back in on another phone or after deleting the app.
         </p>
       )}
       {has && !changing && (
-        <p className="account-ok">
-          Password set ✓{' '}
-          <button className="link-btn" onClick={() => setChanging(true)}>
-            Change
-          </button>
-        </p>
+        <button className="account-change" onClick={() => setChanging(true)}>
+          Change password
+        </button>
       )}
       {(has === false || changing) && (
         <form className="account-form" onSubmit={save}>
