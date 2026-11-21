@@ -248,6 +248,7 @@ type CommentRow = {
   id: string
   post_id: string
   user_name: string
+  profile_id: string | null
   body: string
   created_at: string
   profiles: { username: string } | null
@@ -265,6 +266,7 @@ export async function loadComments(): Promise<Comment[]> {
     id: r.id,
     postId: r.post_id,
     user: r.profiles?.username ?? r.user_name,
+    profileId: r.profile_id,
     body: r.body,
     createdAt: Date.parse(r.created_at),
   }))

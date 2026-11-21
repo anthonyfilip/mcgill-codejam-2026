@@ -22,15 +22,23 @@ function timeAgo(ms: number) {
 // Instagram-style comments: a panel that slides up from the bottom. The comments scroll;
 // the "Add a comment…" box stays pinned at the bottom. Drawn straight into <body>: inside the
 // feed it sat under the tab bar, which covered the comment box.
+// Beside each commenter's name: "Author" for the person who posted, otherwise the stars they
+// gave this post (nothing if they haven't rated it).
 function CommentSheet({
+  post,
   comments,
+  ratings,
   onAdd,
   onClose,
 }: {
+  post: Post
   comments: Comment[]
+  ratings: PostRating[]
   onAdd: (body: string) => Promise<void>
   onClose: () => void
 }) {
+  const isAuthor = (c: Comment) => (c.profileId && post.profileId ? c.profileId === post.profileId : c.user === post.user)
+  const starsBy = (c: Comment) => ratings.find((r) => r.profileId === c.profileId)?.stars
   const [text, setText] = useState('')
   const [sending, setSending] = useState(false)
   const sheetRef = useRef<HTMLDivElement>(null)
@@ -99,7 +107,13 @@ function CommentSheet({
               <div key={c.id} className="comment">
                 <Avatar name={c.user} />
                 <p>
-                  <b>{c.user}</b> <span className="when">{timeAgo(c.createdAt)}</span>
+                  <b>{c.user}</b>{' '}
+                  {isAuthor(c) ? (
+                    <span className="author-tag">Author</span>
+                  ) : (
+                    starsBy(c) && <span className="comment-stars">★ {starsBy(c)}</span>
+                  )}{' '}
+                  <span className="when">{timeAgo(c.createdAt)}</span>
                   <br />
                   {c.body}
                 </p>
@@ -227,7 +241,9 @@ function Reel({
           <Rating myStars={myStars} canRate={canRate} onRate={rate} />
         </Popup>
       )}
-      {commenting && <CommentSheet comments={comments} onAdd={onComment} onClose={() => setCommenting(false)} />}
+      {commenting && (
+        <CommentSheet post={post} comments={comments} ratings={ratings} onAdd={onComment} onClose={() => setCommenting(false)} />
+      )}
     </article>
   )
 }
@@ -272,7 +288,14 @@ export function Feed() {
 
   async function comment(post: Post, body: string) {
     if (!getProfile()) throw new Error('make your profile first (Profile tab)')
-    const c: Comment = { id: crypto.randomUUID(), postId: post.id, user: getName(), body, createdAt: Date.now() }
+    const c: Comment = {
+      id: crypto.randomUUID(),
+      postId: post.id,
+      user: getName(),
+      profileId: getProfile()?.id ?? null,
+      body,
+      createdAt: Date.now(),
+    }
     await addComment(c)
     setComments((all) => [...all, c])
   }
