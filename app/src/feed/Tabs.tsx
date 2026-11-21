@@ -2,6 +2,7 @@ const TABS = [
   { href: '/feed.html', label: 'Feed' },
   { href: '/', label: 'Record Chug' },
   { href: '/leaderboard.html', label: 'Leaderboard' },
+  { href: '/profile.html', label: 'Profile' },
 ]
 
 export function Tabs({ active }: { active?: string }) {
