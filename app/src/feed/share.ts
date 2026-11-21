@@ -12,11 +12,15 @@ tabs.innerHTML =
   '<a href="/" class="active">Record Chug</a><a href="/feed.html">Feed</a><a href="/leaderboard.html">Leaderboard</a>'
 document.querySelector('main')?.prepend(tabs)
 
-// Our wording for the tracker's start button and its hint.
+// Our start button: renamed, and moved onto the camera view (styled in share.css).
+// The "Tap Arm to start" hint goes; the tracker's later status messages still show.
 const arm = document.getElementById('arm')
-if (arm) arm.textContent = 'GET SENDY!'
+if (arm) {
+  arm.textContent = 'GET SENDY!'
+  document.getElementById('stage')?.append(arm)
+}
 const hint = document.getElementById('state')
-if (hint?.textContent === 'Tap Arm to start') hint.textContent = 'Tap GET SENDY! to start'
+if (hint?.textContent === 'Tap Arm to start') hint.textContent = ''
 
 window.addEventListener('run:finished', async (e) => {
   const run = (e as CustomEvent<RunFinished>).detail
