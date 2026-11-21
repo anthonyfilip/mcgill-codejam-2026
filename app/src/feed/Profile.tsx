@@ -1,29 +1,29 @@
 import { useState } from 'react'
+import { Avatar } from './Avatar'
+import { getProfile } from './me'
 import type { Post } from './posts'
-import { getName, setName } from './me'
+import { ProfileModal } from './ProfileModal'
 
 const secs = (ms: number) => (ms / 1000).toFixed(2)
 
 // "Your profile" strip at the top of the feed, results and leaderboard pages.
 // `mine` = your posted runs; the page passes them in so the stats update on post/delete.
+// With no profile yet, the set-up pop-up opens straight away.
 export function Profile({ mine }: { mine: Post[] }) {
-  const [name, setLocalName] = useState(getName)
-
-  function rename() {
-    const next = prompt('Your name', name)?.trim().slice(0, 24)
-    if (!next) return
-    setName(next)
-    setLocalName(next)
-  }
+  const profile = getProfile()
+  const [editing, setEditing] = useState(!profile)
 
   const best = mine.length ? Math.min(...mine.map((p) => p.timeMs)) : null
   const cheers = mine.reduce((sum, p) => sum + p.cheers, 0)
+  const name = profile?.username ?? 'you'
 
   return (
     <section className="profile">
-      <span className="avatar big">{name[0].toUpperCase()}</span>
+      <button className="avatar-btn" onClick={() => setEditing(true)} title="Edit profile">
+        <Avatar name={name} url={profile?.avatarUrl} big />
+      </button>
       <div className="who">
-        <button className="name" onClick={rename} title="Change your name">
+        <button className="name" onClick={() => setEditing(true)} title="Edit profile">
           {name} ✎
         </button>
         <div className="profile-stats">
@@ -32,6 +32,7 @@ export function Profile({ mine }: { mine: Post[] }) {
           <span><b>{cheers}</b> 🍻</span>
         </div>
       </div>
+      {editing && <ProfileModal required={!profile} onClose={() => setEditing(false)} />}
     </section>
   )
 }

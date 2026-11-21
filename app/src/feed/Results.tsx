@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { Post } from './posts'
-import { getName } from './me'
+import { getName, getProfile } from './me'
 import { Profile } from './Profile'
 import { deleteDraft, isMine, loadDraft, loadPosts, samplePosts, savePost, type Draft } from './store'
 import { Tabs } from './Tabs'
@@ -49,11 +49,14 @@ export function Results() {
 
   async function post() {
     if (!draft) return
+    if (!getProfile()) return alert('Make your profile first: tap your name at the top.')
     setPosting(true)
     try {
       await savePost({
         id: draft.id === 'demo' ? crypto.randomUUID() : draft.id,
         user: getName(),
+        profileId: getProfile()?.id ?? null,
+        avatarUrl: getProfile()?.avatarUrl ?? null,
         postedAt: Date.now(),
         timeMs: draft.timeMs,
         maxAngle: draft.maxAngle,

@@ -2,6 +2,8 @@
 export type Post = {
   id: string
   user: string
+  profileId?: string | null // who posted it (their current name/photo are looked up)
+  avatarUrl?: string | null
   postedAt: number // ms since epoch
   timeMs: number
   maxAngle: number | null

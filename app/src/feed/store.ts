@@ -3,19 +3,21 @@
 // saved in this browser only (IndexedDB) so the app still works offline.
 // Drafts (finished runs not yet posted) always stay in this browser.
 import { createClient } from '@supabase/supabase-js'
-import { addMyPost, myPosts, removeMyPost } from './me'
+import { addMyPost, getProfile, myPosts, removeMyPost, type MyProfile } from './me'
 import { SAMPLE_POSTS, type Comment, type Post } from './posts'
 
 const url = import.meta.env.VITE_SUPABASE_URL as string | undefined
 const key = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined
 const supabase = url && key ? createClient(url, key) : null
 const BUCKET = 'clips'
+const AVATARS = 'avatars'
 
 export const isShared = supabase !== null
 // Sample posts only fill the empty local feed; the shared feed shows real posts only.
 export const samplePosts: Post[] = isShared ? [] : SAMPLE_POSTS
 // In the shared feed, "yours" = posted from this browser. Locally, everything is yours.
-export const isMine = (p: Post) => !isShared || myPosts().has(p.id)
+export const isMine = (p: Post) =>
+  !isShared || myPosts().has(p.id) || (!!p.profileId && p.profileId === getProfile()?.id)
 
 // A finished run waiting on the results page to be posted (or not).
 export type Draft = {
@@ -39,12 +41,20 @@ type Row = {
   video_path: string | null
   cheers: number
   created_at: string
+  profile_id: string | null
+  profiles: { username: string; avatar_path: string | null } | null // joined from profiles
 }
+
+const publicUrl = (bucket: string, path: string | null | undefined) =>
+  path ? supabase!.storage.from(bucket).getPublicUrl(path).data.publicUrl : null
 
 function fromRow(r: Row): Post {
   return {
     id: r.id,
-    user: r.user_name,
+    // Show the poster's current name and photo (falls back to the name at posting time).
+    user: r.profiles?.username ?? r.user_name,
+    profileId: r.profile_id,
+    avatarUrl: publicUrl(AVATARS, r.profiles?.avatar_path),
     postedAt: Date.parse(r.created_at),
     timeMs: r.time_ms,
     maxAngle: r.max_angle,
@@ -52,7 +62,7 @@ function fromRow(r: Row): Post {
     description: r.description,
     clip: null,
     videoPath: r.video_path,
-    videoUrl: r.video_path ? supabase!.storage.from(BUCKET).getPublicUrl(r.video_path).data.publicUrl : null,
+    videoUrl: publicUrl(BUCKET, r.video_path),
     cheers: r.cheers,
   }
 }
@@ -110,6 +120,7 @@ export async function savePost(post: Post): Promise<void> {
   const { error } = await supabase.from('posts').insert({
     id: post.id,
     user_name: post.user,
+    profile_id: post.profileId ?? null,
     time_ms: Math.round(post.timeMs),
     max_angle: post.maxAngle,
     started_by: post.startedBy,
@@ -126,7 +137,7 @@ export async function loadPosts(): Promise<Post[]> {
     const posts = await read<Post[]>(POSTS, (s) => s.getAll())
     return posts.sort((a, b) => b.postedAt - a.postedAt)
   }
-  const { data, error } = await supabase.from('posts').select('*').order('created_at', { ascending: false })
+  const { data, error } = await supabase.from('posts').select('*, profiles(username, avatar_path)').order('created_at', { ascending: false })
   if (error) throw error
   return (data as Row[]).map(fromRow)
 }
@@ -146,9 +157,66 @@ export async function cheer(post: Post, delta: 1 | -1): Promise<void> {
   if (error) throw error
 }
 
+// ---------- Profiles ----------
+
+// Names: lowercase letters, numbers, "_" and "." only, 3-24 long. The database checks too.
+export const USERNAME_RE = /^[a-z0-9_.]{3,24}$/
+// In the local feed, the sample people's names count as taken.
+const LOCAL_TAKEN = new Set(SAMPLE_POSTS.map((p) => p.user))
+
+// Is this name used by someone other than `myId`?
+export async function isUsernameTaken(username: string, myId?: string): Promise<boolean> {
+  if (!supabase) return LOCAL_TAKEN.has(username)
+  let q = supabase.from('profiles').select('id').eq('username', username)
+  if (myId) q = q.neq('id', myId)
+  const { data, error } = await q
+  if (error) throw error
+  return data.length > 0
+}
+
+// Create or update your profile; `photo` = a new picture to upload (already resized).
+// Throws Error('taken') if someone else has the name.
+export async function saveProfile(p: MyProfile, photo: Blob | null): Promise<MyProfile> {
+  if (!supabase) {
+    if (LOCAL_TAKEN.has(p.username)) throw new Error('taken')
+    const avatarUrl = photo ? await blobToDataUrl(photo) : p.avatarUrl
+    return { ...p, avatarUrl }
+  }
+  let avatarPath = p.avatarUrl ? p.avatarUrl.split(`/${AVATARS}/`)[1] ?? null : null
+  if (photo) {
+    avatarPath = `${p.id}-${Date.now()}.jpg` // new name each time so old copies aren't cached
+    const up = await supabase.storage.from(AVATARS).upload(avatarPath, photo, { contentType: 'image/jpeg' })
+    if (up.error) throw up.error
+  }
+  const { error } = await supabase.rpc('save_profile', {
+    p_id: p.id,
+    p_secret: p.secret,
+    p_username: p.username,
+    p_avatar_path: avatarPath,
+  })
+  if (error) throw error.code === '23505' ? new Error('taken') : error
+  return { ...p, avatarUrl: publicUrl(AVATARS, avatarPath) }
+}
+
+function blobToDataUrl(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader()
+    r.onload = () => resolve(r.result as string)
+    r.onerror = () => reject(r.error)
+    r.readAsDataURL(blob)
+  })
+}
+
 // ---------- Comments ----------
 
-type CommentRow = { id: string; post_id: string; user_name: string; body: string; created_at: string }
+type CommentRow = {
+  id: string
+  post_id: string
+  user_name: string
+  body: string
+  created_at: string
+  profiles: { username: string } | null
+}
 
 // Every comment, oldest first (the feed groups them by post).
 export async function loadComments(): Promise<Comment[]> {
@@ -156,12 +224,12 @@ export async function loadComments(): Promise<Comment[]> {
     const comments = await read<Comment[]>(COMMENTS, (s) => s.getAll())
     return comments.sort((a, b) => a.createdAt - b.createdAt)
   }
-  const { data, error } = await supabase.from('comments').select('*').order('created_at')
+  const { data, error } = await supabase.from('comments').select('*, profiles(username)').order('created_at')
   if (error) throw error
   return (data as CommentRow[]).map((r) => ({
     id: r.id,
     postId: r.post_id,
-    user: r.user_name,
+    user: r.profiles?.username ?? r.user_name,
     body: r.body,
     createdAt: Date.parse(r.created_at),
   }))
@@ -169,7 +237,13 @@ export async function loadComments(): Promise<Comment[]> {
 
 export async function addComment(c: Comment): Promise<void> {
   if (!supabase) return write(COMMENTS, (s) => s.put(c))
-  const { error } = await supabase.from('comments').insert({ id: c.id, post_id: c.postId, user_name: c.user, body: c.body })
+  const { error } = await supabase.from('comments').insert({
+    id: c.id,
+    post_id: c.postId,
+    user_name: c.user,
+    profile_id: getProfile()?.id ?? null,
+    body: c.body,
+  })
   if (error) throw error
 }
 

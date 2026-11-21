@@ -1,5 +1,5 @@
-// Things about "you" kept in this browser until there are real accounts:
-// your display name, which posts you made, and which posts you cheered.
+// Things about "you" kept in this browser until there are real logins:
+// your profile, which posts you made, and which posts you cheered.
 
 function get(key: string): string | null {
   try {
@@ -25,8 +25,18 @@ const toggleId = (key: string, id: string, on: boolean) => {
   set(key, JSON.stringify([...ids]))
 }
 
-export const getName = () => get('shotgun-name') || 'you'
-export const setName = (name: string) => set('shotgun-name', name)
+// Your account. `secret` proves to the database that this browser owns the profile.
+export type MyProfile = { id: string; secret: string; username: string; avatarUrl: string | null }
+
+export function getProfile(): MyProfile | null {
+  try {
+    return JSON.parse(get('shotgun-profile') ?? 'null')
+  } catch {
+    return null
+  }
+}
+export const setProfile = (p: MyProfile) => set('shotgun-profile', JSON.stringify(p))
+export const getName = () => getProfile()?.username ?? 'you'
 
 export const myPosts = () => idSet('shotgun-my-posts')
 export const addMyPost = (id: string) => toggleId('shotgun-my-posts', id, true)

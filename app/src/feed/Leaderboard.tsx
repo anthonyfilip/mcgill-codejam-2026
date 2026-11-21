@@ -1,17 +1,18 @@
 import { useEffect, useState } from 'react'
 import type { Post } from './posts'
+import { Avatar } from './Avatar'
 import { getName } from './me'
 import { Profile } from './Profile'
 import { isMine, loadPosts, samplePosts } from './store'
 import { Tabs } from './Tabs'
 
-type Row = { user: string; best: number; runs: number }
+type Row = { user: string; avatarUrl?: string | null; best: number; runs: number }
 
 // Each person's fastest run, fastest first.
 function rank(posts: Post[]): Row[] {
   const byUser = new Map<string, Row>()
   for (const p of posts) {
-    const row = byUser.get(p.user) ?? { user: p.user, best: Infinity, runs: 0 }
+    const row = byUser.get(p.user) ?? { user: p.user, avatarUrl: p.avatarUrl, best: Infinity, runs: 0 }
     row.best = Math.min(row.best, p.timeMs)
     row.runs++
     byUser.set(p.user, row)
@@ -39,7 +40,7 @@ export function Leaderboard() {
         {rows.map((r, i) => (
           <li key={r.user} className={r.user === me ? 'me' : undefined}>
             <span className="place">{MEDALS[i] ?? i + 1}</span>
-            <span className="avatar">{r.user[0].toUpperCase()}</span>
+            <Avatar name={r.user} url={r.avatarUrl} />
             <span className="who">{r.user}</span>
             <span className="runs">{r.runs} {r.runs === 1 ? 'run' : 'runs'}</span>
             <b className="best">{(r.best / 1000).toFixed(2)} s</b>

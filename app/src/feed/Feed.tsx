@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
-import { getName, hasCheered, setCheered as rememberCheer } from './me'
+import { Avatar } from './Avatar'
+import { getName, getProfile, hasCheered, setCheered as rememberCheer } from './me'
 import { MAX_COMMENT, type Comment, type Post } from './posts'
 import { Profile } from './Profile'
 import { addComment, cheer, deletePost, isMine, loadComments, loadPosts, samplePosts } from './store'
@@ -78,7 +79,7 @@ function PostCard({
   return (
     <article className="post">
       <header>
-        <span className="avatar">{post.user[0].toUpperCase()}</span>
+        <Avatar name={post.user} url={post.avatarUrl} />
         <b>{post.user}</b>
         <span className="when">{timeAgo(post.postedAt)}</span>
         {onDelete && (
@@ -128,6 +129,7 @@ export function Feed() {
   }, [])
 
   async function comment(post: Post, body: string) {
+    if (!getProfile()) throw new Error('make your profile first (tap your name at the top)')
     const c: Comment = { id: crypto.randomUUID(), postId: post.id, user: getName(), body, createdAt: Date.now() }
     await addComment(c)
     setComments((all) => [...all, c])
