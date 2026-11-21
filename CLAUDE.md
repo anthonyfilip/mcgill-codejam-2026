@@ -35,10 +35,13 @@ Supabase stores posts, clips, profiles, comments and ratings.
 - **Record Chug (tracker)** — `app/index.html` + `app/src/live/app.js` (plain JS). Opening the page
   asks for camera + mic and starts a full-screen camera straight away; GET SENDY! (bottom centre)
   starts the *recording*; the timer appears and the clock starts only with the chug:
-  start once a crack/click is heard with the can at the mouth AND the head tips back + arm comes up
-  (no sound = no start; clock = the sound) →
-  🤙 shaka confirms the end; time stops when the can last left the mouth. All thresholds are in
-  `CONFIG` at the top of `app.js`, each with a note on where its value came from.
+  start once a crack/click is heard with the can at the mouth AND the head tips back + arm comes up,
+  with a real person in frame (no sound = no start; clock = the sound) →
+  🤙 shaka confirms the end; time = when the head came forward near the can leaving the mouth; the
+  clip records 1 s more, then Lana's results page opens. No on-screen text during a run. Phones ask
+  the camera for no size (its default picture); laptops 1280×720. All thresholds are in
+  `CONFIG` at the top of `app.js`, each with a note on where its value came from. Current state and
+  the next steps: docs/STATUS.md ("Next up").
 - **Results / Feed / Leaderboard** — `results.html`, `feed.html`, `leaderboard.html` +
   `app/src/feed/` (React + TS). The tracker hands a finished run over via a `run:finished` window
   event (`src/feed/share.ts`). Without Supabase keys everything saves to the browser only.
@@ -122,3 +125,8 @@ merge your own PR otherwise; see Deploy above) → both `git switch main; git pu
 - Same for `git commit -m @'...'@` in PowerShell 5.1: a `"` in the message splits it into pathspecs — use `git commit -F <file>`.
 - While the lab's "Analyse all clips" runs, don't save ANY file under `app/src` — the dev server reloads every open page (the lab too) and the run stops. Edit only after it finishes.
 - A fresh lab analysis of the same clip reads slightly differently each run — check rule changes on more than one analysis before trusting small wins.
+- `app.js` starts the camera while the module is still loading: anything `openCamera()`/`setup()` touch before their first `await` must be declared above that point (a `let` further down = TDZ crash).
+- iPhone camera: asking for portrait `720×1280` returned landscape `1280×720` (70% cropped when filling the screen). Phones now ask for no size. Don't add size requests on phones without checking on an iPhone.
+- Don't gate features on `track.getCapabilities()` — the iPhone stopped listing `torch` after the camera request changed, though it can do it. Try, and ignore a refusal.
+- Every iOS browser (Brave, Chrome) runs Safari's engine, and an iPhone can't be inspected from Windows: for iPhone-only bugs ship a temporary on-screen readout, then remove it.
+- Phones keep showing a stale copy after a deploy — ask for the app/tab to be fully closed before calling a fix "not working".

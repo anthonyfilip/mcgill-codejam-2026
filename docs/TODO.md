@@ -1,5 +1,8 @@
 # TODO — Saturday → submission (~Sun 07:00, confirm)
 
+**State at Sat ~17:45:** §1–§2 built and live; Record screen redesigned (§4, see STATUS "Record
+screen"); PWA basics done by Lana (§3). **Next:** the iPhone test list in STATUS "Next up", then §5.
+
 **Goal for tomorrow: a mobile app with a cleaner, friendlier UI.** Route: a **PWA** — the same
 web app, made installable ("Add to Home Screen" → full-screen, own icon) and designed
 phone-first. A native app would mean rewriting the tuned detection; a PWA keeps it.
@@ -9,8 +12,8 @@ Owners: **A** = Anthony (tracker, detection, performance), **L** = Lana (UI, fee
 Tick items off as they land. Order matters — phones need HTTPS for the camera, so deploy first.
 
 ## 0. First thing (30 min, both)
-- [ ] **Both:** `git switch main; git pull; cd app; npm install`, restart `npm run dev`.
-- [ ] **L:** PR + merge `fix-local-profile-upload`.
+- [x] **Both:** `git switch main; git pull; cd app; npm install`, restart `npm run dev`.
+- [x] **L:** PR + merge `fix-local-profile-upload`.
 - [ ] **Both:** confirm submission time, Devpost link, Celsius prize/track → CLAUDE.md "Project".
 - [ ] **Both — Decide (5 min):** who holds the phone in the main flow?
       **(a) Propped up**, front camera, drinker films themselves — or
@@ -24,12 +27,15 @@ Tick items off as they land. Order matters — phones need HTTPS for the camera,
       (Chrome). Do a run, post it, open feed + leaderboard. Write every problem in a list below
       this section (layout, permissions, speed, audio, recording). This list drives the rest of the day.
 - [ ] **A — Measure speed on the phones (15 min).** The debug panel → frames per second during a
-      run. Under ~10 fps the detection gets unreliable.
+      run. Under ~10 fps the detection gets unreliable. (The debug panel is dev-server only now:
+      Android → USB + `chrome://inspect` port-forward `5173`; iPhone can't reach the dev server —
+      add a temporary on-screen fps readout if needed.)
 
 ## 2. Make the tracker work on phones (A, ~3 h)
 (Built Sat afternoon — every box below still needs one real phone run to confirm.)
 - [x] **Camera:** flip button (front ↔ back, `facingMode`); mirror the video only for the front
-      camera; handle portrait video (e.g. 720×1280) in the overlay maths.
+      camera; full-screen picture. Phones ask for the camera's default picture (asking an iPhone
+      for portrait 720×1280 gave landscape 1280×720 → 70% cropped, very zoomed).
 - [x] **Speed:** on phones use the `lite` pose model ~~and lower resolution~~ (kept HD: far-away
       hands need the pixels), and only run the hand model while armed/running (it's the heavy part).
       Target ≥ 15 fps on a mid-range phone — **measure it** (fps is in the debug panel's first line).
@@ -43,28 +49,22 @@ Tick items off as they land. Order matters — phones need HTTPS for the camera,
       scores unchanged (lab uses the full model; phones' lite model isn't measured yet).
 
 ## 3. Installable app — PWA (L or A, ~1.5 h)
-- [ ] Web app manifest: name, short name, icons (192/512 + maskable), theme/background colour,
-      `display: standalone`, `orientation: portrait`, start URL `/`.
-- [ ] Service worker so it installs and the app shell loads fast (e.g. `vite-plugin-pwa` — a new
-      dependency, justify it in the PR). Don't cache Supabase data or clips.
-- [ ] iOS: `apple-touch-icon`, `apple-mobile-web-app-capable`, status-bar style; test "Add to Home
-      Screen" on iPhone and the install prompt on Android.
-- [ ] App icon + splash colour (Celsius-friendly palette, see §4).
+- [x] Web app manifest ("getSendy!", icons, standalone, opens on Chugs) — Lana, `public/manifest.webmanifest`.
+- [ ] Service worker — not added (none in the repo). Optional; skip unless install needs it.
+- [x] iOS tags (`apple-touch-icon`, capable, status bar) + "Get the app" section on Profile — Lana.
+- [x] App icon (Lana's pixel-art icon).
 
 ## 4. Better-looking, friendlier UI (L lead, A on the tracker screen, ~5 h)
 Design once, then apply everywhere. Phone-first: one hand, thumb reach, big targets.
 - [ ] **L — Style guide (30 min):** 2–3 colours, one font, button + card styles, dark theme.
       Celsius-inspired accents for the demo. Put it in a shared CSS file both sides import.
-- [ ] **L — Navigation:** bottom tab bar (Record · Feed · Leaderboard · Profile), fixed, safe-area
-      aware (`env(safe-area-inset-*)` for notches), ≥ 44 px touch targets, no hover-only UI.
-- [ ] **A — Record screen (the hero):** full-screen camera; one big **GET SENDY!** button; a huge
-      timer; a single clear prompt that changes with the state:
-      *"Step back — get your head and elbows in the frame"* → *"Can to your mouth"* →
-      *"Crack it!"* → *"GO GO GO"* → *"🤙 when you're done"* → *"Sent! 5.54 s"*.
-      Use the person-size reading to say "step back / come closer". Hide the debug panel behind a
-      long-press or a `?debug` URL.
-- [ ] **A — First-run screen:** explain why we need camera + mic *before* the browser asks, with a
-      "Let's go" button (permission prompts out of nowhere get declined).
+- [x] **L — Navigation:** bottom tab bar (Chugs · Leaderboard · Profile) + sideways swipes — Lana.
+- [x] **A — Record screen (the hero):** done Sat, with Anthony's choices: full-screen camera that
+      starts on page open, GET SENDY! at the bottom centre, timer only once the chug starts, **no
+      prompts/messages at all** (decided against the step-by-step prompts), no tracking visuals;
+      debug panel only on the local dev server. Details: STATUS "Record screen".
+- [x] ~~**A — First-run screen**~~ — dropped: the camera/mic prompt now appears as soon as Record
+      opens (Anthony's call).
 - [ ] **L — Results screen:** big time, replay, PB/rank as simple badges, name + description, one
       primary **Post** button, Retake as secondary.
 - [ ] **L — Feed:** full-width video cards, tap to play, rating + comments in a bottom sheet.
@@ -98,4 +98,4 @@ school vs school · two-person races · one shared rules module for tracker + la
 ## Don't forget
 - Sleep a few hours. Stop new features ~3 h before the deadline.
 - UI work touches both areas: agree the style guide first, then L styles `src/feed/`, A styles
-  `index.html` + `src/live/`. Small PRs, merged often.
+  `index.html` + `src/live/`. Small PRs, merged often — **Lana merges** (only her merges deploy).
