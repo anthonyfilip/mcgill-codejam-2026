@@ -51,7 +51,6 @@ body { margin: 0; font-family: system-ui, sans-serif; background: #111; color: #
 .board li.me { background: #2b2510; }
 .board .place { width: 28px; text-align: center; font-weight: 700; font-size: 18px; }
 .board .who { font-weight: 600; }
-.board .runs { margin-left: auto; color: #888; font-size: 13px; }
 .board .best { font-variant-numeric: tabular-nums; font-size: 18px; }
 .post .delete { padding: 4px 6px; border: 0; background: none; font-size: 16px; cursor: pointer; opacity: 0.6; }
 .post .delete:hover { opacity: 1; }
@@ -100,3 +99,11 @@ span.star { cursor: default; }
 .board li { flex-wrap: wrap; }
 .board .divider { flex-basis: 100%; margin: -4px 0 4px; color: #888; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; }
 .board li.below { border-top: 2px dashed #444; }
+
+/* Shotgun names */
+.post-title { margin: 12px 12px 0; font-size: 18px; }
+.title-field { text-align: left; }
+.board .who { display: flex; flex-direction: column; min-width: 0; }
+.board .who small { color: #888; font-size: 12px; font-weight: 400; }
+.board .score { margin-left: auto; display: flex; flex-direction: column; align-items: flex-end; text-align: right; }
+.board .run-title { max-width: 160px; color: #f5b400; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

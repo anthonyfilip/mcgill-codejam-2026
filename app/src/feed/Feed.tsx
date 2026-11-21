@@ -124,6 +124,8 @@ function PostCard({
         <div className="no-video">🍺</div>
       )}
 
+      {post.title && <h3 className="post-title">{post.title}</h3>}
+
       <div className="stats">
         <span className="time">{(post.timeMs / 1000).toFixed(2)} s</span>
         <AvgRating stars={ratings.map((r) => r.stars)} />

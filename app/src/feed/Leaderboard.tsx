@@ -9,7 +9,7 @@ import { Tabs } from './Tabs'
 // Runs averaging at least this many stars rank above every run that doesn't.
 const MIN_RATING = 3.5
 
-type Run = { timeMs: number; avg: number | null }
+type Run = { timeMs: number; avg: number | null; title: string; postedAt: number }
 type Row = { user: string; avatarUrl?: string | null; best: Run; runs: number }
 
 const qualifies = (r: Run) => r.avg !== null && r.avg >= MIN_RATING
@@ -22,7 +22,12 @@ function rank(posts: Post[], ratings: PostRating[]): Row[] {
   const byUser = new Map<string, Row>()
   for (const p of posts) {
     const stars = ratings.filter((r) => r.postId === p.id).map((r) => r.stars)
-    const run: Run = { timeMs: p.timeMs, avg: stars.length ? stars.reduce((a, b) => a + b, 0) / stars.length : null }
+    const run: Run = {
+      timeMs: p.timeMs,
+      avg: stars.length ? stars.reduce((a, b) => a + b, 0) / stars.length : null,
+      title: p.title ?? '',
+      postedAt: p.postedAt,
+    }
     const row = byUser.get(p.user)
     if (!row) byUser.set(p.user, { user: p.user, avatarUrl: p.avatarUrl, best: run, runs: 1 })
     else {
@@ -34,6 +39,17 @@ function rank(posts: Post[], ratings: PostRating[]): Row[] {
 }
 
 const MEDALS = ['🥇', '🥈', '🥉']
+
+// "Today", "Yesterday", or e.g. "Nov 19".
+function day(ms: number) {
+  const d = new Date(ms)
+  const today = new Date()
+  const yesterday = new Date(today)
+  yesterday.setDate(today.getDate() - 1)
+  if (d.toDateString() === today.toDateString()) return 'Today'
+  if (d.toDateString() === yesterday.toDateString()) return 'Yesterday'
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+}
 
 export function Leaderboard() {
   const [posts, setPosts] = useState<Post[]>([])
@@ -66,11 +82,17 @@ export function Leaderboard() {
             {i === firstBelow && <span className="divider">Below ★ {MIN_RATING} or not rated yet</span>}
             <span className="place">{MEDALS[i] ?? i + 1}</span>
             <Avatar name={r.user} url={r.avatarUrl} />
-            <span className="who">{r.user}</span>
-            <span className="runs">
-              {r.best.avg !== null ? `★ ${r.best.avg.toFixed(1)}` : '★ –'} · {r.runs} {r.runs === 1 ? 'run' : 'runs'}
+            <span className="who">
+              {r.user}
+              <small>
+                {r.best.avg !== null ? `★ ${r.best.avg.toFixed(1)}` : '★ –'} · {day(r.best.postedAt)} · {r.runs}{' '}
+                {r.runs === 1 ? 'run' : 'runs'}
+              </small>
             </span>
-            <b className="best">{(r.best.timeMs / 1000).toFixed(2)} s</b>
+            <span className="score">
+              <b className="best">{(r.best.timeMs / 1000).toFixed(2)} s</b>
+              {r.best.title && <span className="run-title">{r.best.title}</span>}
+            </span>
           </li>
         ))}
       </ol>
