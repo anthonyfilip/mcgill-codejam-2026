@@ -77,7 +77,7 @@ export function Results() {
     }
   }
 
-  // Throw this run away and go back to the tracker.
+  // Delete: throw this run away and go back to Record a chug.
   async function retake() {
     if (!draft) return
     if (draft.id !== 'demo') await deleteDraft(draft.id)
@@ -121,10 +121,10 @@ export function Results() {
           {posting ? 'Posting…' : title.trim() ? 'Post to feed' : 'Name it to post'}
         </button>
 
-        <div className="row">
-          <button className="btn" onClick={retake}>Retake</button>
-          {videoUrl && <a className="btn" href={videoUrl} download={`shotgun.${draft.clip?.type.includes('mp4') ? 'mp4' : 'webm'}`}>Download</a>}
-        </div>
+        {/* Small and quiet on purpose: Post is the one main action. */}
+        <button className="delete-run" onClick={retake}>
+          Delete
+        </button>
       </section>
     </main>
   )
