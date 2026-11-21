@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { SAMPLE_POSTS, type Post } from './posts'
+import { loadPosts } from './store'
 
 function timeAgo(ms: number) {
   const min = Math.round((Date.now() - ms) / 60_000)
@@ -10,6 +11,7 @@ function timeAgo(ms: number) {
 
 function PostCard({ post }: { post: Post }) {
   const [cheered, setCheered] = useState(false)
+  const videoUrl = useMemo(() => (post.clip ? URL.createObjectURL(post.clip) : null), [post.clip])
   return (
     <article className="post">
       <header>
@@ -18,8 +20,8 @@ function PostCard({ post }: { post: Post }) {
         <span className="when">{timeAgo(post.postedAt)}</span>
       </header>
 
-      {post.videoUrl ? (
-        <video src={post.videoUrl} controls playsInline loop muted autoPlay />
+      {videoUrl ? (
+        <video src={videoUrl} controls playsInline loop muted autoPlay />
       ) : (
         <div className="no-video">🍺</div>
       )}
@@ -40,20 +42,10 @@ function PostCard({ post }: { post: Post }) {
 export function Feed() {
   const [posts, setPosts] = useState<Post[]>(SAMPLE_POSTS)
 
-  // Until there's a backend: post a clip downloaded from the tracker. Lives only in this tab.
-  function addClip(file: File) {
-    const post: Post = {
-      id: crypto.randomUUID(),
-      user: 'you',
-      postedAt: Date.now(),
-      timeMs: 0,
-      maxAngle: null,
-      startedBy: [],
-      videoUrl: URL.createObjectURL(file),
-      cheers: 0,
-    }
-    setPosts([post, ...posts])
-  }
+  // Runs posted from the tracker's results card, newest first, above the samples.
+  useEffect(() => {
+    loadPosts().then((saved) => setPosts([...saved, ...SAMPLE_POSTS]))
+  }, [])
 
   return (
     <main className="feed">
@@ -61,11 +53,6 @@ export function Feed() {
         <a href="/">Tracker</a>
         <a href="/feed.html" className="active">Feed</a>
       </nav>
-
-      <label className="upload">
-        + Post a clip
-        <input type="file" accept="video/*" hidden onChange={(e) => e.target.files?.[0] && addClip(e.target.files[0])} />
-      </label>
 
       {posts.map((p) => (
         <PostCard key={p.id} post={p} />

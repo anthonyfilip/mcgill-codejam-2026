@@ -8,7 +8,6 @@ body { margin: 0; font-family: system-ui, sans-serif; background: #111; color: #
 .tabs a { flex: 1; padding: 10px; text-align: center; border-radius: 8px; background: #2a2a2a; color: #aaa; font-weight: 600; text-decoration: none; }
 .tabs a.active { background: #f5b400; color: #111; }
 
-.upload { padding: 14px; text-align: center; border: 2px dashed #444; border-radius: 10px; color: #f5b400; font-weight: 700; cursor: pointer; }
 
 .post { background: #1d1d1d; border-radius: 12px; overflow: hidden; }
 .post header { display: flex; align-items: center; gap: 10px; padding: 12px; }

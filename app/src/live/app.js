@@ -245,6 +245,11 @@ function showClip() {
   $("replay").src = url;
   $("download").href = url;
   $("download").download = `shotgun.${recorder.mimeType.includes("mp4") ? "mp4" : "webm"}`;
+  // Hand the finished run to the feed (src/feed/share.ts shows "Post to feed").
+  const a = run.angles;
+  window.dispatchEvent(new CustomEvent("run:finished", {
+    detail: { timeMs: run.timeMs, maxAngle: a.length ? Math.round(Math.max(...a)) : null, startedBy: run.startedBy, clip: blob },
+  }));
 }
 
 function draw(p) {
