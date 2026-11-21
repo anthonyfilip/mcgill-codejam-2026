@@ -20,7 +20,7 @@ prove it.
 
 ## What it does
 
-- **Times itself.** Press Arm and drink. The timer starts when it *hears* the can crack while
+- **Times itself.** Press GET SENDY! and drink. The timer starts when it *hears* the can crack while
   the can is at your mouth, and stops when it *sees* the can come down.
 - **Send it 🤙.** Flash a shaka to confirm you're done. Your time is set to the moment the can
   left your mouth, so how fast you get your hand up doesn't matter.
@@ -29,8 +29,8 @@ prove it.
   mouth is refused.
 - **Works across a room.** People stand a few metres back at a party, so the tracker uses HD
   video, a full-body pose model and zoomed-in hand tracking.
-- **Social.** Every run gets a results page with a replay, can be posted to a shared feed,
-  rated with stars and commented on. The leaderboard ranks runs rated ★3.5+ first, then the
+- **Social.** Every run gets a results page with a replay, can be named and posted to a shared
+  feed, rated with stars and commented on. The leaderboard ranks runs rated ★3.5+ first, then the
   fastest — so a sloppy, half-spilled run can't top a clean one.
 
 ## How we built it
@@ -103,7 +103,7 @@ Everything runs in the browser — no server touches the camera or microphone.
 - [ ] Confirm team names/roles (README "Team" section too).
 - [ ] Celsius / sponsor prize: add the track name and one line on how the demo uses Celsius.
 - [ ] Repo **public** (judges can't open a private repo) and link it.
-- [ ] Demo video (≤ 2–3 min): Arm → crack → drink → 🤙 → results → feed → leaderboard,
+- [ ] Demo video (≤ 2–3 min): GET SENDY! → crack → drink → 🤙 → results → feed → leaderboard,
       plus 10 s of the lab's accuracy table.
 - [ ] Screenshots: tracker mid-run with the skeleton, results page, leaderboard, lab scoreboard.
 - [ ] Supabase: tighten the "anyone can delete" rules on posts/clips before the demo, so nobody

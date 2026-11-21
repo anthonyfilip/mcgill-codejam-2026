@@ -9,7 +9,7 @@ uses a can of Celsius.
 
 ## What it does
 
-- **Hands-free timing.** Press **Arm**, then just drink. The timer starts on its own at the
+- **Hands-free timing.** Press **GET SENDY!**, then just drink. The timer starts on its own at the
   crack of the can and stops on its own when the can leaves your mouth.
 - **🤙 to send it.** Flash a shaka when you're done to confirm the run. The final time is
   set to the moment the can came down, not when you got your hand up — your reaction time
@@ -20,8 +20,8 @@ uses a can of Celsius.
 - **Works from across the room.** HD camera input, a full-body pose model, and zoomed-in hand
   tracking around each wrist so hands are found even when people stand a few metres back.
 - **Results, feed and leaderboard.** Every run gets a results page with a replay clip, can be
-  posted to a shared feed with a description, rated with stars and commented on. The
-  leaderboard ranks runs rated ★3.5+ first, then by fastest time.
+  named and posted to a shared feed with a description, rated with stars and commented on. The
+  leaderboard ranks runs rated ★3.5+ first, then by fastest time, with each run's name and day.
 - **Profiles.** Pick a username and photo; your runs, personal best and rank follow you.
 
 ## How accurate is it?
@@ -83,7 +83,7 @@ Then open:
 
 | Page | URL |
 |---|---|
-| Tracker (the app) | http://localhost:5173 |
+| Record Chug (the tracker) | http://localhost:5173 |
 | Feed | http://localhost:5173/feed.html |
 | Leaderboard | http://localhost:5173/leaderboard.html |
 | Detection lab (dev tool) | http://localhost:5173/lab.html |
