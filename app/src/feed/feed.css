@@ -232,3 +232,7 @@ body { min-height: 100dvh; }
 /* Confirm button inside the delete pop-up */
 .popup-delete { display: block; margin: 12px auto 4px; padding: 8px 24px; border: 1px solid #f88; border-radius: 999px; background: none; color: #f88; font: inherit; font-weight: 700; cursor: pointer; }
 
+/* Beside a commenter's name: "Author" (the poster) or the stars they gave */
+.author-tag { padding: 1px 7px; border-radius: 999px; background: #f5b400; color: #111; font-size: 11px; font-weight: 800; }
+.comment-stars { color: #f5b400; font-size: 12px; font-weight: 700; }
+

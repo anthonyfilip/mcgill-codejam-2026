@@ -22,6 +22,7 @@ export type Comment = {
   id: string
   postId: string
   user: string
+  profileId?: string | null // who wrote it (to show their rating, or "Author")
   body: string // up to 200 characters
   createdAt: number // ms since epoch
 }
