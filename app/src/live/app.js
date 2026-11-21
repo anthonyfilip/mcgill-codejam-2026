@@ -61,8 +61,13 @@ const CONFIG = {
   wristMinVisibility: 0.3, // try a wrist crop even if the pose is only fairly sure where the wrist is
 };
 
-// "full" is more accurate than "lite" on small/far-away people, at some speed cost.
-const POSE_MODEL = "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/1/pose_landmarker_full.task";
+// Phones (touch screen as the main pointer) get the lighter settings below, to stay ≥ 15 fps.
+const PHONE = matchMedia("(pointer: coarse)").matches;
+// "full" is more accurate than "lite" on small/far-away people, at some speed cost — so laptops
+// keep "full" (what the lab's accuracy numbers were measured with) and phones use "lite".
+const POSE_MODEL = PHONE
+  ? "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task"
+  : "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/1/pose_landmarker_full.task";
 const GESTURE_MODEL = "https://storage.googleapis.com/mediapipe-models/gesture_recognizer/gesture_recognizer/float16/1/gesture_recognizer.task";
 
 // Pose landmark indices
@@ -73,6 +78,9 @@ const $ = (id) => document.getElementById(id);
 const video = $("video"), canvas = $("overlay"), ctx2d = canvas.getContext("2d");
 
 let pose, gesture, handCrop, stream, analyser, highAnalyser, clickAnalyser, audioCtx, recorder, chunks = [];
+let facing = "user";  // "user" = front camera (mirrored on screen), "environment" = back camera
+let mic = null, micTargets = []; // the mic's audio source and the nodes it feeds (re-wired on camera flip)
+let wakeLock = null;
 const cropCanvas = document.createElement("canvas");
 const cropCtx = cropCanvas.getContext("2d", { willReadFrequently: true });
 let state = "idle"; // idle → armed → running → done
@@ -123,6 +131,10 @@ function mouthHeldMs(now) {
 
 $("arm").onclick = async () => {
   $("arm").disabled = true;
+  // iPhone: audio only runs if the AudioContext is created/resumed inside the tap itself, before
+  // any await — otherwise it stays suspended and no crack is ever heard.
+  audioCtx ??= new AudioContext();
+  audioCtx.resume();
   if (!stream) {
     try {
       await setup();
@@ -138,34 +150,86 @@ $("arm").onclick = async () => {
   seen.crack = seen.angle = seen.mouth = -Infinity;
   resetTrack();
   setState("armed");
+  keepAwake(true);
 };
 
-async function setup() {
-  setStateText("Loading models…");
+// Switch front ↔ back camera (not mid-run: the recording uses the current camera).
+$("flip").onclick = async () => {
+  if (state === "running") return;
+  facing = facing === "user" ? "environment" : "user";
+  $("stage").classList.toggle("mirror", facing === "user");
+  if (!stream) return; // the camera opens on GET SENDY!, with the side chosen here
+  $("flip").disabled = true;
+  try {
+    await openCamera();
+  } catch (err) {
+    setStateText(`Couldn't switch camera: ${err.message}`);
+  }
+  $("flip").disabled = false;
+};
+
+// Open (or re-open) the camera + mic on the chosen side, and re-wire the mic into the audio graph.
+async function openCamera() {
+  if (!navigator.mediaDevices?.getUserMedia) throw new Error("camera needs a secure (https) page");
+  stream?.getTracks().forEach((t) => t.stop()); // phones can't open two cameras at once
   stream = await navigator.mediaDevices.getUserMedia({
     // Ask for HD: someone across the room needs the pixels. The browser falls back if unsupported.
-    video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } },
+    video: { facingMode: facing, width: { ideal: 1280 }, height: { ideal: 720 } },
     // Raw audio: noise suppression would eat the crack transient.
     audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
   });
   video.srcObject = stream;
   await video.play();
-  canvas.width = video.videoWidth;
-  canvas.height = video.videoHeight;
+  fitStage();
+  if (audioCtx && micTargets.length) {
+    mic?.disconnect();
+    mic = audioCtx.createMediaStreamSource(stream);
+    for (const node of micTargets) mic.connect(node);
+  }
+}
 
-  audioCtx = new AudioContext();
+// The camera view takes the camera's own shape (portrait on a phone held upright), and the
+// overlay matches its pixels. Runs again if the phone rotates (the video's size changes).
+function fitStage() {
+  const w = video.videoWidth, h = video.videoHeight;
+  if (!w || !h) return;
+  canvas.width = w;
+  canvas.height = h;
+  $("stage").style.setProperty("--w", w);
+  $("stage").style.setProperty("--h", h);
+}
+video.addEventListener("resize", fitStage);
+
+// Keep the screen on while waiting for / timing a run (phones dim and lock otherwise).
+async function keepAwake(on) {
+  try {
+    if (on && !wakeLock) {
+      wakeLock = await navigator.wakeLock?.request("screen");
+      wakeLock?.addEventListener("release", () => { wakeLock = null; });
+    } else if (!on && wakeLock) {
+      await wakeLock.release();
+    }
+  } catch { /* not supported or refused — the run still works */ }
+}
+// The lock is dropped when the page is hidden; take it again on return.
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible" && (state === "armed" || state === "running")) keepAwake(true);
+});
+
+async function setup() {
+  setStateText("Loading models…");
+  await openCamera();
+
   analyser = audioCtx.createAnalyser();
   analyser.fftSize = 2048;
   analyser.smoothingTimeConstant = 0;
-  const mic = audioCtx.createMediaStreamSource(stream);
-  mic.connect(analyser);
   // Same mic through a steep high-pass (two filters), to measure how "bright" the sound is.
   const hp1 = audioCtx.createBiquadFilter(), hp2 = audioCtx.createBiquadFilter();
   for (const hp of [hp1, hp2]) { hp.type = "highpass"; hp.frequency.value = CONFIG.crackHighFreqHz; }
   highAnalyser = audioCtx.createAnalyser();
   highAnalyser.fftSize = 2048;
   highAnalyser.smoothingTimeConstant = 0;
-  mic.connect(hp1).connect(hp2).connect(highAnalyser);
+  hp1.connect(hp2).connect(highAnalyser);
   // And through a 6 kHz high-pass for clicks. A bigger buffer (~90 ms) so no audio is lost between
   // polls when a slow video frame delays the 20 ms timer.
   const hp3 = audioCtx.createBiquadFilter(), hp4 = audioCtx.createBiquadFilter();
@@ -173,7 +237,10 @@ async function setup() {
   clickAnalyser = audioCtx.createAnalyser();
   clickAnalyser.fftSize = 4096;
   clickAnalyser.smoothingTimeConstant = 0;
-  mic.connect(hp3).connect(hp4).connect(clickAnalyser);
+  hp3.connect(hp4).connect(clickAnalyser);
+  micTargets = [analyser, hp1, hp3];
+  mic = audioCtx.createMediaStreamSource(stream);
+  for (const node of micTargets) mic.connect(node);
 
   const vision = await FilesetResolver.forVisionTasks(
     "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm"
@@ -417,8 +484,13 @@ function fingerText(f) {
 
 // ---------- Main loop ----------
 
+let frameNo = 0, lastFrameAt = null;
+
 function loop() {
   const now = performance.now();
+  if (lastFrameAt !== null) live.fps = 0.9 * (live.fps ?? 0) + 0.1 * (1000 / Math.max(1, now - lastFrameAt));
+  lastFrameAt = now;
+  frameNo++;
   const res = pose.detectForVideo(video, now);
   const lm = res.landmarks[0];
   const p = lm ? readPose(lm) : null;
@@ -460,12 +532,14 @@ function loop() {
   }
 
   // Read the hand while armed too, so the 🤙 light can be tested before a run starts.
-  // Hands are tracked in every state (also after a run), so the overlay always shows them.
-  // Only the "running" state acts on the 🤙.
+  // Only the "running" state acts on the 🤙. The hand model is the heavy part, so on phones it
+  // runs every frame only during a run, every 4th frame while armed, and not at all otherwise
+  // (the start uses only the pose + sound). Laptops keep it on every frame.
   let send = false;
   let ang = null; // arm / hand / wrist / can angles for the drinking hand
   let handsPx = [];
-  {
+  const wantHands = !PHONE || state === "running" || (state === "armed" && frameNo % 4 === 0);
+  if (wantHands) {
     const hands = detectHands(now, lm);
     handsPx = hands.map((h) => h.px);
     live.boxes = hands.map((h) => h.box).filter(Boolean);
@@ -515,7 +589,7 @@ function loop() {
   $("sig-send").classList.toggle("on", send);
   const shoulderPx = lm ? Math.hypot((lm[SHOULDER_L].x - lm[SHOULDER_R].x) * canvas.width, (lm[SHOULDER_L].y - lm[SHOULDER_R].y) * canvas.height) : null;
   $("debug").textContent =
-    `state ${state}\n` +
+    `state ${state} · ${live.fps?.toFixed(0) ?? "-"} fps · ${PHONE ? "phone (lite pose model)" : "laptop (full pose model)"} · ${facing === "user" ? "front" : "back"} camera\n` +
     `camera ${video.videoWidth}×${video.videoHeight} · person ${shoulderPx ? `${shoulderPx.toFixed(0)} px shoulders` : "not found"} · hands via ${live.handMode ?? "-"}\n` +
     `audio rms ${live.rms?.toFixed(3)} · jump ×${live.jump?.toFixed(1)} · bright ${live.highShare?.toFixed(2)} · crack score ${live.crackScore?.toFixed(1)} (recent peak ${live.peakScore?.toFixed(1)}, need ${CONFIG.crackScore})\n` +
     `click ${live.clickDb?.toFixed(0) ?? "-"} dB (recent peak ${live.peakClick?.toFixed(0) ?? "-"}, need ${CONFIG.clickDb}) · sounds at mouth (waiting for head back + arm up): ${sounds.length}\n` +
@@ -533,12 +607,16 @@ function startRun(startAt, startedBy) {
   if (state !== "armed") return; // crack (audio timer) and the video loop can both try to start
   run = { startAt, startedBy, angles: [], hand: [] }; // hand: per-frame hand/wrist/can angles
   chunks = [];
-  const mimeType = ["video/webm", "video/mp4"].find((t) => MediaRecorder.isTypeSupported(t));
+  // mp4 first when the browser can record it (Safari always; recent Chrome too): it plays on every
+  // phone, while webm clips don't play on older iPhones in the feed.
+  const mimeType = ["video/mp4", "video/webm"].find((t) => MediaRecorder.isTypeSupported(t));
   recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
   recorder.ondataavailable = (e) => chunks.push(e.data);
   recorder.onstop = showClip;
   recorder.start();
   setState("running");
+  $("flip").disabled = true;
+  navigator.vibrate?.(150); // Android only; iPhones ignore it
 }
 
 function endRun(endAt, endedBy) {
@@ -546,6 +624,9 @@ function endRun(endAt, endedBy) {
   run.endedBy = endedBy;
   recorder.stop();
   setState("done");
+  $("flip").disabled = false;
+  keepAwake(false);
+  navigator.vibrate?.([80, 60, 80]);
   const a = run.angles;
   $("r-time").textContent = (run.timeMs / 1000).toFixed(2);
   $("timer").textContent = (run.timeMs / 1000).toFixed(2);
@@ -562,7 +643,7 @@ function showClip() {
   const url = URL.createObjectURL(blob);
   $("replay").src = url;
   $("download").href = url;
-  $("download").download = `shotgun.${recorder.mimeType.includes("mp4") ? "mp4" : "webm"}`;
+  $("download").download = `shotgun.${blob.type.includes("mp4") ? "mp4" : "webm"}`;
   // Hand the finished run to the feed (src/feed/share.ts opens the results page).
   const a = run.angles;
   window.dispatchEvent(new CustomEvent("run:finished", {

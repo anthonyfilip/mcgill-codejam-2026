@@ -19,6 +19,12 @@ Backup: a recorded run of the full demo, in case the live camera fails on stage.
   its clip → shared feed → leaderboard. Lana's profile is on the same database.
 - **Tracker:** HD webcam, full pose model, zoomed wrist crops (works ~2–3 m back), hand skeleton
   overlay, debug panel (person size, crack score, finger readings).
+- **Tracker on phones (Sat, built — no real phone run yet):** 🔄 front/back camera flip (only the
+  front camera is mirrored); the camera view takes the camera's shape (portrait on an upright
+  phone, ≤ 70% of the screen); `lite` pose model + hand model only during a run (every 4th frame
+  while armed) on touch devices, fps in the debug panel; audio started inside the GET SENDY! tap
+  (iPhone); screen kept awake while armed/running; vibration on start/finish (Android); records
+  mp4 when supported so clips play on iPhones. Laptops behave as before.
 - **Start needs ALL of** (Sat — live test started runs just from holding the can at the mouth):
   1. the can at the mouth for ≥ 0.15 s, then 2. a sound — a loud crack or a **click** (loudest
   ~6 ms above 6 kHz, ≥ 15 dB over the previous 0.5 s), then 3. within 1.5 s the drinking motion,
