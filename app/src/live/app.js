@@ -168,6 +168,35 @@ $("flip").onclick = async () => {
   $("flip").disabled = false;
 };
 
+// 🔦 Light for night chugs, on from GET SENDY! until the run ends. Back camera: the phone's
+// flashlight ("torch", W3C Image Capture spec) where the browser can switch it (track capability
+// `torch`; Android Chrome — iPhones usually can't). Front camera (no flash): the page around the
+// camera view turns white, like a ring light. The choice is remembered on this device.
+let lightOn = false;
+try { lightOn = localStorage.getItem("tracker.light") === "on"; } catch { /* storage blocked */ }
+
+function canTorch() {
+  const track = stream?.getVideoTracks()[0];
+  const t = track?.getCapabilities?.().torch;
+  return Array.isArray(t) ? t.includes(true) : !!t;
+}
+
+function applyLight() {
+  $("light").classList.toggle("on", lightOn);
+  const want = lightOn && !!stream && (state === "armed" || state === "running");
+  const torch = facing === "environment" && canTorch();
+  if (torch) stream.getVideoTracks()[0].applyConstraints({ advanced: [{ torch: want }] }).catch(() => {});
+  document.body.classList.toggle("screen-light", want && facing === "user");
+  if (want && facing === "environment" && !torch) setStateText("No flashlight in this browser — turn the room lights on");
+}
+
+$("light").onclick = () => {
+  lightOn = !lightOn;
+  try { localStorage.setItem("tracker.light", lightOn ? "on" : "off"); } catch { /* storage blocked */ }
+  applyLight();
+};
+$("light").classList.toggle("on", lightOn);
+
 // Open (or re-open) the camera + mic on the chosen side, and re-wire the mic into the audio graph.
 async function openCamera() {
   if (!navigator.mediaDevices?.getUserMedia) throw new Error("camera needs a secure (https) page");
@@ -186,6 +215,7 @@ async function openCamera() {
     mic = audioCtx.createMediaStreamSource(stream);
     for (const node of micTargets) mic.connect(node);
   }
+  applyLight(); // a new camera track starts with its flashlight off
 }
 
 // The camera view takes the camera's own shape (portrait on a phone held upright), and the
@@ -716,6 +746,7 @@ function setState(s) {
     done: "Sent ✔",
   }[s]);
   if (s === "armed") $("timer").textContent = "0.00";
+  applyLight(); // 🔦 on while armed/running, off once the run is done
 }
 
 function setStateText(t) { $("state").textContent = t; }
