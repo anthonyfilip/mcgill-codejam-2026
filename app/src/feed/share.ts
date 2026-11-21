@@ -16,11 +16,11 @@ if (!document.referrer.startsWith(location.origin)) location.replace('/feed.html
 const tabs = document.createElement('nav')
 tabs.className = 'tabbar'
 tabs.innerHTML = [
-  ['/feed.html', '🏠', 'Feed', ''],
-  ['/leaderboard.html', '🏆', 'Leaderboard', ''],
-  ['/profile.html', '👤', 'Profile', ''],
+  ['/feed.html', 'Chugs'],
+  ['/leaderboard.html', 'Leaderboard'],
+  ['/profile.html', 'Profile'],
 ]
-  .map(([href, icon, label, cls]) => `<a href="${href}" class="${cls}"><span class="tab-icon">${icon}</span>${label}</a>`)
+  .map(([href, label]) => `<a href="${href}">${label}</a>`)
   .join('')
 document.body.append(tabs)
 
