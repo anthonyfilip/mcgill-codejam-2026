@@ -516,7 +516,21 @@ function fingerText(f) {
 
 let frameNo = 0, lastFrameAt = null;
 
+// Runs every animation frame and ALWAYS schedules the next one. A camera flip stops the old
+// camera before the new one has a picture; MediaPipe throwing on such an empty frame used to end
+// the loop for good (phone test, Sat: tracking stopped after 🔄). Empty frames are now skipped and
+// any error is shown in the debug panel instead of killing tracking.
 function loop() {
+  try {
+    if (video.readyState >= 2 && video.videoWidth > 0) frame();
+  } catch (err) {
+    live.loopError = `${new Date().toLocaleTimeString()} ${err?.message ?? err}`;
+    console.error("tracker frame failed", err);
+  }
+  requestAnimationFrame(loop);
+}
+
+function frame() {
   const now = performance.now();
   if (lastFrameAt !== null) live.fps = 0.9 * (live.fps ?? 0) + 0.1 * (1000 / Math.max(1, now - lastFrameAt));
   lastFrameAt = now;
@@ -628,9 +642,8 @@ function loop() {
     `at mouth for ${(mouthHeldMs(now) / 1000).toFixed(1)}s` +
     `${now - (live.ignoredCrack ?? -Infinity) < 2000 ? `  · crack IGNORED (can not at mouth for ${CONFIG.crackMouthHoldMs / 1000} s)` : ""}\n` +
     `cracks heard: ${(live.crackLog ?? []).map((c) => `${((now - c.t) / 1000).toFixed(1)}s ago score ${c.score.toFixed(0)} (×${c.ratio.toFixed(1)}, bright ${c.high.toFixed(2)})${c.atMouth ? " @mouth" : ""}`).join(" · ") || "none"}\n` +
-    `hand ${fingerText(live.fingers)}  🤙 ${send ? "YES" : "no"}`;
-
-  requestAnimationFrame(loop);
+    `hand ${fingerText(live.fingers)}  🤙 ${send ? "YES" : "no"}` +
+    (live.loopError ? `\nlast tracking error: ${live.loopError}` : "");
 }
 
 function startRun(startAt, startedBy) {
