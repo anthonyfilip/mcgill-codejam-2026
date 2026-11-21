@@ -15,8 +15,9 @@ const CONFIG = {
   mouthDist: 0.6,          // wrist-to-mouth distance, in body-scale units
   sendHoldMs: 300,         // how long the 🤙 "send it" (shaka) must be held
   sendAboveHead: true,     // ...and whether the hand must be above the nose
-  thumbOutRatio: 0.4,      // thumb tip → index knuckle distance, in palm lengths (live readings: ~0.45–0.75 in a shaka)
-  thumbBendDeg: 45,        // ...and the thumb must be fairly straight (a fist's thumb wraps over the fingers)
+  thumbOutRatio: 0.4,      // thumb tip → index knuckle distance, in palm lengths (live: shaka ~0.55, but a fist is similar)
+  thumbBendDeg: 35,        // ...and the thumb must be straight. Live: shaka 4–21°, fist with thumb wrapped 51–61°.
+                           // Thumbs-up has a straight thumb too — it's rejected because the pinky is curled (~100°).
   fingerBendDeg: 60,       // a finger bent more than this (knuckle→joint vs joint→tip, in 3D) counts as curled
   minRunMs: 1000,          // ignore the end gesture right after the start
   minVisibility: 0.5,      // pose landmark confidence
