@@ -218,3 +218,7 @@ body { min-height: 100dvh; }
 .board-switch { text-align: center; }
 .board li.empty-row { opacity: 0.45; }
 
+/* Results: small white "Delete" under the Post button */
+.delete-run { align-self: center; margin-top: 4px; padding: 6px 12px; border: 0; background: none; color: #fff; font-size: 14px; font-weight: 600; opacity: 0.8; cursor: pointer; }
+.delete-run:hover { opacity: 1; text-decoration: underline; }
+
