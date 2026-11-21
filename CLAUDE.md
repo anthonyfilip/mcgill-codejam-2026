@@ -46,7 +46,9 @@ Supabase stores posts, clips, profiles, comments and ratings.
   gitignored). Schema in `supabase/schema.sql` — change it there and re-run it in the Supabase SQL editor.
 All commands run from `app/`:
 - Install: `npm install`
-- Dev server: `npm run dev` → http://localhost:5173 (tracker), `/feed.html`, `/leaderboard.html`, `/lab.html`
+- Dev server: `npm run dev` → http://localhost:5173 (tracker), `/feed.html`, `/leaderboard.html`, `/lab.html`.
+  The tracker's debug panel and Detection-lab link show only here (`import.meta.env.DEV`); the
+  deployed site friends test on hides them. Production build locally: `npm run build; npm run preview`.
 - Build / type-check: `npm run build` · Lint: `npm run lint` · Tracker syntax: `node --check src/live/app.js`
 - Deploy: automatic — every push to `main` runs `.github/workflows/deploy.yml` (Vercel CLI, repo
   secret `VERCEL_TOKEN`; Supabase env vars live in the Vercel project) → https://shotgun-tracker-xi.vercel.app.
