@@ -1,4 +1,4 @@
-// Measures loudness of a <video>'s soundtrack without playing it out loud.
+// Measures loudness of a <video>'s soundtrack while still playing it through the speakers.
 // A tab pop shows up as a sharp spike; steady pouring/gulping as a raised floor.
 
 export interface AudioMeter {
@@ -19,7 +19,10 @@ export function attachMeter(media: HTMLMediaElement): AudioMeter {
   const analyser = ctx.createAnalyser()
   analyser.fftSize = 1024
   analyser.smoothingTimeConstant = 0
-  source.connect(analyser) // not connected to ctx.destination → silent but measured
+  source.connect(analyser)
+  // Also send it to the speakers: once a media element feeds an AudioContext, it is
+  // silent unless connected to ctx.destination. Hearing the tab pop helps labelling.
+  source.connect(ctx.destination)
 
   const time = new Float32Array(analyser.fftSize)
   const freq = new Float32Array(analyser.frequencyBinCount)
