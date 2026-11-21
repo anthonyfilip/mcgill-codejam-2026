@@ -245,7 +245,8 @@ $("flip").onclick = async () => {
 // flash): a white frame around the camera view, like a ring light (style.css). The choice is
 // remembered on this device.
 let lightOn = false;
-try { lightOn = localStorage.getItem("tracker.light") === "on"; } catch { /* storage blocked */ }
+// Always starts OFF on every visit (Sat: a remembered "on" surprised testers); clear the old setting.
+try { localStorage.removeItem("tracker.light"); } catch { /* storage blocked */ }
 
 // Back camera: always TRY the flashlight. Only trying when the camera listed `torch` as a capability
 // broke it on an iPhone (it worked earlier Sat in Brave — iOS browsers all share Safari's engine —
@@ -273,7 +274,6 @@ function applyLight() {
 
 $("light").onclick = async () => {
   lightOn = !lightOn;
-  try { localStorage.setItem("tracker.light", lightOn ? "on" : "off"); } catch { /* storage blocked */ }
   applyLight();
   // TEMPORARY flashlight test (Sat, iPhone torch not working): switching the light ON with the back
   // camera, outside a run, flashes the torch for 2 s and shows one line saying what the camera did.
