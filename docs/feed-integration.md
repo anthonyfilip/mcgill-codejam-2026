@@ -8,8 +8,8 @@ Add after the tracker's script tag:
 ```html
 <script type="module" src="/src/feed/share.ts"></script>
 ```
-This adds the Tracker | Feed tabs, hides the angle and started-by lines on the results,
-and adds the description box and the "Post to feed" button.
+This adds the Tracker | Feed | Leaderboard tabs, and when a run finishes it saves the run
+and opens our results page (`/results.html`).
 
 ## 2. `app/src/live/app.js`: announce the finished run
 At the end of `showClip()`, after the download link is set:
@@ -25,5 +25,7 @@ window.dispatchEvent(new CustomEvent("run:finished", {
 In `build.rollupOptions.input`, add:
 ```ts
 feed: path.resolve(import.meta.dirname, 'feed.html'),
+results: path.resolve(import.meta.dirname, 'results.html'),
+leaderboard: path.resolve(import.meta.dirname, 'leaderboard.html'),
 ```
-Not needed for `npm run dev`, which serves `/feed.html` without it.
+Not needed for `npm run dev`, which serves these pages without it.

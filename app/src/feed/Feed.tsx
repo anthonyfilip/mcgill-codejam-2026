@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { SAMPLE_POSTS, type Post } from './posts'
+import { Profile } from './Profile'
 import { loadPosts } from './store'
+import { Tabs } from './Tabs'
 
 function timeAgo(ms: number) {
   const min = Math.round((Date.now() - ms) / 60_000)
@@ -49,10 +51,8 @@ export function Feed() {
 
   return (
     <main className="feed">
-      <nav className="tabs">
-        <a href="/">Tracker</a>
-        <a href="/feed.html" className="active">Feed</a>
-      </nav>
+      <Tabs active="/feed.html" />
+      <Profile />
 
       {posts.map((p) => (
         <PostCard key={p.id} post={p} />

@@ -23,3 +23,32 @@ body { margin: 0; font-family: system-ui, sans-serif; background: #111; color: #
 .cheer { margin: 12px; padding: 8px 14px; border: 0; border-radius: 999px; background: #2a2a2a; color: #eee; font-size: 16px; cursor: pointer; }
 .cheer.on { background: #f5b400; color: #111; }
 .desc { margin: 8px 12px 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+
+/* Profile strip */
+.profile { display: flex; align-items: center; gap: 12px; padding: 12px; background: #1d1d1d; border-radius: 12px; }
+.avatar.big { width: 48px; height: 48px; font-size: 20px; }
+.profile .name { padding: 0; border: 0; background: none; color: #eee; font-size: 18px; font-weight: 700; cursor: pointer; }
+.profile-stats { display: flex; gap: 14px; margin-top: 2px; color: #888; font-size: 13px; }
+.profile-stats b { color: #eee; }
+
+/* Results */
+.result { display: flex; flex-direction: column; gap: 10px; padding: 16px; background: #1d1d1d; border-radius: 12px; text-align: center; }
+.big-time { font-size: 64px; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1; }
+.pb { font-size: 18px; font-weight: 600; color: #f5b400; }
+.rank { color: #888; }
+.result video, .result .no-video { border-radius: 8px; }
+.desc-input { width: 100%; padding: 10px; border: 1px solid #444; border-radius: 8px; background: #111; color: #eee; font: inherit; resize: vertical; }
+.count { align-self: flex-end; margin-top: -6px; font-size: 12px; color: #888; }
+.btn { flex: 1; display: block; padding: 12px; border: 0; border-radius: 10px; background: #2a2a2a; color: #eee; font: inherit; font-weight: 700; text-decoration: none; cursor: pointer; }
+.btn.primary { background: #f5b400; color: #111; font-size: 18px; }
+.row { display: flex; gap: 8px; }
+
+/* Leaderboard */
+.board { list-style: none; margin: 0; padding: 0; background: #1d1d1d; border-radius: 12px; overflow: hidden; }
+.board li { display: flex; align-items: center; gap: 10px; padding: 12px; border-top: 1px solid #2a2a2a; }
+.board li:first-child { border-top: 0; }
+.board li.me { background: #2b2510; }
+.board .place { width: 28px; text-align: center; font-weight: 700; font-size: 18px; }
+.board .who { font-weight: 600; }
+.board .runs { margin-left: auto; color: #888; font-size: 13px; }
+.board .best { font-variant-numeric: tabular-nums; font-size: 18px; }
