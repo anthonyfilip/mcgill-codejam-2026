@@ -270,7 +270,9 @@ export async function ratePost(postId: string, stars: number): Promise<PostRatin
   if (!me) throw new Error('make your profile first (tap your name at the top)')
   const rating: PostRating = { id: `${postId}:${me.id}`, postId, profileId: me.id, stars }
   if (!supabase) {
-    await write(RATINGS, (s) => s.put(rating))
+    // One rating per person, no changes.
+    if (await read<PostRating | undefined>(RATINGS, (s) => s.get(rating.id))) throw new Error('you already rated this')
+    await write(RATINGS, (s) => s.add(rating))
     return rating
   }
   const { error } = await supabase.rpc('rate_post', {

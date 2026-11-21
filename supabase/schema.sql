@@ -119,7 +119,7 @@ create policy "anyone can read avatars"   on storage.objects for select using (b
 drop policy if exists "anyone can upload avatars" on storage.objects;
 create policy "anyone can upload avatars" on storage.objects for insert with check (bucket_id = 'avatars');
 
--- Ratings: 1 to 5 stars (5 = best), one per person per post, changeable.
+-- Ratings: 1 to 5 stars (5 = best), one per person per post, final once given.
 -- Saved through rate_post(), which checks the rater's secret and blocks rating your own post.
 create table if not exists public.ratings (
   post_id    uuid not null references public.posts (id) on delete cascade,
@@ -147,9 +147,10 @@ begin
   if exists (select 1 from posts where id = p_post_id and profile_id = p_profile_id) then
     raise exception 'you can''t rate your own post';
   end if;
-  insert into ratings (post_id, profile_id, stars)
-  values (p_post_id, p_profile_id, p_stars)
-  on conflict (post_id, profile_id) do update set stars = excluded.stars, created_at = now();
+  if exists (select 1 from ratings where post_id = p_post_id and profile_id = p_profile_id) then
+    raise exception 'you already rated this';
+  end if;
+  insert into ratings (post_id, profile_id, stars) values (p_post_id, p_profile_id, p_stars);
 end;
 $$;
 grant execute on function public.rate_post(uuid, uuid, uuid, integer) to anon, authenticated;

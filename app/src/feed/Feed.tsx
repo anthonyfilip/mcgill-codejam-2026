@@ -3,8 +3,8 @@ import { Avatar } from './Avatar'
 import { getName, getProfile, hasCheered, setCheered as rememberCheer } from './me'
 import { MAX_COMMENT, type Comment, type Post, type PostRating } from './posts'
 import { Profile } from './Profile'
-import { Rating } from './Rating'
-import { addComment, cheer, deletePost, isMine, loadComments, loadPosts, loadRatings, ratePost, samplePosts } from './store'
+import { AvgRating, Rating } from './Rating'
+import { addComment, cheer, deletePost, isMine, loadComments, loadPosts, isShared, loadRatings, ratePost, samplePosts } from './store'
 import { Tabs } from './Tabs'
 
 function timeAgo(ms: number) {
@@ -126,11 +126,12 @@ function PostCard({
 
       <div className="stats">
         <span className="time">{(post.timeMs / 1000).toFixed(2)} s</span>
+        <AvgRating stars={ratings.map((r) => r.stars)} />
       </div>
 
       {post.description && <p className="desc">{post.description}</p>}
 
-      <Rating ratings={ratings} myStars={myStars} canRate={canRate} onRate={rate} />
+      <Rating myStars={myStars} canRate={canRate} onRate={rate} />
 
       <div className="actions">
         <button className={cheered ? 'cheer on' : 'cheer'} onClick={toggleCheer}>
@@ -165,6 +166,13 @@ export function Feed() {
       .catch((e) => setError(`Couldn't load the feed: ${e.message}`))
     loadComments().then(setComments).catch(console.error)
     loadRatings().then(setRatings).catch(console.error)
+  }, [])
+
+  // Shared feed: pick up everyone else's new ratings so the averages stay live.
+  useEffect(() => {
+    if (!isShared) return
+    const t = setInterval(() => loadRatings().then(setRatings).catch(console.error), 10_000)
+    return () => clearInterval(t)
   }, [])
 
   async function comment(post: Post, body: string) {

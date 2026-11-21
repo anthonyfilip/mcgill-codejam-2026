@@ -1,54 +1,61 @@
 import { useState } from 'react'
-import type { PostRating } from './posts'
 
 const LABELS = ['', 'Weak', 'Okay', 'Solid', 'Great', 'Legendary']
 
-// Rating for a post: the average, plus 5 tappable stars (5 = best).
+// 5 tappable stars to rate a post (5 = best). Once you've rated, it's locked.
+// The average lives next to the time (see AvgRating).
 export function Rating({
-  ratings,
   myStars,
   canRate,
   onRate,
 }: {
-  ratings: PostRating[]
   myStars: number | null
   canRate: boolean
   onRate: (stars: number) => void
 }) {
   const [hover, setHover] = useState(0)
-  const avg = ratings.length ? ratings.reduce((sum, r) => sum + r.stars, 0) / ratings.length : null
-  const shown = hover || myStars || 0
 
-  return (
-    <div className="rating">
-      <div className="rating-head">
-        <b>⭐ Rating</b>
-        <span className="rating-avg">
-          {avg !== null
-            ? `${avg.toFixed(1)} / 5 · ${LABELS[Math.round(avg)]} · ${ratings.length} ${ratings.length === 1 ? 'rating' : 'ratings'}`
-            : 'No ratings yet'}
-        </span>
+  if (!canRate) return <div className="rating stars-label">Your friends rate your run</div>
+
+  if (myStars) {
+    return (
+      <div className="rating stars" aria-label={`You rated ${myStars} out of 5`}>
+        {[1, 2, 3, 4, 5].map((n) => (
+          <span key={n} className={n <= myStars ? 'star on' : 'star'}>★</span>
+        ))}
+        <span className="stars-label">You rated: {LABELS[myStars]}</span>
       </div>
-      {canRate ? (
-        <div className="stars" role="radiogroup" aria-label="Rate this run out of 5" onMouseLeave={() => setHover(0)}>
-          {[1, 2, 3, 4, 5].map((n) => (
-            <button
-              key={n}
-              role="radio"
-              aria-checked={myStars === n}
-              aria-label={`${n}: ${LABELS[n]}`}
-              className={n <= shown ? 'star on' : 'star'}
-              onMouseEnter={() => setHover(n)}
-              onClick={() => onRate(n)}
-            >
-              ★
-            </button>
-          ))}
-          <span className="stars-label">{shown ? LABELS[shown] : 'Rate this run'}</span>
-        </div>
-      ) : (
-        <div className="stars-label">Your friends rate your run</div>
-      )}
+    )
+  }
+
+  const shown = hover
+  return (
+    <div className="rating stars" role="radiogroup" aria-label="Rate this run out of 5" onMouseLeave={() => setHover(0)}>
+      {[1, 2, 3, 4, 5].map((n) => (
+        <button
+          key={n}
+          role="radio"
+          aria-checked={false}
+          aria-label={`${n}: ${LABELS[n]}`}
+          className={n <= shown ? 'star on' : 'star'}
+          onMouseEnter={() => setHover(n)}
+          onClick={() => onRate(n)}
+        >
+          ★
+        </button>
+      ))}
+      <span className="stars-label">{shown ? LABELS[shown] : 'Rate this run (you only get one go)'}</span>
     </div>
+  )
+}
+
+// "★ 4.2 (6)" shown beside the time; updates as ratings come in.
+export function AvgRating({ stars }: { stars: number[] }) {
+  if (!stars.length) return <span className="avg-rating none">★ –</span>
+  const avg = stars.reduce((a, b) => a + b, 0) / stars.length
+  return (
+    <span className="avg-rating" title={`${LABELS[Math.round(avg)]} · ${stars.length} ${stars.length === 1 ? 'rating' : 'ratings'}`}>
+      ★ {avg.toFixed(1)} <small>({stars.length})</small>
+    </span>
   )
 }
