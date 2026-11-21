@@ -1,7 +1,7 @@
 # Feed integration (do this when combining branches)
 
-The feed lives entirely in `app/feed.html` and `app/src/feed/`. It doesn't touch the
-tracker's files. To hook it up, make these three small edits in the tracker's files.
+**Status: applied on `feat/feed` (2026-11-20).** Kept here as the list of edits made to the
+tracker's files, so Anthony knows exactly what changed.
 
 ## 1. `app/index.html`: load the feed add-on
 Add after the tracker's script tag:
