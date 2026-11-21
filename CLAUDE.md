@@ -49,7 +49,7 @@ All commands run from `app/`:
 - Dev server: `npm run dev` → http://localhost:5173 (tracker), `/feed.html`, `/leaderboard.html`, `/lab.html`
 - Build / type-check: `npm run build` · Lint: `npm run lint` · Tracker syntax: `node --check src/live/app.js`
 - Deploy: automatic — every push to `main` runs `.github/workflows/deploy.yml` (Vercel CLI, repo
-  secret `VERCEL_TOKEN`; Supabase env vars live in the Vercel project) → https://shotgun-tracker-xi.vercel.app.
+  secret `VERCEL_TOKEN`; Supabase env vars live in the Vercel project) → https://getsendy-app.vercel.app (the old https://shotgun-tracker-xi.vercel.app still works).
   So merging a PR ships it live; manual redeploy: Actions → Deploy to Vercel → Run workflow.
   **Only Lana merges into `main`.** The Vercel project is on Lana's free (Hobby) account, which
   only deploys commits authored by her: a merge by anyone else fails with "The commit author

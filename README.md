@@ -7,7 +7,7 @@
 *(Working name — TODO: final name.)* Built in 36 hours at McGill CodeJam 2026. The live demo
 uses a can of Celsius.
 
-**Try it:** https://shotgun-tracker-xi.vercel.app — open it on a phone or laptop, tap **Record
+**Try it:** https://getsendy-app.vercel.app — open it on a phone or laptop, tap **Record
 Chug**, and allow the camera and microphone.
 
 ## What it does

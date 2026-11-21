@@ -18,7 +18,7 @@ page and, when posted, saved to Supabase (row + replay clip) for the shared feed
 | Data | Supabase: Postgres (posts, comments, ratings, profiles) + storage (clips, avatars) | `supabase/schema.sql`, `src/feed/store.ts` | Lana | Keys in `app/.env.local`; browser-only fallback without keys |
 | Detection lab | React + TS, MediaPipe 1.2.3 (npm) | `lab.html`, `src/lab/` | Anthony | Labelling, signal graphs, accuracy scoreboard; dev only |
 | Test clips | 18 MP4s + `labels.csv` + cached signals | `Chug_Examples/` | Anthony | Gitignored, served by the dev server only |
-| Hosting | Vercel, deployed by a GitHub Action on every push to `main` | `.github/workflows/deploy.yml` | Lana | https://shotgun-tracker-xi.vercel.app · repo secret `VERCEL_TOKEN` · lab won't work there (no clips) — fine |
+| Hosting | Vercel, deployed by a GitHub Action on every push to `main` | `.github/workflows/deploy.yml` | Lana | https://getsendy-app.vercel.app · repo secret `VERCEL_TOKEN` · lab won't work there (no clips) — fine |
 
 ## Data flow
 Camera + mic → pose (wrists, mouth) + hand crops (🤙) + crack score →

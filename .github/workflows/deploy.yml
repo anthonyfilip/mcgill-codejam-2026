@@ -1,4 +1,4 @@
-# Redeploy the live site (https://shotgun-tracker-xi.vercel.app) on every push to main,
+# Redeploy the live site (https://getsendy-app.vercel.app) on every push to main,
 # whoever pushed. Needs one repo secret: VERCEL_TOKEN (Settings → Secrets and variables →
 # Actions), a token from vercel.com/account/tokens on the account that owns the project.
 name: Deploy to Vercel
