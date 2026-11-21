@@ -32,10 +32,13 @@ Backup: a recorded run of the full demo, in case the live camera fails on stage.
   light (turn screen brightness up by hand). Remembered per device.
 - **Start needs ALL of** (Sat — live test started runs just from holding the can at the mouth):
   1. the can at the mouth for ≥ 0.15 s, then 2. a sound — a loud crack or a **click** (loudest
-  ~6 ms above 6 kHz, ≥ 15 dB over the previous 0.5 s), then 3. within 1.5 s the drinking motion,
-  lasting 0.3 s: head tilts back ≥ 0.15 shoulder widths AND forearm swings ≥ 25° toward vertical
+  ~6 ms above 6 kHz, ≥ 15 dB over the previous 0.5 s), then 3. within 2.5 s the drinking motion,
+  lasting 0.5 s: head tilts back ≥ 0.1 shoulder widths AND forearm swings ≥ 25° toward vertical
   (or is already within 45°), can still at the mouth. Clock = the strongest of those sounds (loud
   crack beats any click). **No sound → no start** (the old video-only fallback is gone).
+  **Face hidden by the can at the crack** (pose lost): the crack still counts if the can had been at
+  the mouth ≥ 0.15 s with a real person when the pose was lost, nothing was seen since, and it's
+  within 1.2 s; the motion baseline is then the readings just before the face disappeared.
   **And a real person in the shot** (Sat — a phone pointed at a foot made a phantom pose that
   started a run): face + shoulder confidence ≥ 0.5 and shoulders ≥ 4% of the frame height, at the
   sound (within 0.5 s, like the hidden-face allowance) and on every frame the motion is judged on.
@@ -54,11 +57,13 @@ Backup: a recorded run of the full demo, in case the live camera fails on stage.
   and no false starts on single clips. Groups — start 0.95 s, 2/10 never start (05, 11): the
   tracker watches the wrong person's head/arm. 16/18 found.
   **Re-analysed all 18 clips (Sat ~14:00, to record face confidence):** a fresh run of the model
-  reads some clips differently, and the start rule now **misses 2/8 single clips** — 03 (the can
-  hides the face for ~1 s around the crack, so the pose is lost) and 18 (the head barely tips back
-  within 1.5 s). The 6 that start: start 0.18 s, end 0.12 s, run time 0.16 s. Loosening the motion
-  thresholds brings back 10–16 s early starts, so the drinking-motion rule needs a sturdier design
-  (e.g. a longer hidden-face allowance for the crack). Old analysis backed up in the session scratchpad.
+  reads some clips differently; the old start rule missed 03 (the can hides the face ~1 s around the
+  crack) and 18 (slow drinker, head barely tips back in 1.5 s). **Fixed Sat ~15:00** (2.5 s window,
+  head ≥ 0.1, motion lasting 0.5 s, hidden-face crack allowance), tuned on BOTH the old and fresh
+  analyses: all 8 single clips start on both, no early false start on either. Fresh analysis:
+  single start 0.15 s; run time 0.15 s on 7 clips, but clip 18's END is +1.2 s ("clip ended") so
+  the 8-clip average is 0.29 s. Groups: all 10 start (2 late, wrong person). Old analysis is backed
+  up in the session scratchpad.
   Clips 10 and 04 were re-analysed (old saves had a 3 s gap at the crack / stopped before the end):
   run time −1.57 → +0.06 s and −0.52 → −0.19 s. Clip 10's crack lands exactly where the can starts
   tilting from upright.

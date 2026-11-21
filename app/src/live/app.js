@@ -22,10 +22,12 @@ const CONFIG = {
   personMinSize: 0.04,     // shoulder width ÷ frame height
   // ("Mouth above shoulders" was measured too and rejected: it goes negative as the head tips back.)
   gapMs: 250,              // tracking dropouts shorter than this don't count as "left the mouth"
-  drinkConfirmMs: 1500,    // the drinking motion must show within this long after the sound
+  // 2.5 s / 0.1 / 0.5 s: re-tuned Sat ~15:00 on two analyses of the clips — all 8 single clips start,
+  // no early false start (1.5 s / 0.15 / 0.3 s missed a slow drinker). Same as rules.ts.
+  drinkConfirmMs: 2500,    // the drinking motion must show within this long after the sound
   drinkBaseMs: 500,        // baseline = median over this long just before the sound
-  drinkHoldMs: 300,        // ...vs the median over the last this-long (≥ 3 frames): the motion must last
-  headBackRise: 0.15,      // head tilt rise, shoulder widths (every labelled start rose ≥ 0.22; holding still ~0.05)
+  drinkHoldMs: 500,        // ...vs the median over the last this-long (≥ 3 frames): the motion must last
+  headBackRise: 0.1,       // head tilt rise, shoulder widths (holding still ~0.05)
   armSwingDeg: 25,         // forearm drop toward vertical (every labelled start ≥ 29°; holding still 10–30°)...
   armUpDeg: 45,            // ...or the forearm already within this of vertical (can held high before the crack)
   // End rule: the 🤙 confirms the end, but the time stops when the can last left the mouth.
@@ -33,6 +35,10 @@ const CONFIG = {
   // Wrist lost right after 2+ frames at the mouth = arm/can covering the face at full tilt: still drinking
   // for up to this long (clip 02 ended 1.24 s early without it).
   hiddenHoldMs: 500,
+  // A crack while the can hides the face (pose lost) still counts if the can had been at the mouth
+  // ≥ crackMouthHoldMs, with a real person, when the pose was lost, nothing was seen since, and the
+  // sound is within this long of that moment (clip 03: face hidden ~1 s). Same as rules.ts.
+  hiddenCrackMs: 1200,
   // Clicks = loudest ~6 ms above 6 kHz (src/detect/cracks.ts clicksFromProfile): catch cracks the
   // loud-crack detector misses. Of several sounds before drinking, the strongest wins (the crack
   // was the strongest click in 7/8 single-person clips).
@@ -100,7 +106,8 @@ let live = {};      // latest readings, for the debug panel
 // Continuous "can at the mouth" / "can tipped" tracking (ms, performance.now()).
 // *Since = when the current stretch began (null if not currently true); last*At = last frame it was true.
 // mouthFrames / lastSeenAtMouth: consecutive frames with the wrist seen at the mouth (for hiddenHoldMs).
-const track = { mouthSince: null, lastMouthAt: -Infinity, angleSince: null, lastAngleAt: -Infinity, mouthFrames: 0, lastSeenAtMouth: -Infinity, lastPersonOkAt: -Infinity };
+const track = { mouthSince: null, lastMouthAt: -Infinity, angleSince: null, lastAngleAt: -Infinity, mouthFrames: 0, lastSeenAtMouth: -Infinity, lastPersonOkAt: -Infinity,
+  lastPoseAt: -Infinity, heldAtLastMouth: 0 }; // last frame with any pose; can-at-mouth time at its last at-mouth frame
 // Recent pose readings { t, headTilt, armAngle } and sounds heard with the can at the mouth { t, db }
 // (a loud crack has db = Infinity, so it beats any click).
 let headLog = [], sounds = [];
@@ -110,7 +117,8 @@ function resetTrack() {
   track.mouthSince = track.angleSince = null;
   track.lastMouthAt = track.lastAngleAt = track.lastSeenAtMouth = -Infinity;
   track.mouthFrames = 0;
-  track.lastPersonOkAt = -Infinity;
+  track.lastPersonOkAt = track.lastPoseAt = -Infinity;
+  track.heldAtLastMouth = 0;
   sounds = [];
 }
 
@@ -128,8 +136,17 @@ function updateStretch(isTrue, now, sinceKey, lastKey) {
 // real person was in the shot within hiddenHoldMs — the same allowance as "face hidden by the can"
 // (same as rules.ts heldLongEnough + personOk).
 function crackCounts(t) {
-  return track.mouthSince !== null && t - track.lastMouthAt <= CONFIG.gapMs && t - track.mouthSince >= CONFIG.crackMouthHoldMs &&
-    t - track.lastPersonOkAt <= CONFIG.hiddenHoldMs;
+  return (track.mouthSince !== null && t - track.lastMouthAt <= CONFIG.gapMs && t - track.mouthSince >= CONFIG.crackMouthHoldMs &&
+    t - track.lastPersonOkAt <= CONFIG.hiddenHoldMs) ||
+    hiddenAtCrack(t);
+}
+
+// The can hid the face as it was cracked (same as rules.ts hiddenAtCrack): the pose was lost while
+// the can was at the mouth (held long enough), nothing was seen since, the last pose was a real
+// person, and it's within hiddenCrackMs.
+function hiddenAtCrack(t) {
+  return track.lastPoseAt <= track.lastMouthAt && t - track.lastMouthAt <= CONFIG.hiddenCrackMs &&
+    track.heldAtLastMouth >= CONFIG.crackMouthHoldMs && track.lastPersonOkAt >= track.lastPoseAt - CONFIG.gapMs;
 }
 
 // Is the pose a real person, clearly in the shot? (src/detect/signals.ts faceVis / personSize)
@@ -582,6 +599,8 @@ function frame() {
   while (headLog.length && now - headLog[0].t > LOG_MS) headLog.shift();
   live.headTilt = headTilt;
   updateStretch(atMouth, now, "mouthSince", "lastMouthAt");
+  if (p) track.lastPoseAt = now;
+  if (atMouth && track.mouthSince !== null) track.heldAtLastMouth = now - track.mouthSince;
   if (state === "armed") {
     if (atMouth) seen.mouth = now;
     if (armUp) seen.angle = now;
