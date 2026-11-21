@@ -18,9 +18,8 @@ Tick items off as they land. Order matters — phones need HTTPS for the camera,
       Recommendation: support both with a camera flip button; demo with (b).
 
 ## 1. Get it on a phone (morning, ~2 h)
-- [ ] **A or L — Deploy to Vercel (45 min).** Root `app/`, build `npm run build`, output `dist/`,
-      env vars `VITE_SUPABASE_URL` + `VITE_SUPABASE_ANON_KEY`. HTTPS is required for camera/mic
-      on phones. Put the URL in README "Try it".
+- [x] **A or L — Deploy to Vercel (45 min).** Live at https://shotgun-tracker-xi.vercel.app;
+      every push to `main` redeploys (GitHub Action + `VERCEL_TOKEN` secret). URL in README "Try it".
 - [ ] **Both — Phone test, as-is (30 min).** Open the URL on an iPhone (Safari) and an Android
       (Chrome). Do a run, post it, open feed + leaderboard. Write every problem in a list below
       this section (layout, permissions, speed, audio, recording). This list drives the rest of the day.
