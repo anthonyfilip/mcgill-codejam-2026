@@ -26,7 +26,7 @@ const toggleId = (key: string, id: string, on: boolean) => {
 }
 
 // Your account. `secret` proves to the database that this browser owns the profile.
-export type MyProfile = { id: string; secret: string; username: string; avatarUrl: string | null }
+export type MyProfile = { id: string; secret: string; username: string; avatarUrl: string | null; faculty?: string | null }
 
 export function getProfile(): MyProfile | null {
   try {

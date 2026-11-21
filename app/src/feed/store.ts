@@ -43,7 +43,7 @@ type Row = {
   cheers: number
   created_at: string
   profile_id: string | null
-  profiles: { username: string; avatar_path: string | null } | null // joined from profiles
+  profiles: { username: string; avatar_path: string | null; faculty: string | null } | null // joined from profiles
 }
 
 const publicUrl = (bucket: string, path: string | null | undefined) =>
@@ -56,6 +56,7 @@ function fromRow(r: Row): Post {
     user: r.profiles?.username ?? r.user_name,
     profileId: r.profile_id,
     avatarUrl: publicUrl(AVATARS, r.profiles?.avatar_path),
+    faculty: r.profiles?.faculty ?? null,
     postedAt: Date.parse(r.created_at),
     timeMs: r.time_ms,
     maxAngle: r.max_angle,
@@ -146,7 +147,7 @@ export async function loadPosts(): Promise<Post[]> {
   // via the comments and ratings tables and refuses ("more than one relationship was found").
   const { data, error } = await supabase
     .from('posts')
-    .select('*, profiles!profile_id(username, avatar_path)')
+    .select('*, profiles!profile_id(username, avatar_path, faculty)')
     .order('created_at', { ascending: false })
   if (error) throw error
   return (data as Row[]).map(fromRow)
@@ -226,6 +227,7 @@ export async function saveProfile(p: MyProfile, photo: Blob | null): Promise<MyP
     p_secret: p.secret,
     p_username: p.username,
     p_avatar_path: avatarPath,
+    p_faculty: p.faculty ?? null,
   })
   if (error) throw error.code === '23505' ? new Error('taken') : error
   return { ...p, avatarUrl: publicUrl(AVATARS, avatarPath) }

@@ -13,6 +13,9 @@ create table if not exists public.profiles (
   created_at  timestamptz not null default now()
 );
 
+-- McGill faculty (optional). Keep the list in sync with FACULTIES in app/src/feed/posts.ts.
+alter table public.profiles add column if not exists faculty text check (faculty in ('Arts', 'Science', 'Arts & Science', 'Engineering', 'Business', 'Music', 'Education', 'Law', 'Dental Medicine', 'Environmental Sciences', 'Continuing Studies', 'Health Sciences'));
+
 alter table public.profiles enable row level security;
 
 drop policy if exists "anyone can read profiles" on public.profiles;
@@ -26,7 +29,9 @@ create table if not exists public.profile_secrets (
 
 alter table public.profile_secrets enable row level security;
 
-create or replace function public.save_profile(p_id uuid, p_secret uuid, p_username text, p_avatar_path text)
+-- p_faculty has a default so callers that don't send it (older app versions) still work.
+drop function if exists public.save_profile(uuid, uuid, text, text);
+create or replace function public.save_profile(p_id uuid, p_secret uuid, p_username text, p_avatar_path text, p_faculty text default null)
 returns void
 language plpgsql
 security definer
@@ -37,14 +42,14 @@ begin
     if not exists (select 1 from profile_secrets where profile_id = p_id and secret = p_secret) then
       raise exception 'not your profile';
     end if;
-    update profiles set username = p_username, avatar_path = p_avatar_path where id = p_id;
+    update profiles set username = p_username, avatar_path = p_avatar_path, faculty = p_faculty where id = p_id;
   else
-    insert into profiles (id, username, avatar_path) values (p_id, p_username, p_avatar_path);
+    insert into profiles (id, username, avatar_path, faculty) values (p_id, p_username, p_avatar_path, p_faculty);
     insert into profile_secrets (profile_id, secret) values (p_id, p_secret);
   end if;
 end;
 $$;
-grant execute on function public.save_profile(uuid, uuid, text, text) to anon, authenticated;
+grant execute on function public.save_profile(uuid, uuid, text, text, text) to anon, authenticated;
 
 create table if not exists public.posts (
   id          uuid primary key,

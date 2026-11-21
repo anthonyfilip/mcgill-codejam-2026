@@ -10,7 +10,7 @@ import { Tabs } from './Tabs'
 const MIN_RATING = 3.5
 
 type Run = { timeMs: number; avg: number | null; title: string; postedAt: number }
-type Row = { user: string; avatarUrl?: string | null; best: Run; runs: number }
+type Row = { user: string; avatarUrl?: string | null; faculty?: string | null; best: Run; runs: number }
 
 const qualifies = (r: Run) => r.avg !== null && r.avg >= MIN_RATING
 
@@ -29,7 +29,7 @@ function rank(posts: Post[], ratings: PostRating[]): Row[] {
       postedAt: p.postedAt,
     }
     const row = byUser.get(p.user)
-    if (!row) byUser.set(p.user, { user: p.user, avatarUrl: p.avatarUrl, best: run, runs: 1 })
+    if (!row) byUser.set(p.user, { user: p.user, avatarUrl: p.avatarUrl, faculty: p.faculty, best: run, runs: 1 })
     else {
       row.runs++
       if (better(run, row.best) < 0) row.best = run
@@ -85,7 +85,9 @@ export function Leaderboard() {
               <Avatar name={r.user} url={r.avatarUrl} />
             </a>
             <a className="who" href={`/profile.html?user=${encodeURIComponent(r.user)}`}>
-              {r.user}
+              <span>
+                {r.user} {r.faculty && <span className="faculty-tag">{r.faculty}</span>}
+              </span>
               <small>
                 {r.best.avg !== null ? `★ ${r.best.avg.toFixed(1)}` : '★ –'} · {day(r.best.postedAt)} · {r.runs}{' '}
                 {r.runs === 1 ? 'run' : 'runs'}
