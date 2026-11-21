@@ -17,6 +17,9 @@ Rule of thumb: if a line here wouldn't change Claude's behaviour, delete it.
 ## Project
 - **What:** A web app that uses the camera + microphone to automatically time someone
   shotgunning a can, then posts the run (with replay) to a shared feed and leaderboard.
+- **Direction (from Sat 2026-11-21):** mobile-first **PWA** (installable web app), not native —
+  keeps the tuned in-browser detection. Design for phones first: portrait, one hand, ≥44 px
+  targets, safe-area insets, front/back camera. Must stay fast on a mid-range phone (≥15 fps).
 - **Track / sponsor prize:** Celsius (sponsor) — live demo uses a Celsius can. TODO: confirm prize/track name.
 - **Hackathon:** McGill CodeJam 2026, 36 h. Started Fri 2026-11-20 19:00; submission ~Sun 2026-11-22 07:00
   (TODO: confirm exact time + Devpost link). Demo > completeness.

@@ -35,3 +35,4 @@ Supabase row + clip upload → feed (ratings, comments) → leaderboard (★3.5+
 - 2026-11-20 — Start needs the can at the mouth when the crack happens — ignores other people's cans.
 - 2026-11-21 — Thresholds tuned on the labelled clips: mouth 0.8 body-widths, arm angle dropped, crack = sudden bright jump vs the previous 0.5 s.
 - 2026-11-21 — Feed, results and leaderboard (Lana) merged with the tracker; Supabase shared across devices; only the poster can delete a post.
+- 2026-11-21 — Mobile app = PWA (installable, phone-first UI), not native: the detection already runs in the browser and is tuned; a native rewrite won't fit the time. App-store packaging (Capacitor) is a later step.
