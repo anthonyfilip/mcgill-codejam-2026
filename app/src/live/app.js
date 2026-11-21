@@ -15,6 +15,12 @@ const CONFIG = {
   // near) vertical — with the can still at the mouth. The clock starts at the sound. Holding the
   // can at the mouth alone never starts a run (live test, Sat: it used to). Same as rules.ts.
   crackMouthHoldMs: 150,   // a sound only counts once the can has been at the mouth this long (none before it gets there)
+  // ...and only with a REAL, upright person in the shot — at the sound and while the drinking motion
+  // is checked. A phone pointed at a foot made a phantom pose that started a run (Sat). Same as rules.ts.
+  // Around every labelled start, single-person clips had confidence ≥ 0.67 and size ≥ 0.067.
+  personMinVis: 0.5,       // model confidence for nose, both mouth corners and both shoulders (0–1)
+  personMinSize: 0.04,     // shoulder width ÷ frame height
+  // ("Mouth above shoulders" was measured too and rejected: it goes negative as the head tips back.)
   gapMs: 250,              // tracking dropouts shorter than this don't count as "left the mouth"
   drinkConfirmMs: 1500,    // the drinking motion must show within this long after the sound
   drinkBaseMs: 500,        // baseline = median over this long just before the sound
@@ -94,7 +100,7 @@ let live = {};      // latest readings, for the debug panel
 // Continuous "can at the mouth" / "can tipped" tracking (ms, performance.now()).
 // *Since = when the current stretch began (null if not currently true); last*At = last frame it was true.
 // mouthFrames / lastSeenAtMouth: consecutive frames with the wrist seen at the mouth (for hiddenHoldMs).
-const track = { mouthSince: null, lastMouthAt: -Infinity, angleSince: null, lastAngleAt: -Infinity, mouthFrames: 0, lastSeenAtMouth: -Infinity };
+const track = { mouthSince: null, lastMouthAt: -Infinity, angleSince: null, lastAngleAt: -Infinity, mouthFrames: 0, lastSeenAtMouth: -Infinity, lastPersonOkAt: -Infinity };
 // Recent pose readings { t, headTilt, armAngle } and sounds heard with the can at the mouth { t, db }
 // (a loud crack has db = Infinity, so it beats any click).
 let headLog = [], sounds = [];
@@ -104,6 +110,7 @@ function resetTrack() {
   track.mouthSince = track.angleSince = null;
   track.lastMouthAt = track.lastAngleAt = track.lastSeenAtMouth = -Infinity;
   track.mouthFrames = 0;
+  track.lastPersonOkAt = -Infinity;
   sounds = [];
 }
 
@@ -117,10 +124,22 @@ function updateStretch(isTrue, now, sinceKey, lastKey) {
   }
 }
 
-// A crack at time t counts only if the can has been at the mouth for crackMouthHoldMs by then
-// (same as rules.ts heldLongEnough).
+// A crack at time t counts only if the can has been at the mouth for crackMouthHoldMs by then, and a
+// real person was in the shot within hiddenHoldMs — the same allowance as "face hidden by the can"
+// (same as rules.ts heldLongEnough + personOk).
 function crackCounts(t) {
-  return track.mouthSince !== null && t - track.lastMouthAt <= CONFIG.gapMs && t - track.mouthSince >= CONFIG.crackMouthHoldMs;
+  return track.mouthSince !== null && t - track.lastMouthAt <= CONFIG.gapMs && t - track.mouthSince >= CONFIG.crackMouthHoldMs &&
+    t - track.lastPersonOkAt <= CONFIG.hiddenHoldMs;
+}
+
+// Is the pose a real person, clearly in the shot? (src/detect/signals.ts faceVis / personSize)
+function readPerson(lm) {
+  const H = canvas.height, W = canvas.width;
+  const vis = Math.min(...[NOSE, MOUTH_L, MOUTH_R, SHOULDER_L, SHOULDER_R].map((i) => lm[i].visibility ?? 0));
+  const shoulderPx = Math.hypot((lm[SHOULDER_L].x - lm[SHOULDER_R].x) * W, (lm[SHOULDER_L].y - lm[SHOULDER_R].y) * H);
+  const size = shoulderPx / H;
+  const ok = vis >= CONFIG.personMinVis && size >= CONFIG.personMinSize;
+  return { vis, size, ok };
 }
 
 // How long the can has been held at the mouth right now (0 if it isn't).
@@ -556,7 +575,10 @@ function frame() {
     const shoulderPx = Math.hypot((lm[SHOULDER_L].x - lm[SHOULDER_R].x) * W, (lm[SHOULDER_L].y - lm[SHOULDER_R].y) * H);
     if (shoulderPx > 0) headTilt = ((lm[EAR_L].y + lm[EAR_R].y) / 2 - lm[NOSE].y) * H / shoulderPx;
   }
-  headLog.push({ t: now, headTilt, armAngle: p?.armAngle ?? null });
+  const person = lm ? readPerson(lm) : null;
+  live.person = person;
+  if (person?.ok) track.lastPersonOkAt = now;
+  headLog.push({ t: now, headTilt, armAngle: p?.armAngle ?? null, ok: !!person?.ok });
   while (headLog.length && now - headLog[0].t > LOG_MS) headLog.shift();
   live.headTilt = headTilt;
   updateStretch(atMouth, now, "mouthSince", "lastMouthAt");
@@ -567,8 +589,9 @@ function frame() {
 
   // Start: a sound (crack/click) was heard with the can at the mouth (checkCrack/checkClick), and now
   // the drinking motion has followed with the can still at the mouth → start at the strongest sound.
-  if (state === "armed" && atMouth) {
-    const s = confirmedStart(sounds, headLog, now, CONFIG);
+  // Only frames with a real, upright person count, for the motion and for this frame.
+  if (state === "armed" && atMouth && person?.ok) {
+    const s = confirmedStart(sounds, headLog.filter((x) => x.ok), now, CONFIG);
     if (s !== null) {
       const loud = sounds.find((x) => x.t === s)?.db === Infinity;
       startRun(s, [loud ? "crack" : "click (crack)", "can at mouth", "head back + arm up"]);
@@ -645,6 +668,7 @@ function frame() {
     `click ${live.clickDb?.toFixed(0) ?? "-"} dB (recent peak ${live.peakClick?.toFixed(0) ?? "-"}, need ${CONFIG.clickDb}) · sounds at mouth (waiting for head back + arm up): ${sounds.length}\n` +
     `angle ${p?.angle?.toFixed(0) ?? "-"}°  mouth ${p?.mouthDist?.toFixed(2) ?? "-"}${hidden ? " (hidden — holding)" : ""}  head tilt ${live.headTilt?.toFixed(2) ?? "-"}\n` +
     `drinking hand: ${ang ? `arm ${ang.arm?.toFixed(0) ?? "-"}° · hand ${ang.hand.toFixed(0)}° · wrist bend ${ang.wristFlex?.toFixed(0) ?? "-"}° · can ~${ang.can.toFixed(0)}° from upright` : "not matched"}\n` +
+    `person ${person ? `${person.ok ? "OK" : "NOT A CLEAR PERSON"} (face+shoulders ${person.vis.toFixed(2)}, need ${CONFIG.personMinVis} · size ${person.size.toFixed(3)}, need ${CONFIG.personMinSize})` : "none"}\n` +
     `at mouth for ${(mouthHeldMs(now) / 1000).toFixed(1)}s` +
     `${now - (live.ignoredCrack ?? -Infinity) < 2000 ? `  · crack IGNORED (can not at mouth for ${CONFIG.crackMouthHoldMs / 1000} s)` : ""}\n` +
     `cracks heard: ${(live.crackLog ?? []).map((c) => `${((now - c.t) / 1000).toFixed(1)}s ago score ${c.score.toFixed(0)} (×${c.ratio.toFixed(1)}, bright ${c.high.toFixed(2)})${c.atMouth ? " @mouth" : ""}`).join(" · ") || "none"}\n` +

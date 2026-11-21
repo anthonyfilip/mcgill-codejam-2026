@@ -15,6 +15,12 @@ export const RULES = {
   mouthDist: 0.8, // tuned on the 18 labelled clips (was 0.6: cut through the middle of real drinking)
   gapMs: 250,
   crackMouthHoldMs: 150, // a crack only counts once the can has been at the mouth this long (no cracks before it gets there)
+  // ...and only with a REAL person in the shot, at the sound and while the drinking motion is checked
+  // (a phone pointed at a foot made a phantom pose that started a run, Sat). Around every labelled
+  // start, single-person clips had face+shoulder confidence ≥ 0.67 and size ≥ 0.067. ("Mouth above
+  // shoulders" was measured too and rejected: it goes negative as the head tips back to drink.)
+  personMinVis: 0.5, // lowest model confidence among nose, both mouth corners, both shoulders (0–1)
+  personMinSize: 0.04, // shoulder width ÷ frame height
   // Start needs ALL of: a sound (loud crack or click) with the can at the mouth, THEN within
   // drinkConfirmMs the drinking motion — head tips back AND forearm swings toward vertical — with
   // the can still at the mouth. The clock starts at the sound. Holding the can at the mouth alone
@@ -131,6 +137,11 @@ export function confirmedStart(sounds: Sound[], samples: Sample[], now: number, 
 export function detect(rows: FrameSignals[], cracks: Crack[], R: Rules = RULES, clickList: Click[] = []): Detection {
   const ms = (s: number) => s * 1000
   const head = rows.map((r) => ({ t: ms(r.t), headTilt: r.headTilt, armAngle: r.armAngle }))
+  // Real person? Older saved analyses lack the fields (undefined) and count as unknown = not real.
+  const personOk = (r: FrameSignals) => (r.faceVis ?? 0) >= R.personMinVis && (r.personSize ?? 0) >= R.personMinSize
+  // The start only looks at frames with a real person (the end uses every frame, `head`).
+  const headStart = rows.map((r) => (personOk(r) ? { t: ms(r.t), headTilt: r.headTilt, armAngle: r.armAngle } : { t: ms(r.t), headTilt: null, armAngle: null }))
+  let lastPersonOkAt = -Infinity
   const clicks = clickList.map((c) => ({ t: ms(c.t), db: c.db }))
   let mouthFrames = 0 // consecutive frames with the wrist seen at the mouth
   let lastSeenAtMouth = -Infinity
@@ -148,8 +159,11 @@ export function detect(rows: FrameSignals[], cracks: Crack[], R: Rules = RULES, 
     return [t - last > R.gapMs ? null : since, last]
   }
   const atMouthAt = (t: number) => mouthSince !== null && t - lastMouthAt <= R.gapMs
-  // A crack counts only with the can already at the mouth for crackMouthHoldMs.
-  const heldLongEnough = (t: number) => atMouthAt(t) && t - mouthSince! >= R.crackMouthHoldMs
+  // A crack counts only with the can already at the mouth for crackMouthHoldMs, and a real person
+  // seen within hiddenHoldMs before it — the same allowance as "face hidden by the can" (the arm and
+  // can often cover the face right as it's cracked).
+  const heldLongEnough = (t: number) =>
+    atMouthAt(t) && t - mouthSince! >= R.crackMouthHoldMs && t - lastPersonOkAt <= R.hiddenHoldMs
 
   for (const row of rows) {
     const t = ms(row.t)
@@ -174,11 +188,14 @@ export function detect(rows: FrameSignals[], cracks: Crack[], R: Rules = RULES, 
     const hidden = row.liveMouthDist === null && t - lastSeenAtMouth <= R.hiddenHoldMs
     const atMouth = seenAtMouth || hidden
     ;[mouthSince, lastMouthAt] = stretch(atMouth, t, mouthSince, lastMouthAt)
+    const realPerson = personOk(row)
+    if (realPerson) lastPersonOkAt = t
 
     if (start === null) {
-      // Sound at the mouth, then the drinking motion, can still at the mouth → start at the sound.
-      if (atMouth) {
-        const s = confirmedStart(sounds, head, t, R)
+      // Sound at the mouth, then the drinking motion, can still at the mouth, real person in this
+      // frame → start at the sound. The motion is judged on real-person frames only.
+      if (atMouth && realPerson) {
+        const s = confirmedStart(sounds, headStart, t, R)
         if (s !== null) {
           start = s
           startBy = sounds.find((x) => x.t === s)!.db === Infinity ? 'crack, then drinking' : 'click (crack), then drinking'

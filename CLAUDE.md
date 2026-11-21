@@ -65,7 +65,8 @@ both `git switch main; git pull`. Merge small and often.
 - `Chug_Examples/signals/` — cached lab analysis (`<clip>.json` vision, `<clip>.audio.json` sound
   profile, `live_monster_*.audio.json` laptop-mic recordings). Re-score in the lab is instant.
 - Everything in `Chug_Examples/` exists only on Anthony's laptop — not in git, not backed up.
-- Current accuracy (single-person clips): start 0.15 s avg error, end 0.14 s, run time 0.16 s. See docs/STATUS.md.
+- Current accuracy (single-person clips, analysis re-run Sat ~14:00): start found in 6/8 (03 and 18
+  missed); on those, start 0.18 s avg error, end 0.12 s, run time 0.16 s. See docs/STATUS.md.
 
 ## How to work
 1. **Think before coding.** State assumptions out loud. If a request is ambiguous,
@@ -109,3 +110,5 @@ both `git switch main; git pull`. Merge small and often.
 - `gh pr create --body "..."` breaks on quotes in PowerShell — write the body to a file and use `--body-file`.
 - Vite only reads env files inside `app/` (`app/.env.local`), not the repo root.
 - Same for `git commit -m @'...'@` in PowerShell 5.1: a `"` in the message splits it into pathspecs — use `git commit -F <file>`.
+- While the lab's "Analyse all clips" runs, don't save ANY file under `app/src` — the dev server reloads every open page (the lab too) and the run stops. Edit only after it finishes.
+- A fresh lab analysis of the same clip reads slightly differently each run — check rule changes on more than one analysis before trusting small wins.
