@@ -1,8 +1,9 @@
-// Swipe left/right anywhere on a page to move along: Feed ⇄ Record ⇄ Leaderboard ⇄ Profile.
-// So a swipe left on the feed records a chug. Record isn't in the bottom bar but sits here
-// between Feed and Leaderboard. The page slides with your finger (like Instagram); let go past
-// 60 px and it moves on, otherwise it springs back. Vertical swipes (scrolling) are ignored.
-const ORDER = ['/feed.html', '/', '/leaderboard.html', '/profile.html']
+// Swipe sideways anywhere on a page to move along: Record ⇄ Chugs ⇄ Leaderboard ⇄ Profile.
+// Like Instagram, the camera sits beside the feed: on Chugs, swiping with your finger moving
+// right opens Record a chug; on Record, swiping the other way comes back. Record isn't in the
+// bottom bar. The page slides with your finger; let go past 60 px and it moves on, otherwise it
+// springs back. Vertical swipes (scrolling) are ignored.
+const ORDER = ['/', '/feed.html', '/leaderboard.html', '/profile.html']
 const GO_PX = 60
 
 // `allowed` lets a page switch it off, e.g. the tracker while a run is armed or going.
