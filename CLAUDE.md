@@ -33,7 +33,8 @@ Rule of thumb: if a line here wouldn't change Claude's behaviour, delete it.
 Multi-page Vite app in `app/`. Detection runs in the browser (MediaPipe + Web Audio API);
 Supabase stores posts, clips, profiles, comments and ratings.
 - **Record Chug (tracker)** — `app/index.html` + `app/src/live/app.js` (plain JS). GET SENDY! →
-  start when a crack is heard with the can at the mouth (or can at mouth + hand raised 0.8 s) →
+  start once a crack/click is heard with the can at the mouth AND the head tips back + arm comes up
+  (no sound = no start; clock = the sound) →
   🤙 shaka confirms the end; time stops when the can last left the mouth. All thresholds are in
   `CONFIG` at the top of `app.js`, each with a note on where its value came from.
 - **Results / Feed / Leaderboard** — `results.html`, `feed.html`, `leaderboard.html` +
@@ -62,7 +63,7 @@ both `git switch main; git pull`. Merge small and often.
 - `Chug_Examples/signals/` — cached lab analysis (`<clip>.json` vision, `<clip>.audio.json` sound
   profile, `live_monster_*.audio.json` laptop-mic recordings). Re-score in the lab is instant.
 - Everything in `Chug_Examples/` exists only on Anthony's laptop — not in git, not backed up.
-- Current accuracy (single-person clips): start 0.64 s avg error, end 0.40 s. See docs/STATUS.md.
+- Current accuracy (single-person clips): start 0.15 s avg error, end 0.14 s, run time 0.16 s. See docs/STATUS.md.
 
 ## How to work
 1. **Think before coding.** State assumptions out loud. If a request is ambiguous,
