@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { MAX_TITLE, type Post } from './posts'
+import { MAX_CLIP_BYTES, MAX_RUN_MS, MAX_TITLE, MIN_RUN_MS, type Post } from './posts'
 import { getName, getProfile } from './me'
 import { DeletePopup, Popup } from './Popup'
 import { Profile } from './Profile'
@@ -20,7 +20,7 @@ export function Results() {
   const [draft, setDraft] = useState<Draft | null | undefined>(isDemo ? DEMO : undefined) // undefined = loading
   const [all, setAll] = useState<Post[]>([])
   const [title, setTitle] = useState('')
-  const [needTitle, setNeedTitle] = useState(false) // "Must title chug before post" pop-up
+  const [notice, setNotice] = useState<string | null>(null) // why it can't post, in a pop-up
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [desc, setDesc] = useState('')
   const [posting, setPosting] = useState(false)
@@ -54,7 +54,10 @@ export function Results() {
   async function post() {
     if (!draft) return
     if (!getProfile()) return alert('Make your profile first: tap your name at the top.')
-    if (!title.trim()) return setNeedTitle(true)
+    if (!title.trim()) return setNotice('Must title chug before post')
+    // The same limits the database enforces, explained instead of a raw error.
+    if (draft.timeMs < MIN_RUN_MS || draft.timeMs > MAX_RUN_MS) return setNotice('Runs must be between 1 and 120 seconds')
+    if (draft.clip && draft.clip.size > MAX_CLIP_BYTES) return setNotice('This video is over 50 MB, too big to post')
     setPosting(true)
     try {
       await savePost({
@@ -139,8 +142,8 @@ export function Results() {
           </button>
         </div>
 
-        {needTitle && (
-          <Popup title="Must title chug before post" onClose={() => setNeedTitle(false)}>
+        {notice && (
+          <Popup title={notice} onClose={() => setNotice(null)}>
             {null}
           </Popup>
         )}
