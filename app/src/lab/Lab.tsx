@@ -22,6 +22,7 @@ export function Lab() {
   const overlayRef = useRef<HTMLCanvasElement>(null)
   const rowsRef = useRef<FrameSignals[]>([])
   const analysingRef = useRef(false) // true only during an Analyse pass
+  const analyseStartedRef = useRef(0)
 
   useEffect(() => {
     void fetch('/clips/index.json')
@@ -113,6 +114,8 @@ export function Lab() {
       setStatus(`Done — ${rowsRef.current.length} frames analysed`)
     }
     const onPause = () => {
+      // Pause events are delivered late: ignore one left over from just before Analyse was pressed.
+      if (performance.now() - analyseStartedRef.current < 500) return
       if (analysingRef.current && !video.ended) {
         analysingRef.current = false
         setRows([...rowsRef.current])
@@ -142,6 +145,7 @@ export function Lab() {
     setRows([])
     video.currentTime = 0
     analysingRef.current = true
+    analyseStartedRef.current = performance.now()
     setStatus('Analysing… (plays the clip once at normal speed)')
     await video.play()
   }
