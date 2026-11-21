@@ -13,7 +13,11 @@ const CONFIG = {
   crackHighFreqHz: 3000,
   angleDeg: 60,            // forearm tilt from vertical that counts as "can tipped"
   mouthDist: 0.6,          // wrist-to-mouth distance, in body-scale units
-  sendHoldMs: 300,         // how long the 🤘 must be held above the head
+  sendHoldMs: 300,         // how long the 🤙 "send it" (shaka) must be held
+  sendAboveHead: true,     // ...and whether the hand must be above the nose
+  thumbOutRatio: 0.4,      // thumb tip → index knuckle distance, in palm lengths (live readings: ~0.45–0.75 in a shaka)
+  thumbBendDeg: 45,        // ...and the thumb must be fairly straight (a fist's thumb wraps over the fingers)
+  fingerBendDeg: 60,       // a finger bent more than this (knuckle→joint vs joint→tip, in 3D) counts as curled
   minRunMs: 1000,          // ignore the end gesture right after the start
   minVisibility: 0.5,      // pose landmark confidence
 };
@@ -156,15 +160,63 @@ function readPose(lm) {
   return { arm, mouth, mouthDist, angle, nose: px(lm[NOSE]) };
 }
 
-// ---------- End: 🤘 above the head (gesture) ----------
+// ---------- End: 🤙 "send it" / shaka (hand landmarks) ----------
+// MediaPipe has no built-in shaka, so we read the 21 hand points ourselves:
+// thumb + pinky out, index + middle + ring curled.
+// Uses the 3D world landmarks (metres, centred on the hand) and measures how much each
+// finger BENDS, so it works whichever way the hand faces — including back of the hand
+// to the camera with the fingers curled in towards the person, where the curled
+// fingertips point along the camera's line of sight and 2D distances are meaningless.
+
+const WRIST = 0, THUMB_TIP = 4, INDEX_MCP = 5, MIDDLE_MCP = 9;
+const FINGERS = { index: [5, 6, 8], middle: [9, 10, 12], ring: [13, 14, 16], pinky: [17, 18, 20] }; // [knuckle, middle joint, tip]
+
+const sub = (a, b) => ({ x: a.x - b.x, y: a.y - b.y, z: (a.z ?? 0) - (b.z ?? 0) });
+const len = (v) => Math.hypot(v.x, v.y, v.z);
+const dist3 = (a, b) => len(sub(a, b));
+
+// Angle (degrees) between knuckle→joint and joint→tip: ~0° straight, ~90°+ curled.
+function bendDeg(h, [mcp, pip, tip]) {
+  const v1 = sub(h[pip], h[mcp]), v2 = sub(h[tip], h[pip]);
+  const cos = (v1.x * v2.x + v1.y * v2.y + v1.z * v2.z) / ((len(v1) * len(v2)) || 1e-9);
+  return (Math.acos(Math.min(1, Math.max(-1, cos))) * 180) / Math.PI;
+}
+
+function readShaka(h) {
+  const palm = dist3(h[WRIST], h[MIDDLE_MCP]) || 1e-9;
+  const ext = {}, bend = {};
+  for (const [name, joints] of Object.entries(FINGERS)) {
+    bend[name] = bendDeg(h, joints);
+    ext[name] = bend[name] < CONFIG.fingerBendDeg;
+  }
+  const thumbRatio = dist3(h[THUMB_TIP], h[INDEX_MCP]) / palm;
+  bend.thumb = bendDeg(h, [2, 3, 4]); // thumb knuckle → joint → tip
+  ext.thumb = thumbRatio > CONFIG.thumbOutRatio && bend.thumb < CONFIG.thumbBendDeg;
+  const shaka = ext.thumb && ext.pinky && !ext.index && !ext.middle && !ext.ring;
+  return { shaka, ext, bend: { ...bend, thumbRatio } };
+}
 
 function readSend(result, noseY) {
-  for (let i = 0; i < result.gestures.length; i++) {
-    const g = result.gestures[i][0];
-    const wristY = result.landmarks[i][0].y * canvas.height;
-    if (g?.categoryName === "ILoveYou" && wristY < noseY) return true;
+  let fingers = null;
+  for (let i = 0; i < result.landmarks.length; i++) {
+    const hand = result.landmarks[i];
+    // 3D world landmarks when available; otherwise image landmarks (their z is a rough depth).
+    const { shaka, ext, bend } = readShaka(result.worldLandmarks?.[i] ?? hand);
+    fingers = { ...ext, bend };
+    const wristY = hand[WRIST].y * canvas.height;
+    const highEnough = !CONFIG.sendAboveHead || wristY < noseY;
+    if (shaka && highEnough) return { send: true, fingers };
   }
-  return false;
+  return { send: false, fingers };
+}
+
+// "thumb ✋ index ✊ …" — which fingers the tracker thinks are out, for tuning the shaka.
+function fingerText(f) {
+  if (!f) return "none seen";
+  const thumb = `thumb ${f.thumb ? "out" : "in"} (${f.bend?.thumbRatio?.toFixed(2) ?? "-"}× palm, ${f.bend?.thumb?.toFixed(0) ?? "-"}°)`;
+  return [thumb, ...["index", "middle", "ring", "pinky"]
+    .map((n) => `${n} ${f[n] ? "out" : "in"}${f.bend?.[n] != null ? ` (${f.bend[n].toFixed(0)}°)` : ""}`)]
+    .join(" · ");
 }
 
 // ---------- Main loop ----------
@@ -188,10 +240,15 @@ function loop() {
     startRun(startAt, active);
   }
 
+  // Read the hand while armed too, so the 🤙 light can be tested before a run starts.
   let send = false;
+  if (state === "armed" || state === "running") {
+    const r = readSend(gesture.recognizeForVideo(video, now), p ? p.nose.y : 0);
+    send = r.send;
+    live.fingers = r.fingers;
+  }
   if (state === "running") {
     if (p?.angle != null) run.angles.push(p.angle);
-    send = readSend(gesture.recognizeForVideo(video, now), p ? p.nose.y : 0);
     if (send) sendSince ??= now;
     else sendSince = null;
     if (sendSince !== null && now - sendSince >= CONFIG.sendHoldMs && sendSince - run.startAt >= CONFIG.minRunMs) {
@@ -208,7 +265,8 @@ function loop() {
   $("debug").textContent =
     `state ${state}\n` +
     `audio rms ${live.rms?.toFixed(3)} bg ${live.bgRms?.toFixed(3)} (×${(live.rms / live.bgRms).toFixed(1)}) high ${live.highShare?.toFixed(2)}\n` +
-    `angle ${p?.angle?.toFixed(0) ?? "-"}°  mouth ${p?.mouthDist?.toFixed(2) ?? "-"}`;
+    `angle ${p?.angle?.toFixed(0) ?? "-"}°  mouth ${p?.mouthDist?.toFixed(2) ?? "-"}\n` +
+    `hand ${fingerText(live.fingers)}  🤙 ${send ? "YES" : "no"}`;
 
   requestAnimationFrame(loop);
 }
