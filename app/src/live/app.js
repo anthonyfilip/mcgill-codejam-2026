@@ -28,9 +28,14 @@ const CONFIG = {
   fingerBendDeg: 60,       // a finger bent more than this (knuckle→joint vs joint→tip, in 3D) counts as curled
   minRunMs: 1000,          // ignore the end gesture right after the start
   minVisibility: 0.5,      // pose landmark confidence
+  // Distance: people stand several metres back, so hands are small in the frame.
+  handCropScale: 1.4,      // zoom box around each wrist, in body-scale units (shoulder width)
+  handCropPx: 256,         // the zoomed box is resized to this before the hand model sees it
+  wristMinVisibility: 0.3, // try a wrist crop even if the pose is only fairly sure where the wrist is
 };
 
-const POSE_MODEL = "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task";
+// "full" is more accurate than "lite" on small/far-away people, at some speed cost.
+const POSE_MODEL = "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/1/pose_landmarker_full.task";
 const GESTURE_MODEL = "https://storage.googleapis.com/mediapipe-models/gesture_recognizer/gesture_recognizer/float16/1/gesture_recognizer.task";
 
 // Pose landmark indices
@@ -40,7 +45,9 @@ const ELBOW_L = 13, ELBOW_R = 14, WRIST_L = 15, WRIST_R = 16;
 const $ = (id) => document.getElementById(id);
 const video = $("video"), canvas = $("overlay"), ctx2d = canvas.getContext("2d");
 
-let pose, gesture, stream, analyser, audioCtx, recorder, chunks = [];
+let pose, gesture, handCrop, stream, analyser, audioCtx, recorder, chunks = [];
+const cropCanvas = document.createElement("canvas");
+const cropCtx = cropCanvas.getContext("2d", { willReadFrequently: true });
 let state = "idle"; // idle → armed → running → done
 
 // Last time each start signal was true (ms, performance.now()).
@@ -97,7 +104,8 @@ $("arm").onclick = async () => {
 async function setup() {
   setStateText("Loading models…");
   stream = await navigator.mediaDevices.getUserMedia({
-    video: { facingMode: "user", width: 640, height: 480 },
+    // Ask for HD: someone across the room needs the pixels. The browser falls back if unsupported.
+    video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } },
     // Raw audio: noise suppression would eat the crack transient.
     audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
   });
@@ -124,6 +132,12 @@ async function setup() {
     baseOptions: { modelAssetPath: GESTURE_MODEL, delegate: "GPU" },
     runningMode: "VIDEO",
     numHands: 2,
+  });
+  // Second instance for zoomed-in wrist crops: IMAGE mode, one hand per crop.
+  handCrop = await GestureRecognizer.createFromOptions(vision, {
+    baseOptions: { modelAssetPath: GESTURE_MODEL, delegate: "GPU" },
+    runningMode: "IMAGE",
+    numHands: 1,
   });
 
   // Audio runs on its own timer so a slow video frame doesn't hide a crack.
@@ -237,18 +251,65 @@ function readShaka(h) {
   return { shaka, ext, bend: { ...bend, thumbRatio } };
 }
 
-function readSend(result, noseY) {
+// hands: [{ px: 21 points in pixels, world: 21 3D points (metres) or null }]
+function readSend(hands, noseY) {
   let fingers = null;
-  for (let i = 0; i < result.landmarks.length; i++) {
-    const hand = result.landmarks[i];
-    // 3D world landmarks when available; otherwise image landmarks (their z is a rough depth).
-    const { shaka, ext, bend } = readShaka(result.worldLandmarks?.[i] ?? hand);
+  for (const hand of hands) {
+    // 3D world landmarks when available; otherwise pixel landmarks (2D only).
+    const { shaka, ext, bend } = readShaka(hand.world ?? hand.px);
     fingers = { ...ext, bend };
-    const wristY = hand[WRIST].y * canvas.height;
-    const highEnough = !CONFIG.sendAboveHead || wristY < noseY;
+    const highEnough = !CONFIG.sendAboveHead || hand.px[WRIST].y < noseY;
     if (shaka && highEnough) return { send: true, fingers };
   }
   return { send: false, fingers };
+}
+
+// ---------- Hands at a distance: zoom in on each wrist ----------
+// The hand model searches the whole frame and misses small (far-away) hands. Instead,
+// use the pose's wrists to cut a square around each hand, enlarge it to handCropPx, and
+// run the hand model on that close-up. Falls back to the whole frame if no pose is found.
+
+function detectHands(now, lm) {
+  if (lm) {
+    const W = canvas.width, H = canvas.height;
+    const P = (i) => ({ x: lm[i].x * W, y: lm[i].y * H, v: lm[i].visibility ?? 1 });
+    const sL = P(SHOULDER_L), sR = P(SHOULDER_R);
+    const body = Math.max(Math.hypot(sL.x - sR.x, sL.y - sR.y), 40); // shoulder width in px
+    const hands = [];
+    for (const [wi, ei] of [[WRIST_L, ELBOW_L], [WRIST_R, ELBOW_R]]) {
+      const w = P(wi), e = P(ei);
+      if (w.v < CONFIG.wristMinVisibility) continue;
+      // The hand sits beyond the wrist, along the forearm: shift the box that way.
+      const cx = w.x + (w.x - e.x) * 0.35, cy = w.y + (w.y - e.y) * 0.35;
+      const size = body * CONFIG.handCropScale;
+      const sx = cx - size / 2, sy = cy - size / 2;
+      cropCanvas.width = cropCanvas.height = CONFIG.handCropPx;
+      cropCtx.fillStyle = "#000";
+      cropCtx.fillRect(0, 0, CONFIG.handCropPx, CONFIG.handCropPx);
+      cropCtx.drawImage(video, sx, sy, size, size, 0, 0, CONFIG.handCropPx, CONFIG.handCropPx);
+      const r = handCrop.recognize(cropCanvas);
+      if (!r.landmarks.length) continue;
+      hands.push({
+        px: r.landmarks[0].map((q) => ({ x: sx + q.x * size, y: sy + q.y * size })), // back to full-frame pixels
+        world: r.worldLandmarks?.[0] ?? null,
+        box: { sx, sy, size },
+      });
+    }
+    // Both crops can land on the same hand when the wrists are close: keep one.
+    if (hands.length === 2) {
+      const d = Math.hypot(hands[0].px[WRIST].x - hands[1].px[WRIST].x, hands[0].px[WRIST].y - hands[1].px[WRIST].y);
+      if (d < body * 0.25) hands.pop();
+    }
+    live.handMode = `zoomed wrist crops (${hands.length} hand${hands.length === 1 ? "" : "s"})`;
+    if (hands.length) return hands;
+  }
+  // No pose (or no hand in either crop): search the whole frame.
+  const g = gesture.recognizeForVideo(video, now);
+  live.handMode = `whole frame (${g.landmarks.length} hand${g.landmarks.length === 1 ? "" : "s"})`;
+  return g.landmarks.map((h, i) => ({
+    px: toPx(h, canvas.width, canvas.height),
+    world: g.worldLandmarks?.[i] ?? null,
+  }));
 }
 
 // "thumb ✋ index ✊ …" — which fingers the tracker thinks are out, for tuning the shaka.
@@ -294,9 +355,10 @@ function loop() {
   let ang = null; // arm / hand / wrist / can angles for the drinking hand
   let handsPx = [];
   {
-    const g = gesture.recognizeForVideo(video, now);
-    handsPx = g.landmarks.map((h) => toPx(h, canvas.width, canvas.height));
-    const r = readSend(g, p ? p.nose.y : 0);
+    const hands = detectHands(now, lm);
+    handsPx = hands.map((h) => h.px);
+    live.boxes = hands.map((h) => h.box).filter(Boolean);
+    const r = readSend(hands, p ? p.nose.y : 0);
     send = r.send;
     live.fingers = r.fingers;
     // Match a tracked hand to the pose's drinking arm, then measure its angles.
@@ -331,8 +393,10 @@ function loop() {
     $(`sig-${k}`).classList.toggle("on", state === "armed" && now - seen[k] <= CONFIG.windowMs);
   }
   $("sig-send").classList.toggle("on", send);
+  const shoulderPx = lm ? Math.hypot((lm[SHOULDER_L].x - lm[SHOULDER_R].x) * canvas.width, (lm[SHOULDER_L].y - lm[SHOULDER_R].y) * canvas.height) : null;
   $("debug").textContent =
     `state ${state}\n` +
+    `camera ${video.videoWidth}×${video.videoHeight} · person ${shoulderPx ? `${shoulderPx.toFixed(0)} px shoulders` : "not found"} · hands via ${live.handMode ?? "-"}\n` +
     `audio rms ${live.rms?.toFixed(3)} bg ${live.bgRms?.toFixed(3)} (×${(live.rms / live.bgRms).toFixed(1)}) high ${live.highShare?.toFixed(2)}\n` +
     `angle ${p?.angle?.toFixed(0) ?? "-"}°  mouth ${p?.mouthDist?.toFixed(2) ?? "-"}\n` +
     `drinking hand: ${ang ? `arm ${ang.arm?.toFixed(0) ?? "-"}° · hand ${ang.hand.toFixed(0)}° · wrist bend ${ang.wristFlex?.toFixed(0) ?? "-"}° · can ~${ang.can.toFixed(0)}° from upright` : "not matched"}\n` +
@@ -390,6 +454,10 @@ const HAND_BONES = [
 
 function draw(p, ang, handsPx = [], send = false) {
   ctx2d.clearRect(0, 0, canvas.width, canvas.height);
+  // Faint boxes showing where the hand model zoomed in.
+  ctx2d.lineWidth = 1;
+  ctx2d.strokeStyle = "rgba(255,255,255,0.35)";
+  for (const b of live.boxes ?? []) ctx2d.strokeRect(b.sx, b.sy, b.size, b.size);
   // Every tracked hand, green when it's making the 🤙.
   for (const h of handsPx) {
     ctx2d.lineWidth = 3;
