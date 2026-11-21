@@ -141,7 +141,12 @@ export async function loadPosts(): Promise<Post[]> {
     const posts = await read<Post[]>(POSTS, (s) => s.getAll())
     return posts.sort((a, b) => b.postedAt - a.postedAt)
   }
-  const { data, error } = await supabase.from('posts').select('*, profiles!posts_profile_id_fkey(username, avatar_path)').order('created_at', { ascending: false })
+  // "!profile_id" = join through posts.profile_id. Without it Supabase also sees posts↔profiles
+  // via the comments and ratings tables and refuses ("more than one relationship was found").
+  const { data, error } = await supabase
+    .from('posts')
+    .select('*, profiles!profile_id(username, avatar_path)')
+    .order('created_at', { ascending: false })
   if (error) throw error
   return (data as Row[]).map(fromRow)
 }

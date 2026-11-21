@@ -10,6 +10,8 @@ export interface AudioMeter {
    *  Chrome starts AudioContexts suspended, and a <video> routed into a suspended context
    *  shows the pause icon but never advances. */
   resume(): void
+  /** Speaker volume only (0–1). The measurements always get the full signal. */
+  setSpeakerVolume(v: number): void
 }
 
 const meters = new WeakMap<HTMLMediaElement, AudioMeter>()
@@ -26,7 +28,10 @@ export function attachMeter(media: HTMLMediaElement): AudioMeter {
   source.connect(analyser)
   // Also send it to the speakers: once a media element feeds an AudioContext, it is
   // silent unless connected to ctx.destination. Hearing the tab pop helps labelling.
-  source.connect(ctx.destination)
+  // The gain node lets us silence the speakers without silencing the measurements
+  // (muting the <video> itself would feed the analyser silence).
+  const speakers = ctx.createGain()
+  source.connect(speakers).connect(ctx.destination)
 
   const time = new Float32Array(analyser.fftSize)
   const freq = new Float32Array(analyser.frequencyBinCount)
@@ -35,6 +40,9 @@ export function attachMeter(media: HTMLMediaElement): AudioMeter {
   const meter: AudioMeter = {
     resume() {
       if (ctx.state !== 'running') void ctx.resume()
+    },
+    setSpeakerVolume(v: number) {
+      speakers.gain.value = v
     },
     read() {
       if (ctx.state === 'suspended') void ctx.resume()

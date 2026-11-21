@@ -58,6 +58,30 @@ function serveClips(): Plugin {
     configureServer(server) {
       server.middlewares.use('/clips', (req, res, next) => {
         const name = decodeURIComponent((req.url ?? '/').split('?')[0].replace(/^\//, ''))
+        // Save what the lab measured for a clip: POST /clips/signals/<clip>.json → Chug_Examples/signals/
+        if (name.startsWith('signals/') && req.method === 'POST') {
+          const file = path.join(CLIPS_DIR, 'signals', path.basename(name))
+          if (!file.endsWith('.json')) return next()
+          let body = ''
+          req.on('data', (chunk) => (body += chunk))
+          req.on('end', () => {
+            fs.mkdirSync(path.dirname(file), { recursive: true })
+            fs.writeFileSync(file, body, 'utf8')
+            res.end('ok')
+          })
+          return
+        }
+        if (name.startsWith('signals/') && name.endsWith('.json')) {
+          const file = path.join(CLIPS_DIR, 'signals', path.basename(name))
+          if (!fs.existsSync(file)) {
+            res.statusCode = 404
+            res.end('not analysed yet')
+            return
+          }
+          res.setHeader('Content-Type', 'application/json')
+          res.end(fs.readFileSync(file, 'utf8'))
+          return
+        }
         if (name === 'labels' && req.method === 'POST') {
           let body = ''
           req.on('data', (chunk) => (body += chunk))
@@ -89,21 +113,28 @@ function serveClips(): Plugin {
         const size = fs.statSync(file).size
         const type = name.endsWith('.csv') ? 'text/csv' : 'video/mp4'
         const range = req.headers.range
+        // Serve video in chunks of at most CHUNK bytes. Sending "the rest of the file" for an
+        // open-ended range keeps Chrome's connection busy with a half-read stream; after ~6 of
+        // them (Chrome's per-site limit) new clips never load.
+        const CHUNK = 1024 * 1024
+        let stream: fs.ReadStream
         if (range) {
           const [startStr, endStr] = range.replace('bytes=', '').split('-')
           const start = Number(startStr)
-          const end = endStr ? Number(endStr) : size - 1
+          const end = Math.min(endStr ? Number(endStr) : start + CHUNK - 1, size - 1)
           res.writeHead(206, {
             'Content-Range': `bytes ${start}-${end}/${size}`,
             'Accept-Ranges': 'bytes',
             'Content-Length': end - start + 1,
             'Content-Type': type,
           })
-          fs.createReadStream(file, { start, end }).pipe(res)
+          stream = fs.createReadStream(file, { start, end })
         } else {
           res.writeHead(200, { 'Content-Length': size, 'Content-Type': type, 'Accept-Ranges': 'bytes' })
-          fs.createReadStream(file).pipe(res)
+          stream = fs.createReadStream(file)
         }
+        res.on('close', () => stream.destroy()) // browser gave up on this request → stop reading
+        stream.pipe(res)
       })
     },
   }

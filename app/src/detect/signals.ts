@@ -30,6 +30,9 @@ export interface FrameSignals {
   handAngle: number | null // hand wrist→middle knuckle
   wristFlex: number | null // bend between forearm and hand (0 = straight)
   canAngle: number | null // estimated can tilt from upright, from the knuckle line (0–90)
+  // Exactly what the LIVE tracker (src/live/app.js readPose) measures, so clip scores match live behaviour:
+  liveMouthDist: number | null // drinking wrist → mouth ÷ max(shoulder width, neck length)
+  liveAngle: number | null // drinking forearm from vertical, only when that wrist is above its shoulder
   loudnessDb: number
   brightness: number
 }
@@ -70,6 +73,8 @@ export function computeSignals(
     handAngle: null,
     wristFlex: null,
     canAngle: null,
+    liveMouthDist: null,
+    liveAngle: null,
     loudnessDb,
     brightness,
   }
@@ -115,7 +120,16 @@ export function computeSignals(
     canAngle: a?.can ?? null,
   }
 
-  return { ...base, handToMouth, handsNearMouth, headTilt, handAboveShoulder, ...angles }
+  // Live-tracker definitions (mirror src/live/app.js readPose).
+  const sL = P(lm[L_SHOULDER]), sR = P(lm[R_SHOULDER])
+  const mouthP = P(mouth)
+  const neck = Math.hypot(mouthP.x - (sL.x + sR.x) / 2, mouthP.y - (sL.y + sR.y) / 2)
+  const liveScale = Math.max(Math.hypot(sL.x - sR.x, sL.y - sR.y), neck) || 1e-3
+  const liveMouthDist = Math.hypot(wrist.x - mouthP.x, wrist.y - mouthP.y) / liveScale
+  const drinkShoulder = leftCloser ? sL : sR
+  const liveAngle = wrist.y < drinkShoulder.y ? fromVertical(elbow, wrist) : null
+
+  return { ...base, handToMouth, handsNearMouth, headTilt, handAboveShoulder, ...angles, liveMouthDist, liveAngle }
 }
 
 export function signalsToCsv(rows: FrameSignals[]): string {
@@ -130,6 +144,8 @@ export function signalsToCsv(rows: FrameSignals[]): string {
     'handAngle',
     'wristFlex',
     'canAngle',
+    'liveMouthDist',
+    'liveAngle',
     'loudnessDb',
     'brightness',
   ]

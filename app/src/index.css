@@ -70,6 +70,42 @@ body {
   text-align: center;
 }
 
+.lab h2 {
+  font-size: 18px;
+  margin: 16px 0 0;
+}
+
+.hint {
+  font-size: 13px;
+  color: #495057;
+  margin: 0;
+}
+
+.scoreboard table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 13px;
+}
+
+.scoreboard th,
+.scoreboard td {
+  border-bottom: 1px solid #dee2e6;
+  padding: 4px 8px;
+  text-align: left;
+}
+
+.scoreboard td.good {
+  background: #d3f9d8;
+}
+
+.scoreboard td.meh {
+  background: #fff3bf;
+}
+
+.scoreboard td.bad {
+  background: #ffe3e3;
+}
+
 .label-info {
   font-size: 13px;
   color: #495057;

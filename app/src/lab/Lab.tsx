@@ -1,10 +1,31 @@
 import { DrawingUtils, HandLandmarker, PoseLandmarker } from '@mediapipe/tasks-vision'
 import { useEffect, useRef, useState } from 'react'
 import { attachMeter } from '../audio/meter'
+import { type Crack, findCracks, soundProfile } from '../audio/offline'
+import { cracksByContrast, type SoundProfile } from '../detect/cracks'
 import { type ClipLabel, type EditableField, loadLabels, saveLabel } from '../data/labels'
+import { detect, RULES } from '../detect/rules'
 import { computeSignals, type FrameSignals, pickContestant, signalsToCsv } from '../detect/signals'
 import { type Landmarkers, loadLandmarkers } from '../vision/landmarkers'
+import { type ClipScore, Scoreboard } from './Scoreboard'
 import { SignalChart } from './SignalChart'
+
+interface SavedSignals {
+  clip: string
+  rows: FrameSignals[]
+  cracks: Crack[]
+  analysedAt: string
+}
+
+const signalsUrl = (clip: string) => `/clips/signals/${encodeURIComponent(clip.replace(/\.\w+$/, ''))}.json`
+const soundUrl = (clip: string) => `/clips/signals/${encodeURIComponent(clip.replace(/\.\w+$/, ''))}.audio.json`
+
+/** Resolve when `event` fires on `el` (or reject after timeoutMs). */
+const waitFor = (el: HTMLElement, event: string, timeoutMs: number) =>
+  new Promise<void>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(`timed out waiting for ${event}`)), timeoutMs)
+    el.addEventListener(event, () => (clearTimeout(timer), resolve()), { once: true })
+  })
 
 // Detection lab: play a labelled test clip, draw what MediaPipe sees, and graph the
 // signals against the hand-labelled start/end so we can design the start/stop rules.
@@ -23,15 +44,33 @@ export function Lab() {
   const rowsRef = useRef<FrameSignals[]>([])
   const analysingRef = useRef(false) // true only during an Analyse pass
   const analyseStartedRef = useRef(0)
+  const [scores, setScores] = useState<ClipScore[]>([])
+  const [batch, setBatch] = useState(false)
+
+  // Score every clip from its saved signals (fast — no video needed).
+  const rescore = async (clipList: string[], labelMap: Map<string, ClipLabel>) => {
+    const out: ClipScore[] = []
+    for (const c of clipList) {
+      const res = await fetch(signalsUrl(c))
+      const saved = res.ok ? ((await res.json()) as SavedSignals) : null
+      // With a saved sound profile, re-detect cracks with the current rules (so crack tuning
+      // applies without re-analysing video); otherwise use the cracks saved at analysis time.
+      const snd = await fetch(soundUrl(c))
+      const cracks = snd.ok ? cracksByContrast((await snd.json()) as SoundProfile, RULES) : (saved?.cracks ?? [])
+      out.push({ clip: c, label: labelMap.get(c), det: saved ? detect(saved.rows, cracks) : null })
+    }
+    setScores(out)
+  }
 
   useEffect(() => {
-    void fetch('/clips/index.json')
-      .then((r) => r.json() as Promise<string[]>)
-      .then((list) => {
+    void Promise.all([fetch('/clips/index.json').then((r) => r.json() as Promise<string[]>), loadLabels()]).then(
+      ([list, labelMap]) => {
         setClips(list)
         setClip((c) => c || list[0] || '')
-      })
-    void loadLabels().then(setLabels)
+        setLabels(labelMap)
+        void rescore(list, labelMap)
+      },
+    )
     loadLandmarkers()
       .then((m) => {
         setModels(m)
@@ -157,6 +196,84 @@ export function Lab() {
     await video.play()
   }
 
+  // Analyse one clip end-to-end (vision while it plays + cracks from its audio track) and save to disk.
+  const analyseAndSave = async (name: string) => {
+    const video = videoRef.current!
+    if (decodeURIComponent(video.currentSrc.split('/').pop() ?? '') !== name) {
+      const loaded = waitFor(video, 'loadeddata', 20000)
+      setClip(name)
+      rowsRef.current = []
+      setRows([])
+      await loaded
+    }
+    const cracks = await findCracks(`/clips/${encodeURIComponent(name)}`, RULES)
+    const ended = waitFor(video, 'ended', (video.duration + 60) * 1000)
+    await analyse()
+    await ended
+    const data: SavedSignals = { clip: name, rows: rowsRef.current, cracks, analysedAt: new Date().toISOString() }
+    await fetch(signalsUrl(name), { method: 'POST', body: JSON.stringify(data) })
+  }
+
+  // Sound profile of every clip (no playback needed — a few seconds in total).
+  const saveSoundProfiles = async () => {
+    setBatch(true)
+    try {
+      for (let i = 0; i < clips.length; i++) {
+        setStatus(`Measuring sound: ${clips[i]} (${i + 1}/${clips.length})`)
+        const p = await soundProfile(`/clips/${encodeURIComponent(clips[i])}`, RULES.crackHighFreqHz)
+        await fetch(soundUrl(clips[i]), { method: 'POST', body: JSON.stringify(p) })
+      }
+      await rescore(clips, labels)
+      setStatus(`Saved sound profiles for ${clips.length} clips`)
+    } finally {
+      setBatch(false)
+    }
+  }
+
+  // Chrome stops delivering video frames to hidden tabs, so a clip analysed while the tab was
+  // in the background ends up with almost no rows. Wait until visible, and redo thin results.
+  const waitVisible = async () => {
+    while (document.visibilityState !== 'visible') {
+      setStatus('Paused — switch back to this tab to continue analysing')
+      await new Promise((r) => setTimeout(r, 1000))
+    }
+  }
+  const enoughRows = (n: number, dur: number) => n >= Math.max(20, dur * 3) // ≥ 3 frames per second
+
+  const analyseAll = async () => {
+    const video = videoRef.current!
+    setBatch(true)
+    // 8 minutes of party audio is a lot: silence the speakers only, so the loudness and
+    // brightness graphs still measure the real sound.
+    const meter = attachMeter(video)
+    meter.setSpeakerVolume(0)
+    try {
+      for (let i = 0; i < clips.length; i++) {
+        // Skip clips already analysed properly.
+        const prev = await fetch(signalsUrl(clips[i]))
+        if (prev.ok) {
+          const saved = (await prev.json()) as SavedSignals
+          const lastT = saved.rows.at(-1)?.t ?? 0
+          if (enoughRows(saved.rows.length, lastT)) continue
+        }
+        for (let attempt = 1; attempt <= 3; attempt++) {
+          await waitVisible()
+          setStatus(`Analysing all: ${clips[i]} (${i + 1}/${clips.length}) — keep this tab visible`)
+          await analyseAndSave(clips[i])
+          if (enoughRows(rowsRef.current.length, video.duration)) break
+          setStatus(`${clips[i]}: too few frames (tab hidden?) — retrying`)
+        }
+        await rescore(clips, labels)
+      }
+      setStatus(`Analysed all ${clips.length} clips — scores below`)
+    } catch (e) {
+      setStatus(`Analyse all stopped: ${e instanceof Error ? e.message : String(e)}`)
+    } finally {
+      meter.setSpeakerVolume(1)
+      setBatch(false)
+    }
+  }
+
   const setLabel = async (field: EditableField, value: string) => {
     try {
       await saveLabel(clip, field, value)
@@ -207,8 +324,17 @@ export function Lab() {
             </option>
           ))}
         </select>
-        <button onClick={analyse} disabled={!models || !clip}>
+        <button onClick={analyse} disabled={!models || !clip || batch}>
           Analyse
+        </button>
+        <button onClick={() => void analyseAll()} disabled={!models || clips.length === 0 || batch}>
+          Analyse all clips &amp; score (~8 min)
+        </button>
+        <button onClick={() => void saveSoundProfiles()} disabled={clips.length === 0 || batch}>
+          Measure sound of all clips
+        </button>
+        <button onClick={() => void rescore(clips, labels)} disabled={batch}>
+          Re-score
         </button>
         <button onClick={downloadCsv} disabled={rows.length === 0}>
           Download signals CSV
@@ -282,6 +408,13 @@ export function Lab() {
         start={label?.start_s ?? null}
         end={label?.end_s ?? null}
       />
+
+      <h2>Accuracy against labels.csv</h2>
+      <p className="hint">
+        "Analyse all clips" plays every clip once and saves what the tracker saw to Chug_Examples/signals/. After
+        that, "Re-score" re-runs the start/end rules (src/detect/rules.ts) instantly.
+      </p>
+      <Scoreboard scores={scores} />
     </div>
   )
 }
