@@ -1,22 +1,43 @@
 * { box-sizing: border-box; }
 body { margin: 0; font-family: system-ui, sans-serif; background: #111; color: #eee; }
-main { max-width: 640px; margin: 0 auto; padding: 16px; }
+main { margin: 0; padding: 0; }
 
-/* The camera view takes the camera's shape (--w / --h, set by app.js; portrait on an upright
-   phone), but never taller than ~70% of the screen. */
-#stage { --w: 4; --h: 3; position: relative; width: min(100%, calc(70vh * var(--w) / var(--h))); margin: 0 auto; aspect-ratio: var(--w) / var(--h); background: #000; border-radius: 12px; overflow: hidden; }
+/* Record screen (Sat): the camera fills the whole screen above the tab bar, and the buttons float
+   on it. On the deployed site the page doesn't scroll (html.record-fixed, set by app.js); on the
+   local dev server the debug readout sits below the camera — scroll down to it. */
+html.record-fixed, html.record-fixed body { height: 100%; overflow: hidden; overscroll-behavior: none; }
+#stage { position: relative; width: 100%; height: calc(100dvh - var(--tabbar, 0px)); background: #000; overflow: hidden; }
+/* The picture fills the screen (slight crop at the edges) when its shape is close to the screen's;
+   when filling would cut off a lot — a landscape back camera on an upright phone — the whole picture
+   shows with black bars instead (app.js fitStage → .fit-contain), so it never zooms in far. */
 #video, #overlay { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+#stage.fit-contain #video, #stage.fit-contain #overlay { object-fit: contain; }
 /* Front camera only: show it like a mirror. The back camera shows the world as it is. */
 #stage.mirror #video, #stage.mirror #overlay { transform: scaleX(-1); }
-#flip, #light { position: absolute; top: 8px; left: 8px; z-index: 2; width: 44px; height: 44px; padding: 0; font-size: 22px; border-radius: 50%; background: rgba(0, 0, 0, 0.5); color: #fff; }
-#light { left: 60px; }
+#flip, #light { position: absolute; top: calc(12px + env(safe-area-inset-top)); left: 12px; z-index: 2; width: 44px; height: 44px; padding: 0; font-size: 22px; border-radius: 50%; background: rgba(0, 0, 0, 0.5); color: #fff; }
+#light { left: 64px; }
 #light.on { background: #f5b400; }
 /* Front-camera "ring light": the page around the camera view goes white while armed/running. */
 body.screen-light { background: #fff; }
-#timer { position: absolute; top: 8px; right: 12px; font-size: 40px; font-weight: 700; font-variant-numeric: tabular-nums; text-shadow: 0 2px 6px #000; }
-#state { position: absolute; bottom: 8px; left: 12px; font-size: 16px; text-shadow: 0 2px 6px #000; }
+#timer { position: absolute; top: calc(8px + env(safe-area-inset-top)); right: 16px; z-index: 2; font-size: 44px; font-weight: 700; font-variant-numeric: tabular-nums; text-shadow: 0 2px 6px #000; }
+/* GET SENDY! sits at the bottom centre, where a camera app's shutter button is (share.css put it
+   in the middle; `main` beats share.css). It still hides itself while disabled (armed/running). */
+main #stage #arm { top: auto; bottom: 28px; transform: translateX(-50%); }
+/* The prompt ("Armed — crack it", "GO GO GO"…) sits just above the shutter spot. */
+#state { position: absolute; bottom: 92px; left: 16px; right: 16px; z-index: 2; font-size: 18px; font-weight: 600; text-align: center; text-shadow: 0 2px 6px #000; }
 
-#signals { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 12px 0; }
+/* "Upload a video of your chug" (added by src/feed/share.ts): a small button floating above
+   GET SENDY!, hidden while armed/running so the camera is clear. (`main` beats share.css.) */
+main #upload-chug { position: fixed; z-index: 3; left: 50%; bottom: calc(var(--tabbar, 0px) + 132px); transform: translateX(-50%); width: min(90vw, 360px); margin: 0; }
+main #upload-chug .upload-btn { padding: 8px 12px; border: 0; background: rgba(0, 0, 0, 0.45); border-radius: 999px; font-size: 15px; }
+main #upload-chug video { max-height: 35dvh; object-fit: contain; }
+main #upload-chug .upload-status { color: #fff; text-shadow: 0 1px 4px #000; }
+body.recording #upload-chug { display: none; }
+/* The tracker's own results box only shows if handing the run to the results page fails. */
+main #results { position: fixed; z-index: 5; left: 12px; right: 12px; bottom: calc(var(--tabbar, 0px) + 12px); max-height: 60dvh; overflow: auto; margin: 0; }
+
+/* Dev server only (hidden on the deployed site): signal lights, debug readout, lab link. */
+#signals { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 12px; }
 .sig { padding: 10px 4px; text-align: center; border-radius: 8px; background: #2a2a2a; color: #888; font-weight: 600; transition: background 0.1s; }
 .sig.on { background: #2e9d4f; color: #fff; }
 
@@ -27,7 +48,7 @@ button:disabled { opacity: 0.5; }
 #results video { width: 100%; margin: 8px 0; border-radius: 8px; }
 #results a { color: #f5b400; }
 
-#debug { font-size: 12px; color: #888; white-space: pre-wrap; }
+#debug { margin: 12px; font-size: 12px; color: #888; white-space: pre-wrap; }
 
-.devlink { margin-top: 24px; font-size: 13px; }
+.devlink { margin: 24px 12px; font-size: 13px; }
 .devlink a { color: #888; }

@@ -94,6 +94,10 @@ const video = $("video"), canvas = $("overlay"), ctx2d = canvas.getContext("2d")
 if (!DEV) {
   $("debug").remove();
   document.querySelector(".devlink")?.remove();
+  // No tracking visuals for users: the signal lights go too (hidden, not removed — share.ts puts
+  // the upload button after them), the overlay isn't drawn (frame()), and the page doesn't scroll.
+  $("signals").style.display = "none";
+  document.documentElement.classList.add("record-fixed");
 }
 
 let pose, gesture, handCrop, stream, analyser, highAnalyser, clickAnalyser, audioCtx, recorder, chunks = [];
@@ -263,17 +267,22 @@ async function openCamera() {
   applyLight(); // a new camera track starts with its flashlight off
 }
 
-// The camera view takes the camera's own shape (portrait on a phone held upright), and the
-// overlay matches its pixels. Runs again if the phone rotates (the video's size changes).
+// The camera view fills the screen (style.css #stage). The picture fills it too when that crops
+// at most a quarter of it; otherwise — e.g. a landscape back camera on an upright phone, which
+// looked far too zoomed in (phone test, Sat) — the whole picture shows with black bars. The overlay
+// matches the video's pixels. Runs again when the picture or the screen changes size (rotation).
 function fitStage() {
   const w = video.videoWidth, h = video.videoHeight;
   if (!w || !h) return;
   canvas.width = w;
   canvas.height = h;
-  $("stage").style.setProperty("--w", w);
-  $("stage").style.setProperty("--h", h);
+  const box = $("stage").getBoundingClientRect();
+  if (!box.width || !box.height) return;
+  const kept = Math.min((w / h) / (box.width / box.height), (box.width / box.height) / (w / h)); // share of the picture left after filling
+  $("stage").classList.toggle("fit-contain", kept < 0.75);
 }
 video.addEventListener("resize", fitStage);
+addEventListener("resize", fitStage);
 
 // Keep the screen on while waiting for / timing a run (phones dim and lock otherwise).
 async function keepAwake(on) {
@@ -683,7 +692,7 @@ function frame() {
     if (state === "running" && run.sendAt == null) $("timer").textContent = ((now - run.startAt) / 1000).toFixed(2);
   }
 
-  draw(p, ang, handsPx, send);
+  if (DEV) draw(p, ang, handsPx, send); // tracking visuals (skeleton, hands, mouth dot) on the dev server only
   for (const k of ["crack", "angle", "mouth"]) {
     $(`sig-${k}`).classList.toggle("on", state === "armed" && now - seen[k] <= CONFIG.windowMs);
   }
@@ -827,6 +836,9 @@ function setState(s) {
   }[s]);
   if (s === "armed") $("timer").textContent = "0.00";
   applyLight(); // 🔦 on while armed/running, off once the run is done
+  // While recording, only the camera, timer and prompt show (style.css hides the upload button;
+  // GET SENDY! hides itself while disabled).
+  document.body.classList.toggle("recording", s === "armed" || s === "running");
 }
 
 function setStateText(t) { $("state").textContent = t; }
