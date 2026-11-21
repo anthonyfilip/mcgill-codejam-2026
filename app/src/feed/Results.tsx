@@ -19,7 +19,6 @@ export function Results() {
   const [all, setAll] = useState<Post[]>([])
   const [title, setTitle] = useState('')
   const [desc, setDesc] = useState('')
-  const [posted, setPosted] = useState(false)
   const [posting, setPosting] = useState(false)
 
   useEffect(() => {
@@ -69,10 +68,10 @@ export function Results() {
         cheers: 0,
       })
       if (draft.id !== 'demo') await deleteDraft(draft.id)
-      setPosted(true)
+      // Straight to the feed; "replace" so Back doesn't return to this posted run.
+      location.replace('/feed.html')
     } catch (e) {
       alert(`Couldn't post: ${(e as Error).message}`)
-    } finally {
       setPosting(false)
     }
   }
@@ -98,41 +97,31 @@ export function Results() {
 
         {videoUrl ? <video src={videoUrl} controls playsInline loop autoPlay muted /> : <div className="no-video">🍺</div>}
 
-        {posted ? (
-          <a className="btn primary" href="/feed.html">Posted ✔ View feed</a>
-        ) : (
-          <>
-            <label className="field title-field">
-              Name your shotgun
-              <input
-                value={title}
-                maxLength={MAX_TITLE}
-                placeholder="e.g. The Tuesday Torpedo"
-                onChange={(e) => setTitle(e.target.value)}
-              />
-            </label>
-            <div className="count">{title.length} / {MAX_TITLE}</div>
-            <textarea
-              className="desc-input"
-              maxLength={MAX_DESC}
-              rows={3}
-              placeholder="Say something about this one…"
-              value={desc}
-              onChange={(e) => setDesc(e.target.value)}
-            />
-            <div className="count">{desc.length} / {MAX_DESC}</div>
-            <button className="btn primary" onClick={post} disabled={posting || !title.trim()}>
-              {posting ? 'Posting…' : title.trim() ? 'Post to feed' : 'Name it to post'}
-            </button>
-          </>
-        )}
+        <label className="field title-field">
+          Name your shotgun
+          <input
+            value={title}
+            maxLength={MAX_TITLE}
+            placeholder="e.g. The Tuesday Torpedo"
+            onChange={(e) => setTitle(e.target.value)}
+          />
+        </label>
+        <div className="count">{title.length} / {MAX_TITLE}</div>
+        <textarea
+          className="desc-input"
+          maxLength={MAX_DESC}
+          rows={3}
+          placeholder="Say something about this one…"
+          value={desc}
+          onChange={(e) => setDesc(e.target.value)}
+        />
+        <div className="count">{desc.length} / {MAX_DESC}</div>
+        <button className="btn primary" onClick={post} disabled={posting || !title.trim()}>
+          {posting ? 'Posting…' : title.trim() ? 'Post to feed' : 'Name it to post'}
+        </button>
 
         <div className="row">
-          {posted ? (
-            <a className="btn" href="/">Go again</a>
-          ) : (
-            <button className="btn" onClick={retake}>Retake</button>
-          )}
+          <button className="btn" onClick={retake}>Retake</button>
           {videoUrl && <a className="btn" href={videoUrl} download="shotgun.webm">Download</a>}
         </div>
       </section>
