@@ -251,12 +251,17 @@ try { lightOn = localStorage.getItem("tracker.light") === "on"; } catch { /* sto
 // broke it on an iPhone (it worked earlier Sat in Brave — iOS browsers all share Safari's engine —
 // until the camera request changed). Both forms of the constraint are sent; a camera that can't do
 // it just ignores or refuses them.
+// Returns a short report of what the camera did, for the flashlight test below.
 async function setTorch(on) {
   const track = stream?.getVideoTracks()[0];
-  if (!track) return;
-  for (const c of [{ advanced: [{ torch: on }] }, { torch: on }]) {
-    try { await track.applyConstraints(c); } catch { /* not supported in this form */ }
+  if (!track) return "no camera track";
+  const report = [];
+  for (const [name, c] of [["advanced", { advanced: [{ torch: on }] }], ["plain", { torch: on }]]) {
+    try { await track.applyConstraints(c); report.push(`${name} ok`); } catch (err) { report.push(`${name} refused (${err.name})`); }
   }
+  const caps = track.getCapabilities?.() ?? {};
+  report.push(`listed: ${"torch" in caps ? JSON.stringify(caps.torch) : "no"}`, `now: ${track.getSettings?.().torch ?? "?"}`);
+  return report.join(" · ");
 }
 
 function applyLight() {
@@ -266,10 +271,17 @@ function applyLight() {
   document.body.classList.toggle("screen-light", want && facing === "user");
 }
 
-$("light").onclick = () => {
+$("light").onclick = async () => {
   lightOn = !lightOn;
   try { localStorage.setItem("tracker.light", lightOn ? "on" : "off"); } catch { /* storage blocked */ }
   applyLight();
+  // TEMPORARY flashlight test (Sat, iPhone torch not working): switching the light ON with the back
+  // camera, outside a run, flashes the torch for 2 s and shows one line saying what the camera did.
+  if (lightOn && facing === "environment" && stream && state !== "armed" && state !== "running") {
+    setStateText(`Flashlight test: ${await setTorch(true)}`);
+    setTimeout(() => { if (state !== "armed" && state !== "running") setTorch(false); }, 2000);
+    setTimeout(() => { if (state !== "armed" && state !== "running") setStateText(""); }, 8000);
+  }
 };
 $("light").classList.toggle("on", lightOn);
 
