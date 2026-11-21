@@ -859,7 +859,7 @@ function draw(p, ang, handsPx = [], send = false) {
 function setState(s) {
   state = s;
   setStateText({
-    armed: "Armed — crack it",
+    armed: "", // no message while waiting for the crack — just the camera (Sat)
     running: "GO GO GO",
     done: "Sent ✔",
   }[s]);
