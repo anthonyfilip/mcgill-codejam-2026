@@ -30,20 +30,15 @@ export async function sharePost(post: Post): Promise<void> {
   }
 }
 
-// Download the video file to the device.
-export async function saveVideo(post: Post): Promise<void> {
-  try {
-    const file = await videoFile(post)
-    if (!file) return alert('This post has no video to save.')
-    const url = URL.createObjectURL(file)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = file.name
-    document.body.append(a)
-    a.click()
-    a.remove()
-    setTimeout(() => URL.revokeObjectURL(url), 10_000)
-  } catch (e) {
-    alert(`Couldn't save the video: ${(e as Error).message}`)
-  }
+// Download a just-recorded clip to the device (results page "Save").
+export function saveClip(clip: Blob, title: string) {
+  const name = `${(title || 'shotgun').replace(/[^\w-]+/g, '_').slice(0, 40)}.${clip.type.includes('mp4') ? 'mp4' : 'webm'}`
+  const url = URL.createObjectURL(clip)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = name
+  document.body.append(a)
+  a.click()
+  a.remove()
+  setTimeout(() => URL.revokeObjectURL(url), 10_000)
 }

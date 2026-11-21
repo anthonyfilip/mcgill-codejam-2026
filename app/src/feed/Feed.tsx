@@ -2,14 +2,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Avatar } from './Avatar'
 import { FeedVideo } from './FeedVideo'
-import { CommentIcon, SaveIcon, ShareIcon } from './Icons'
+import { CommentIcon, ShareIcon } from './Icons'
 import { getName, getProfile, hasCheered, setCheered as rememberCheer } from './me'
 import { MAX_COMMENT, type Comment, type Post, type PostRating } from './posts'
 import { Popup } from './Popup'
 import { ProfileGate } from './Profile'
 import { AvgRating, Rating } from './Rating'
 import { addComment, cheer, deletePost, isMine, loadComments, loadPosts, isShared, loadRatings, ratePost, samplePosts } from './store'
-import { saveVideo, sharePost } from './share-video'
+import { sharePost } from './share-video'
 import { Tabs } from './Tabs'
 
 function timeAgo(ms: number) {
@@ -213,14 +213,6 @@ function Reel({
           </span>
           Share
         </button>
-        {(post.videoUrl || post.clip) && (
-          <button className="action" onClick={() => saveVideo(post)} aria-label="Save video">
-            <span className="action-icon">
-              <SaveIcon />
-            </span>
-            Save
-          </button>
-        )}
         {onDelete && (
           <button className="action delete" onClick={onDelete}>
             Delete
