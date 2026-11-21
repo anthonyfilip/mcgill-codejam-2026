@@ -1,16 +1,16 @@
 import { useState } from 'react'
-import type { SpillRating } from './posts'
+import type { PostRating } from './posts'
 
-const LABELS = ['', 'Clean', 'A few drops', 'Some spill', 'Messy', 'Soaked']
+const LABELS = ['', 'Weak', 'Okay', 'Solid', 'Great', 'Legendary']
 
-// Spill rating for a post: the average, plus 5 tappable stars (1 = clean, 5 = soaked).
-export function SpillStars({
+// Rating for a post: the average, plus 5 tappable stars (5 = best).
+export function Rating({
   ratings,
   myStars,
   canRate,
   onRate,
 }: {
-  ratings: SpillRating[]
+  ratings: PostRating[]
   myStars: number | null
   canRate: boolean
   onRate: (stars: number) => void
@@ -20,17 +20,17 @@ export function SpillStars({
   const shown = hover || myStars || 0
 
   return (
-    <div className="spill">
-      <div className="spill-head">
-        <b>💧 Spill</b>
-        <span className="spill-avg">
+    <div className="rating">
+      <div className="rating-head">
+        <b>⭐ Rating</b>
+        <span className="rating-avg">
           {avg !== null
             ? `${avg.toFixed(1)} / 5 · ${LABELS[Math.round(avg)]} · ${ratings.length} ${ratings.length === 1 ? 'rating' : 'ratings'}`
             : 'No ratings yet'}
         </span>
       </div>
       {canRate ? (
-        <div className="stars" role="radiogroup" aria-label="Rate the spill, 1 clean to 5 soaked" onMouseLeave={() => setHover(0)}>
+        <div className="stars" role="radiogroup" aria-label="Rate this run out of 5" onMouseLeave={() => setHover(0)}>
           {[1, 2, 3, 4, 5].map((n) => (
             <button
               key={n}
@@ -44,10 +44,10 @@ export function SpillStars({
               ★
             </button>
           ))}
-          <span className="stars-label">{shown ? LABELS[shown] : 'Rate the spill: 1 clean, 5 soaked'}</span>
+          <span className="stars-label">{shown ? LABELS[shown] : 'Rate this run'}</span>
         </div>
       ) : (
-        <div className="stars-label">Your friends rate your spill</div>
+        <div className="stars-label">Your friends rate your run</div>
       )}
     </div>
   )

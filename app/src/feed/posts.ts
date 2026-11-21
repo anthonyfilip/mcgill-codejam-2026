@@ -26,8 +26,8 @@ export type Comment = {
 
 export const MAX_COMMENT = 200
 
-// One person's spill rating of a post: 1 = clean ... 5 = soaked.
-export type SpillRating = {
+// One person's star rating of a post: 1 to 5, 5 = best.
+export type PostRating = {
   id: string // `${postId}:${profileId}`: one rating per person per post
   postId: string
   profileId: string

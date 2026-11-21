@@ -82,10 +82,10 @@ img.avatar { object-fit: cover; }
 .hint.bad { color: #f88; }
 .hint.good { color: #5c5; }
 
-/* Spill rating */
-.spill { margin: 12px 12px 0; padding: 10px 12px; border-radius: 10px; background: #252525; display: flex; flex-direction: column; gap: 6px; }
-.spill-head { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
-.spill-avg { color: #aaa; font-size: 13px; }
+/* Star rating */
+.rating { margin: 12px 12px 0; padding: 10px 12px; border-radius: 10px; background: #252525; display: flex; flex-direction: column; gap: 6px; }
+.rating-head { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.rating-avg { color: #aaa; font-size: 13px; }
 .stars { display: flex; align-items: center; gap: 2px; }
 .star { padding: 0 2px; border: 0; background: none; font-size: 28px; line-height: 1; color: #444; cursor: pointer; transition: color 0.1s, transform 0.1s; }
 .star.on { color: #f5b400; }

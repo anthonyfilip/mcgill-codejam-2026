@@ -4,7 +4,7 @@
 // Drafts (finished runs not yet posted) always stay in this browser.
 import { createClient } from '@supabase/supabase-js'
 import { addMyPost, getProfile, myPosts, removeMyPost, type MyProfile } from './me'
-import { SAMPLE_POSTS, type Comment, type Post, type SpillRating } from './posts'
+import { SAMPLE_POSTS, type Comment, type Post, type PostRating } from './posts'
 
 const url = import.meta.env.VITE_SUPABASE_URL as string | undefined
 const key = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined
@@ -248,13 +248,13 @@ export async function addComment(c: Comment): Promise<void> {
   if (error) throw error
 }
 
-// ---------- Spill ratings ----------
+// ---------- Ratings ----------
 
 type RatingRow = { post_id: string; profile_id: string; stars: number }
 
-export async function loadRatings(): Promise<SpillRating[]> {
-  if (!supabase) return read<SpillRating[]>(RATINGS, (s) => s.getAll())
-  const { data, error } = await supabase.from('spill_ratings').select('post_id, profile_id, stars')
+export async function loadRatings(): Promise<PostRating[]> {
+  if (!supabase) return read<PostRating[]>(RATINGS, (s) => s.getAll())
+  const { data, error } = await supabase.from('ratings').select('post_id, profile_id, stars')
   if (error) throw error
   return (data as RatingRow[]).map((r) => ({
     id: `${r.post_id}:${r.profile_id}`,
@@ -264,16 +264,16 @@ export async function loadRatings(): Promise<SpillRating[]> {
   }))
 }
 
-// Rate (or re-rate) a post's spill as you. Returns the saved rating.
-export async function rateSpill(postId: string, stars: number): Promise<SpillRating> {
+// Rate (or re-rate) a post as you. Returns the saved rating.
+export async function ratePost(postId: string, stars: number): Promise<PostRating> {
   const me = getProfile()
   if (!me) throw new Error('make your profile first (tap your name at the top)')
-  const rating: SpillRating = { id: `${postId}:${me.id}`, postId, profileId: me.id, stars }
+  const rating: PostRating = { id: `${postId}:${me.id}`, postId, profileId: me.id, stars }
   if (!supabase) {
     await write(RATINGS, (s) => s.put(rating))
     return rating
   }
-  const { error } = await supabase.rpc('rate_spill', {
+  const { error } = await supabase.rpc('rate_post', {
     p_post_id: postId,
     p_profile_id: me.id,
     p_secret: me.secret,

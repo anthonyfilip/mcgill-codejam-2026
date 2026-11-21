@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Avatar } from './Avatar'
 import { getName, getProfile, hasCheered, setCheered as rememberCheer } from './me'
-import { MAX_COMMENT, type Comment, type Post, type SpillRating } from './posts'
+import { MAX_COMMENT, type Comment, type Post, type PostRating } from './posts'
 import { Profile } from './Profile'
-import { SpillStars } from './SpillStars'
-import { addComment, cheer, deletePost, isMine, loadComments, loadPosts, loadRatings, rateSpill, samplePosts } from './store'
+import { Rating } from './Rating'
+import { addComment, cheer, deletePost, isMine, loadComments, loadPosts, loadRatings, ratePost, samplePosts } from './store'
 import { Tabs } from './Tabs'
 
 function timeAgo(ms: number) {
@@ -21,7 +21,7 @@ function Comments({
 }: {
   comments: Comment[]
   onAdd: (body: string) => Promise<void>
-  justRated: boolean // opened by a spill rating: focus the box and ask why
+  justRated: boolean // opened by a rating: focus the box and ask why
 }) {
   const [text, setText] = useState('')
   const [sending, setSending] = useState(false)
@@ -74,7 +74,7 @@ function PostCard({
 }: {
   post: Post
   comments: Comment[]
-  ratings: SpillRating[]
+  ratings: PostRating[]
   canRate: boolean
   onRate: (stars: number) => Promise<void>
   onComment: (body: string) => Promise<void>
@@ -130,7 +130,7 @@ function PostCard({
 
       {post.description && <p className="desc">{post.description}</p>}
 
-      <SpillStars ratings={ratings} myStars={myStars} canRate={canRate} onRate={rate} />
+      <Rating ratings={ratings} myStars={myStars} canRate={canRate} onRate={rate} />
 
       <div className="actions">
         <button className={cheered ? 'cheer on' : 'cheer'} onClick={toggleCheer}>
@@ -156,7 +156,7 @@ export function Feed() {
   // Everyone's posts, newest first (in the local feed: yours, then the samples).
   const [posts, setPosts] = useState<Post[]>([])
   const [comments, setComments] = useState<Comment[]>([])
-  const [ratings, setRatings] = useState<SpillRating[]>([])
+  const [ratings, setRatings] = useState<PostRating[]>([])
   const [error, setError] = useState('')
 
   useEffect(() => {
@@ -175,7 +175,7 @@ export function Feed() {
   }
 
   async function rate(post: Post, stars: number) {
-    const r = await rateSpill(post.id, stars)
+    const r = await ratePost(post.id, stars)
     setRatings((all) => [...all.filter((x) => x.id !== r.id), r])
   }
 
