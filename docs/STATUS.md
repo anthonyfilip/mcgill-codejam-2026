@@ -18,9 +18,10 @@ Backup: a recorded run of the full demo, in case the live camera fails on stage.
   its clip → shared feed → leaderboard. Lana's profile is on the same database.
 - **Tracker:** HD webcam, full pose model, zoomed wrist crops (works ~2–3 m back), hand skeleton
   overlay, debug panel (person size, crack score, finger readings).
-- **Start:** crack with the can at the mouth (or up to 1 s before it gets there); fallback = can
-  at mouth + hand raised for 0.8 s, back-dated — and if a quieter crack (score ≥ 2) was heard in
-  the 1.5 s before that, the clock starts at it. Cracks with the can elsewhere are ignored.
+- **Start:** crack with the can already at the mouth for ≥ 0.15 s (no more cracks just before it
+  gets there); fallback = can at mouth + hand raised for 0.8 s, back-dated — and if a quieter crack
+  (score ≥ 2, can at the mouth ≥ 0.15 s) was heard in the 1.5 s before that, the clock starts at it.
+  Cracks with the can elsewhere are ignored.
 - **End:** 🤙 shaka anywhere in frame (3D finger bends; works back-of-hand too), no hold — one frame ends it; refused
   while the can is still at the mouth; time = when the head came forward (head tilt drop) near the
   last moment the can was at the mouth, else that moment. Wrist hidden right after being at the
@@ -29,7 +30,8 @@ Backup: a recorded run of the full demo, in case the live camera fails on stage.
   laptop mic scored in the thousands (threshold 4); 0 false cracks in a noisy no-crack recording.
 - **Accuracy (lab, 18 labelled clips, Sat after head-tilt end):** single-person — start avg error
   0.57 s (was 0.64), end 0.18 s (was 0.40; 6/8 within ±0.25 s), run time 0.66 s (was 0.73).
-  Groups — start 0.15 s (was 0.65), end 1.13 s (was 1.22). All clips: 17/18 found.
+  Groups — start 0.21 s (was 0.65), end 1.13 s (was 1.22). All clips: 17/18 found.
+  (0.15 s at-mouth rule for cracks: single-person unchanged; group clip 01 lost its quiet crack.)
   What's left on single-person clips is the no-crack start (03 +1.9 s; 10 +1.4 s has missing frames
   near its start — re-analyse it in the lab). Head tilt was the signal closest to the labelled ends
   (median 0.13 s); no video signal times the tab pop — only the crack does.

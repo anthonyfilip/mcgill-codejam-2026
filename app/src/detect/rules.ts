@@ -14,7 +14,7 @@ export const RULES = {
   mouthDist: 0.8, // tuned on the 18 labelled clips (was 0.6: cut through the middle of real drinking)
   angleDeg: 0, // i.e. just "hand raised above the shoulder" — arm angle didn't separate drinking from not
   gapMs: 250,
-  crackGraceMs: 1000,
+  crackMouthHoldMs: 150, // a crack only counts once the can has been at the mouth this long (no cracks before it gets there)
   visualStartMs: 800,
   minRunMs: 1000,
   // Crack = sudden bright jump vs the half-second before (src/detect/cracks.ts cracksByContrast).
@@ -101,17 +101,20 @@ export function detect(rows: FrameSignals[], cracks: Crack[], R: Rules = RULES, 
   let lastMouthAt = -Infinity
   let angleSince: number | null = null
   let lastAngleAt = -Infinity
-  let lastCrack = -Infinity
   let start: number | null = null
   let startBy = 'not detected'
   let ignored = 0
   let ci = 0
+  let si = 0
+  const softAtMouth: typeof soft = [] // quiet cracks heard with the can at the mouth long enough
 
   const stretch = (isTrue: boolean, t: number, since: number | null, last: number): [number | null, number] => {
     if (isTrue) return [since === null || t - last > R.gapMs ? t : since, t]
     return [t - last > R.gapMs ? null : since, last]
   }
   const atMouthAt = (t: number) => mouthSince !== null && t - lastMouthAt <= R.gapMs
+  // A crack counts only with the can already at the mouth for crackMouthHoldMs.
+  const heldLongEnough = (t: number) => atMouthAt(t) && t - mouthSince! >= R.crackMouthHoldMs
 
   for (const row of rows) {
     const t = ms(row.t)
@@ -119,14 +122,15 @@ export function detect(rows: FrameSignals[], cracks: Crack[], R: Rules = RULES, 
     // Cracks that happened up to this frame (audio is checked between frames).
     while (start === null && ci < cracks.length && ms(cracks[ci].t) <= t) {
       const tc = ms(cracks[ci].t)
-      if (atMouthAt(tc)) {
+      if (heldLongEnough(tc)) {
         start = tc
         startBy = 'crack with can at mouth'
-      } else {
-        lastCrack = tc
-        ignored++
-      }
+      } else ignored++
       ci++
+    }
+    while (start === null && si < soft.length && soft[si].t <= t) {
+      if (heldLongEnough(soft[si].t)) softAtMouth.push(soft[si])
+      si++
     }
 
     const seenAtMouth = row.liveMouthDist !== null && row.liveMouthDist < R.mouthDist
@@ -141,16 +145,11 @@ export function detect(rows: FrameSignals[], cracks: Crack[], R: Rules = RULES, 
     ;[angleSince, lastAngleAt] = stretch(tipped, t, angleSince, lastAngleAt)
 
     if (start === null) {
-      // Crack shortly BEFORE the can reached the mouth.
-      if (atMouth && mouthSince !== null && mouthSince - lastCrack >= 0 && mouthSince - lastCrack <= R.crackGraceMs) {
-        start = lastCrack
-        startBy = 'crack, can at mouth right after'
-      }
       // No crack heard: at mouth + tipped together long enough (back-dated).
-      else if (atMouth && tipped && mouthSince !== null && angleSince !== null) {
+      if (atMouth && tipped && mouthSince !== null && angleSince !== null) {
         const both = Math.max(mouthSince, angleSince)
         if (t - both >= R.visualStartMs) {
-          const quiet = pickSoftCrack(soft, both, R)
+          const quiet = pickSoftCrack(softAtMouth, both, R)
           start = quiet ?? both
           startBy = quiet === null ? 'mouth + tipped (no crack)' : 'quiet crack, then mouth + tipped'
         }

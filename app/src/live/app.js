@@ -10,8 +10,7 @@ import { refineEnd, pickSoftCrack } from "../detect/rules.ts"; // shared with th
 const CONFIG = {
   windowMs: 1500,          // how long a signal light stays on after it fires (display only)
   // Start rule: the can must be at the mouth FIRST, then the crack — the order of a real shotgun.
-  crackGraceMs: 1000,      // a crack counts with the can at the mouth, or up to this long BEFORE it gets there
-                           // (people lift and crack almost at once — live test: crack 0.2 s after reaching the mouth)
+  crackMouthHoldMs: 150,   // a crack only counts once the can has been at the mouth this long (none before it gets there)
   gapMs: 250,              // tracking dropouts shorter than this don't count as "left the mouth"
   visualStartMs: 800,      // fallback if no crack is heard: can at mouth AND tipped for this long
   // End rule: the 🤙 confirms the end, but the time stops when the can last left the mouth.
@@ -82,7 +81,7 @@ let live = {};      // latest readings, for the debug panel
 // mouthFrames / lastSeenAtMouth: consecutive frames with the wrist seen at the mouth (for hiddenHoldMs).
 const track = { mouthSince: null, lastMouthAt: -Infinity, angleSince: null, lastAngleAt: -Infinity, mouthFrames: 0, lastSeenAtMouth: -Infinity };
 // Recent head tilt readings and quieter cracks: { t, headTilt } / { t, score }, last few seconds.
-let headLog = [], softCracks = [];
+let headLog = [], softCracks = [], lastSoftAt = -Infinity;
 const LOG_MS = 6000;
 
 function resetTrack() {
@@ -100,6 +99,12 @@ function updateStretch(isTrue, now, sinceKey, lastKey) {
   } else if (now - track[lastKey] > CONFIG.gapMs) {
     track[sinceKey] = null;
   }
+}
+
+// A crack at time t counts only if the can has been at the mouth for crackMouthHoldMs by then
+// (same as rules.ts heldLongEnough).
+function crackCounts(t) {
+  return track.mouthSince !== null && t - track.lastMouthAt <= CONFIG.gapMs && t - track.mouthSince >= CONFIG.crackMouthHoldMs;
 }
 
 // How long the can has been held at the mouth right now (0 if it isn't).
@@ -208,18 +213,19 @@ function checkCrack() {
 
   const isCrack = recentRms.length >= look && rms >= CONFIG.crackMinRms && score >= CONFIG.crackScore;
   const t = performance.now();
-  // Quieter cracks, kept for the visual-start fallback (one per 300 ms, like cracksByContrast).
+  // Quieter cracks, kept for the visual-start fallback (one per 300 ms, like cracksByContrast) —
+  // only those heard with the can at the mouth for crackMouthHoldMs.
   if (recentRms.length >= look && rms >= CONFIG.crackMinRms && score >= CONFIG.softCrackScore &&
-      t - (softCracks.at(-1)?.t ?? -Infinity) > 300) {
-    softCracks.push({ t, score });
+      t - lastSoftAt > 300) {
+    lastSoftAt = t;
+    if (crackCounts(t)) softCracks.push({ t, score });
     while (softCracks.length && t - softCracks[0].t > LOG_MS) softCracks.shift();
   }
   if (isCrack && state === "armed" && t - seen.crack > 300) { // one crack = one event, not every 20 ms poll
     seen.crack = t;
-    // Sequence rule: the crack must happen with the can at the mouth. A crack with the can
-    // elsewhere (or someone else's can) is ignored — unless the can reaches the mouth within
-    // crackGraceMs AFTER it (checked in loop()), since people lift and crack almost at once.
-    const atMouthNow = mouthHeldMs(t) > 0;
+    // Sequence rule: the crack must happen with the can already at the mouth for crackMouthHoldMs.
+    // A crack with the can elsewhere (or someone else's can) is ignored.
+    const atMouthNow = crackCounts(t);
     live.crackLog = [{ t, rms, ratio: jump, high: highShare, score, atMouth: atMouthNow }, ...(live.crackLog ?? [])].slice(0, 5);
     if (atMouthNow) startRun(t, ["can at mouth", "crack"]);
     else live.ignoredCrack = t;
@@ -403,13 +409,7 @@ function loop() {
     if (tipped) seen.angle = now;
   }
 
-  // Crack slightly BEFORE the can reached the mouth: start at the crack time.
-  if (state === "armed" && atMouth && track.mouthSince !== null &&
-      track.mouthSince - seen.crack >= 0 && track.mouthSince - seen.crack <= CONFIG.crackGraceMs) {
-    startRun(seen.crack, ["crack", "can at mouth right after"]);
-  }
-
-  // Start (main path) happens in checkCrack: can at mouth, THEN crack.
+  // Start (main path) happens in checkCrack: can at mouth for crackMouthHoldMs, THEN crack.
   // Fallback when no crack is heard (quiet mic, loud room): can at the mouth AND tipped,
   // together for visualStartMs. The clock is back-dated to when both became true.
   if (state === "armed" && track.mouthSince !== null && track.angleSince !== null) {
@@ -483,7 +483,7 @@ function loop() {
     `angle ${p?.angle?.toFixed(0) ?? "-"}°  mouth ${p?.mouthDist?.toFixed(2) ?? "-"}${hidden ? " (hidden — holding)" : ""}  head tilt ${live.headTilt?.toFixed(2) ?? "-"}\n` +
     `drinking hand: ${ang ? `arm ${ang.arm?.toFixed(0) ?? "-"}° · hand ${ang.hand.toFixed(0)}° · wrist bend ${ang.wristFlex?.toFixed(0) ?? "-"}° · can ~${ang.can.toFixed(0)}° from upright` : "not matched"}\n` +
     `at mouth for ${(mouthHeldMs(now) / 1000).toFixed(1)}s` +
-    `${now - (live.ignoredCrack ?? -Infinity) < 2000 ? "  · crack IGNORED (can not at mouth)" : ""}\n` +
+    `${now - (live.ignoredCrack ?? -Infinity) < 2000 ? `  · crack IGNORED (can not at mouth for ${CONFIG.crackMouthHoldMs / 1000} s)` : ""}\n` +
     `cracks heard: ${(live.crackLog ?? []).map((c) => `${((now - c.t) / 1000).toFixed(1)}s ago score ${c.score.toFixed(0)} (×${c.ratio.toFixed(1)}, bright ${c.high.toFixed(2)})${c.atMouth ? " @mouth" : ""}`).join(" · ") || "none"}\n` +
     `hand ${fingerText(live.fingers)}  🤙 ${send ? "YES" : "no"}`;
 
