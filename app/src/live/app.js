@@ -105,21 +105,6 @@ let pose, gesture, handCrop, stream, analyser, highAnalyser, clickAnalyser, audi
 let facing = "user";  // "user" = front camera (mirrored on screen), "environment" = back camera
 let mic = null, micTargets = []; // the mic's audio source and the nodes it feeds (re-wired on camera flip)
 let wakeLock = null;
-// Camera check (TEMPORARY, see "Camera check" below): which camera request to use, and fill vs
-// whole picture. Defined up here because the camera opens while this file is still loading.
-const CAMERA_MODES = [
-  { label: "portrait 720×1280", size: { width: { ideal: 720 }, height: { ideal: 1280 } } },
-  { label: "landscape 1280×720", size: { width: { ideal: 1280 }, height: { ideal: 720 } } },
-  { label: "camera default", size: {} },
-  { label: "4:3 portrait 1440×1920", size: { width: { ideal: 1440 }, height: { ideal: 1920 } } },
-  { label: "4:3 landscape 1920×1440", size: { width: { ideal: 1920 }, height: { ideal: 1440 } } },
-];
-let camMode = null, fitWhole = false; // null = the default rule in openCamera
-try {
-  const m = localStorage.getItem("tracker.camMode");
-  if (m !== null && CAMERA_MODES[+m]) camMode = +m;
-  fitWhole = localStorage.getItem("tracker.fitWhole") === "1";
-} catch { /* storage blocked */ }
 const cropCanvas = document.createElement("canvas");
 const cropCtx = cropCanvas.getContext("2d", { willReadFrequently: true });
 let state = "idle"; // idle → armed → running → done
@@ -288,14 +273,12 @@ $("light").classList.toggle("on", lightOn);
 async function openCamera() {
   if (!navigator.mediaDevices?.getUserMedia) throw new Error("camera needs a secure (https) page");
   stream?.getTracks().forEach((t) => t.stop()); // phones can't open two cameras at once
-  // The picture fills the screen (Instagram-style); a phone held upright asks for a portrait
-  // picture so it matches the screen's shape and as little as possible is cropped off — unless a
-  // different request was picked in the camera check (long-press the camera, below).
-  const upright = PHONE && innerHeight > innerWidth;
-  const size = camMode !== null ? CAMERA_MODES[camMode].size
-    : { width: { ideal: upright ? 720 : 1280 }, height: { ideal: upright ? 1280 : 720 } };
+  // Phones: no size asked — the camera's own default picture. iPhone test (Sat, camera check): asking
+  // for portrait 720×1280 got a LANDSCAPE 1280×720 picture anyway, and filling the tall screen with
+  // it cut off 70% (looked very zoomed in); the camera default looked best on both cameras.
+  // Laptops: HD 1280×720 — someone across the room needs the pixels (what the lab was tuned on).
+  const size = PHONE ? {} : { width: { ideal: 1280 }, height: { ideal: 720 } };
   stream = await navigator.mediaDevices.getUserMedia({
-    // Ask for HD: someone across the room needs the pixels. The browser falls back if unsupported.
     video: { facingMode: facing, ...size },
     // Raw audio: noise suppression would eat the crack transient.
     audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
@@ -314,80 +297,14 @@ async function openCamera() {
 // The camera picture fills the whole screen, like Instagram's camera (style.css #stage, object-fit:
 // cover). The overlay matches the video's pixels. Runs again when the picture changes size.
 function fitStage() {
-  $("stage").classList.toggle("fit-contain", fitWhole);
   const w = video.videoWidth, h = video.videoHeight;
   if (!w || !h) return;
   canvas.width = w;
   canvas.height = h;
-  if (!$("camdiag").hidden) renderCamCheck();
 }
-fitStage(); // apply a remembered "whole picture" choice from the start
 video.addEventListener("resize", fitStage);
-
-// ---------- Camera check (TEMPORARY, Sat: iPhone zoom) ----------
-// iPhones can't be debugged from a Windows laptop, so this shows on the live site: long-press the
-// camera (not mid-run) to see what the camera actually sends and how much filling the screen crops,
-// and to switch the camera request and "fill" vs "whole picture" live. The choice is remembered on
-// the device. Once we've picked the best request, hardcode it and delete this section.
-// (CAMERA_MODES / camMode / fitWhole are defined near the top: the camera opens while this file is
-// still loading.)
-const camdiag = document.createElement("div");
-camdiag.id = "camdiag";
-camdiag.hidden = true;
-$("stage").append(camdiag);
-
-function renderCamCheck() {
-  const s = stream?.getVideoTracks()[0]?.getSettings?.() ?? {};
-  const box = $("stage").getBoundingClientRect();
-  const vw = video.videoWidth, vh = video.videoHeight;
-  const kept = vw && vh ? Math.min((vw / vh) / (box.width / box.height), (box.width / box.height) / (vw / vh)) : NaN;
-  const btn = (i, label) => `<button data-mode="${i}" class="${camMode === i ? "on" : ""}">${label}</button>`;
-  camdiag.innerHTML =
-    `<b>Camera check</b> (${facing === "user" ? "front" : "back"} camera)<br>` +
-    `picture ${vw}×${vh} · track ${s.width ?? "-"}×${s.height ?? "-"} · aspect ${s.aspectRatio?.toFixed(2) ?? "-"} · ` +
-    `resize ${s.resizeMode ?? "-"} · zoom ${s.zoom ?? "-"}<br>` +
-    `screen ${Math.round(box.width)}×${Math.round(box.height)} · filling cuts off ${isNaN(kept) ? "-" : Math.round((1 - kept) * 100)}% of the picture<br>` +
-    `request: ${camMode === null ? "default (portrait when upright)" : CAMERA_MODES[camMode].label}<br>` +
-    CAMERA_MODES.map((m, i) => btn(i, m.label)).join("") + btn("default", "default") +
-    `<button data-fit class="${fitWhole ? "on" : ""}">${fitWhole ? "showing whole picture" : "filling screen"}</button>` +
-    `<button data-close>close</button>`;
-}
-
-camdiag.addEventListener("click", async (e) => {
-  const b = e.target.closest("button");
-  if (!b) return;
-  e.stopPropagation();
-  if (b.hasAttribute("data-close")) { camdiag.hidden = true; return; }
-  if (b.hasAttribute("data-fit")) {
-    fitWhole = !fitWhole;
-    try { localStorage.setItem("tracker.fitWhole", fitWhole ? "1" : "0"); } catch { /* storage blocked */ }
-    fitStage();
-    renderCamCheck();
-    return;
-  }
-  camMode = b.dataset.mode === "default" ? null : +b.dataset.mode;
-  try {
-    if (camMode === null) localStorage.removeItem("tracker.camMode");
-    else localStorage.setItem("tracker.camMode", String(camMode));
-  } catch { /* storage blocked */ }
-  camdiag.querySelectorAll("button").forEach((x) => { x.disabled = true; });
-  try {
-    await openCamera();
-    if (state === "armed") startRecording(); // the old recorder was on the old camera stream
-  } catch (err) {
-    setStateText(`Couldn't reopen the camera: ${err.message}`);
-  }
-  renderCamCheck();
-});
-
-// Long-press (0.7 s) the camera to open it; not mid-run.
-let pressTimer = null;
-$("stage").addEventListener("pointerdown", (e) => {
-  if (e.target.closest("#camdiag, button") || state === "running") return;
-  pressTimer = setTimeout(() => { camdiag.hidden = false; renderCamCheck(); }, 700);
-});
-for (const ev of ["pointerup", "pointercancel", "pointerleave", "pointermove"])
-  $("stage").addEventListener(ev, () => { clearTimeout(pressTimer); pressTimer = null; });
+// The camera check's choices (Sat) are no longer read; clear them so they don't linger on phones.
+try { localStorage.removeItem("tracker.camMode"); localStorage.removeItem("tracker.fitWhole"); } catch { /* storage blocked */ }
 
 // Keep the screen on while waiting for / timing a run (phones dim and lock otherwise).
 async function keepAwake(on) {
