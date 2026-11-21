@@ -241,23 +241,28 @@ $("flip").onclick = async () => {
 };
 
 // 🔦 Light for night chugs, on from GET SENDY! until the run ends. Back camera: the phone's
-// flashlight ("torch", W3C Image Capture spec) where the browser can switch it (track capability
-// `torch`; Android Chrome — iPhones usually can't). Front camera (no flash): the page around the
-// camera view turns white, like a ring light. The choice is remembered on this device.
+// flashlight ("torch", W3C Image Capture spec) where the browser can switch it. Front camera (no
+// flash): a white frame around the camera view, like a ring light (style.css). The choice is
+// remembered on this device.
 let lightOn = false;
 try { lightOn = localStorage.getItem("tracker.light") === "on"; } catch { /* storage blocked */ }
 
-function canTorch() {
+// Back camera: always TRY the flashlight. Only trying when the camera listed `torch` as a capability
+// broke it on an iPhone (it worked earlier Sat in Brave — iOS browsers all share Safari's engine —
+// until the camera request changed). Both forms of the constraint are sent; a camera that can't do
+// it just ignores or refuses them.
+async function setTorch(on) {
   const track = stream?.getVideoTracks()[0];
-  const t = track?.getCapabilities?.().torch;
-  return Array.isArray(t) ? t.includes(true) : !!t;
+  if (!track) return;
+  for (const c of [{ advanced: [{ torch: on }] }, { torch: on }]) {
+    try { await track.applyConstraints(c); } catch { /* not supported in this form */ }
+  }
 }
 
 function applyLight() {
   $("light").classList.toggle("on", lightOn);
   const want = lightOn && !!stream && (state === "armed" || state === "running");
-  const torch = facing === "environment" && canTorch();
-  if (torch) stream.getVideoTracks()[0].applyConstraints({ advanced: [{ torch: want }] }).catch(() => {});
+  if (facing === "environment" && stream) setTorch(want);
   document.body.classList.toggle("screen-light", want && facing === "user");
 }
 
@@ -265,10 +270,6 @@ $("light").onclick = () => {
   lightOn = !lightOn;
   try { localStorage.setItem("tracker.light", lightOn ? "on" : "off"); } catch { /* storage blocked */ }
   applyLight();
-  // Said when the light is switched on (never during a chug): the back camera's flashlight can't be
-  // switched from this browser (iPhones).
-  const noTorch = lightOn && stream && facing === "environment" && !canTorch() && state !== "armed" && state !== "running";
-  setStateText(noTorch ? "No flashlight in this browser — turn the room lights on" : "");
 };
 $("light").classList.toggle("on", lightOn);
 
