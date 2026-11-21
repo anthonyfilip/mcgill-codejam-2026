@@ -31,10 +31,11 @@ Backup: a recorded run of the full demo, in case the live camera fails on stage.
 - **Crack detector:** sudden bright jump vs the previous 0.5 s. Real Monster crack at ~2 m on the
   laptop mic scored in the thousands (threshold 4); 0 false cracks in a noisy no-crack recording.
 - **Accuracy (lab, 18 labelled clips, Sat — head-tilt end + click start):** single-person — start
-  avg error 0.30 s (was 0.64), end 0.18 s (was 0.40; 6/8 within ±0.25 s), run time 0.39 s (was
-  0.73). Groups — start 0.21 s (was 0.65), end 1.13 s (was 1.22). All clips: 17/18 found.
-  Clip 10 (+1.4 s) is a data problem: its saved analysis has no frames 20.8–23.7 s, around the
-  crack — re-analyse it in the lab (tab visible); with it, single start would be ~0.14 s.
+  avg error 0.15 s (was 0.64), end 0.18 s (was 0.40), **run time 0.20 s (was 0.73; 6/8 within
+  ±0.25 s, worst 0.52 s)**. Groups — start 0.21 s (was 0.65), end 1.13 s (was 1.22). 17/18 found.
+  Clip 10 was re-analysed (old save had no frames 20.8–23.7 s): run time −1.57 → +0.06 s. Its crack
+  lands exactly where the can starts tilting from upright. Clip 04 (worst, −0.52 s) has the same
+  kind of problem — its saved frames stop at 13.2 s, before the 13.5 s end: re-analyse it too.
   Head tilt was the signal closest to the labelled ends (median 0.13 s); no video signal times
   the tab pop — only the crack does. Sound profiles were re-saved with the new `click` field.
 - **Feed side (Lana):** results page (PB, rank, retake, name + description), shared feed with
