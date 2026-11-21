@@ -1,0 +1,26 @@
+/* Dark theme to match the live tracker (src/live/style.css). */
+* { box-sizing: border-box; }
+body { margin: 0; font-family: system-ui, sans-serif; background: #111; color: #eee; }
+
+.feed { max-width: 640px; margin: 0 auto; padding: 16px; display: flex; flex-direction: column; gap: 16px; }
+
+.tabs { display: flex; gap: 8px; }
+.tabs a { flex: 1; padding: 10px; text-align: center; border-radius: 8px; background: #2a2a2a; color: #aaa; font-weight: 600; text-decoration: none; }
+.tabs a.active { background: #f5b400; color: #111; }
+
+.upload { padding: 14px; text-align: center; border: 2px dashed #444; border-radius: 10px; color: #f5b400; font-weight: 700; cursor: pointer; }
+
+.post { background: #1d1d1d; border-radius: 12px; overflow: hidden; }
+.post header { display: flex; align-items: center; gap: 10px; padding: 12px; }
+.avatar { width: 32px; height: 32px; border-radius: 50%; background: #f5b400; color: #111; display: grid; place-items: center; font-weight: 700; }
+.when { margin-left: auto; color: #888; font-size: 13px; }
+
+.post video, .no-video { display: block; width: 100%; aspect-ratio: 4 / 3; background: #000; object-fit: cover; }
+.no-video { display: grid; place-items: center; font-size: 64px; }
+
+.stats { display: flex; flex-wrap: wrap; align-items: baseline; gap: 12px; padding: 12px 12px 0; }
+.stats .time { font-size: 28px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.stats .by { color: #888; font-size: 13px; }
+
+.cheer { margin: 12px; padding: 8px 14px; border: 0; border-radius: 999px; background: #2a2a2a; color: #eee; font-size: 16px; cursor: pointer; }
+.cheer.on { background: #f5b400; color: #111; }
