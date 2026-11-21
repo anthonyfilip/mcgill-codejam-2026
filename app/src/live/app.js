@@ -259,13 +259,16 @@ function applyLight() {
   const torch = facing === "environment" && canTorch();
   if (torch) stream.getVideoTracks()[0].applyConstraints({ advanced: [{ torch: want }] }).catch(() => {});
   document.body.classList.toggle("screen-light", want && facing === "user");
-  if (want && facing === "environment" && !torch) setStateText("No flashlight in this browser — turn the room lights on");
 }
 
 $("light").onclick = () => {
   lightOn = !lightOn;
   try { localStorage.setItem("tracker.light", lightOn ? "on" : "off"); } catch { /* storage blocked */ }
   applyLight();
+  // Said when the light is switched on (never during a chug): the back camera's flashlight can't be
+  // switched from this browser (iPhones).
+  const noTorch = lightOn && stream && facing === "environment" && !canTorch() && state !== "armed" && state !== "running";
+  setStateText(noTorch ? "No flashlight in this browser — turn the room lights on" : "");
 };
 $("light").classList.toggle("on", lightOn);
 
@@ -696,12 +699,8 @@ function frame() {
     else sendSince = null;
     const confirmed = sendSince !== null && now - sendSince >= CONFIG.sendHoldMs && sendSince - run.startAt >= CONFIG.minRunMs;
     if (confirmed) {
-      if (atMouth) {
-        // Can still at the mouth → they're signing mid-drink. Don't end yet.
-        setStateText("Lower the can to finish 🤙");
-      } else {
-        run.sendAt ??= sendSince; // remember the 🤙 even if the hand drops before we finish below
-      }
+      // Can still at the mouth → they're signing mid-drink: don't end yet (no message during a chug).
+      if (!atMouth) run.sendAt ??= sendSince; // remember the 🤙 even if the hand drops before we finish below
     }
     if (run.sendAt != null && atMouth) run.sendAt = null; // went back to drinking
     if (run.sendAt != null) {
@@ -718,7 +717,6 @@ function frame() {
         // Sat: it kept counting for up to 0.9 s). The head-tilt search above finishes a moment later
         // and may nudge the final time.
         $("timer").textContent = ((lastMouth - run.startAt) / 1000).toFixed(2);
-        setStateText("🤙 Got it!");
       }
     }
     if (state === "running" && run.sendAt == null) $("timer").textContent = ((now - run.startAt) / 1000).toFixed(2);
@@ -871,9 +869,11 @@ function draw(p, ang, handsPx = [], send = false) {
 function setState(s) {
   state = s;
   setStateText({
-    armed: "", // no message while waiting for the crack — just the camera (Sat)
-    running: "GO GO GO",
-    done: "Sent ✔",
+    // No messages from GET SENDY! to the results page — just the camera (and the timer once the
+    // chug starts). Sat.
+    armed: "",
+    running: "",
+    done: "",
   }[s]);
   if (s === "armed") $("timer").textContent = "0.00";
   applyLight(); // 🔦 on while armed/running, off once the run is done
