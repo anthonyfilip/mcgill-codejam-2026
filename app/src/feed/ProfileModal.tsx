@@ -28,16 +28,25 @@ function formatProblem(name: string): string | null {
 
 // Pop-up in the middle of the screen to set your name and photo.
 // `required` = first visit: it can't be closed until you've made a profile.
-export function ProfileModal({ required, onClose }: { required: boolean; onClose: () => void }) {
+// `nameTaken` = your saved name now belongs to someone else, so a new one is needed.
+export function ProfileModal({
+  required,
+  nameTaken = false,
+  onClose,
+}: {
+  required: boolean
+  nameTaken?: boolean
+  onClose: () => void
+}) {
   const current = getProfile()
-  const [username, setUsername] = useState(current?.username ?? '')
+  const [username, setUsername] = useState(nameTaken ? '' : (current?.username ?? ''))
   const [photo, setPhoto] = useState<Blob | null>(null)
   const [taken, setTaken] = useState<boolean | null>(null) // null = not checked yet
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
   const problem = formatProblem(username)
-  const unchanged = username === current?.username
+  const unchanged = username === current?.username && !nameTaken
   const photoUrl = useMemo(() => (photo ? URL.createObjectURL(photo) : current?.avatarUrl), [photo, current?.avatarUrl])
 
   // Check the name against everyone else's, shortly after typing stops.
@@ -86,6 +95,7 @@ export function ProfileModal({ required, onClose }: { required: boolean; onClose
     <div className="modal-backdrop" onClick={required ? undefined : onClose}>
       <div className="modal" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
         <h2>{current ? 'Edit profile' : 'Make your profile'}</h2>
+        {nameTaken && <p className="hint bad">Someone else took “{current?.username}”. Pick a new name.</p>}
 
         <label className="photo-pick">
           <Avatar name={username || '?'} url={photoUrl} big />
