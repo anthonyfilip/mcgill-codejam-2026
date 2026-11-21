@@ -35,6 +35,15 @@ if (arm) {
   arm.textContent = 'GET SENDY!'
   document.getElementById('stage')?.append(arm)
 }
+// Plain white icons instead of the 🔄 / 🔦 emojis on the tracker's camera buttons.
+// (app.js only toggles these buttons' disabled/"on" state, never their contents.)
+const icon = (paths: string) =>
+  `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths}</svg>`
+const flip = document.getElementById('flip')
+if (flip) flip.innerHTML = icon('<path d="M20 11a8 8 0 0 0-14.3-4.9L4 8"/><path d="M4 3v5h5"/><path d="M4 13a8 8 0 0 0 14.3 4.9L20 16"/><path d="M20 21v-5h-5"/>')
+const light = document.getElementById('light')
+if (light) light.innerHTML = icon('<path d="M13 2 4 14h7l-1 8 9-12h-7l1-8z" fill="currentColor"/>')
+
 const hint = document.getElementById('state')
 if (hint?.textContent === 'Tap Arm to start') hint.textContent = ''
 
