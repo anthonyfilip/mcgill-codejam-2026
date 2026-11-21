@@ -77,7 +77,7 @@ Backup: a recorded run of the full demo, in case the live camera fails on stage.
 ## Not yet verified
 - A **real can** cracked live in the tracker (the bottle-crush test started from the fallback).
 - The app on **Lana's laptop** end to end, and each of you seeing the other's posts.
-- On a phone. (Deployed Sat ~12:45: https://shotgun-tracker-xi.vercel.app, auto-deploys from
+- On a phone. (Deployed Sat ~12:45: https://getsendy-app.vercel.app, auto-deploys from
   `main`; the tracker loads there over HTTPS with the new start rule — no live run tried yet.)
 - The stricter start rule (sound + can at mouth + head back + arm up) with a real camera and mic.
 

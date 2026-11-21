@@ -18,7 +18,7 @@ Tick items off as they land. Order matters — phones need HTTPS for the camera,
       Recommendation: support both with a camera flip button; demo with (b).
 
 ## 1. Get it on a phone (morning, ~2 h)
-- [x] **A or L — Deploy to Vercel (45 min).** Live at https://shotgun-tracker-xi.vercel.app;
+- [x] **A or L — Deploy to Vercel (45 min).** Live at https://getsendy-app.vercel.app;
       every push to `main` redeploys (GitHub Action + `VERCEL_TOKEN` secret). URL in README "Try it".
 - [ ] **Both — Phone test, as-is (30 min).** Open the URL on an iPhone (Safari) and an Android
       (Chrome). Do a run, post it, open feed + leaderboard. Write every problem in a list below
