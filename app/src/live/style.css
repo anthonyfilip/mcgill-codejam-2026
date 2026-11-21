@@ -7,11 +7,9 @@ main { margin: 0; padding: 0; }
    local dev server the debug readout sits below the camera — scroll down to it. */
 html.record-fixed, html.record-fixed body { height: 100%; overflow: hidden; overscroll-behavior: none; }
 #stage { position: relative; width: 100%; height: calc(100dvh - var(--tabbar, 0px)); background: #000; overflow: hidden; }
-/* The picture fills the screen (slight crop at the edges) when its shape is close to the screen's;
-   when filling would cut off a lot — a landscape back camera on an upright phone — the whole picture
-   shows with black bars instead (app.js fitStage → .fit-contain), so it never zooms in far. */
+/* The picture always fills the screen, like Instagram's camera (cropped at the edges if its shape
+   differs; app.js asks an upright phone for a portrait picture so that crop stays small). */
 #video, #overlay { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
-#stage.fit-contain #video, #stage.fit-contain #overlay { object-fit: contain; }
 /* Front camera only: show it like a mirror. The back camera shows the world as it is. */
 #stage.mirror #video, #stage.mirror #overlay { transform: scaleX(-1); }
 #flip, #light { position: absolute; top: calc(12px + env(safe-area-inset-top)); left: 12px; z-index: 2; width: 44px; height: 44px; padding: 0; font-size: 22px; border-radius: 50%; background: rgba(0, 0, 0, 0.5); color: #fff; }
@@ -19,6 +17,8 @@ html.record-fixed, html.record-fixed body { height: 100%; overflow: hidden; over
 #light.on { background: #f5b400; }
 /* Front-camera "ring light": the page around the camera view goes white while armed/running. */
 body.screen-light { background: #fff; }
+/* The timer only shows once the chug has started (app.js setState → body.timing). */
+body:not(.timing) #timer { visibility: hidden; }
 #timer { position: absolute; top: calc(8px + env(safe-area-inset-top)); right: 16px; z-index: 2; font-size: 44px; font-weight: 700; font-variant-numeric: tabular-nums; text-shadow: 0 2px 6px #000; }
 /* GET SENDY! sits at the bottom centre, where a camera app's shutter button is (share.css put it
    in the middle; `main` beats share.css). It still hides itself while disabled (armed/running). */
