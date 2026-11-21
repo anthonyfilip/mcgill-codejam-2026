@@ -43,8 +43,8 @@ const MEDALS = ['🥇', '🥈', '🥉']
 type FacultyRow = { faculty: string; avgMs: number | null; avgStars: number | null; runs: number; people: number }
 
 // Every faculty's runs averaged: mean time over all its members' runs, mean stars over the
-// ratings those runs got. Same rule as people: ★ 3.5+ first, then the faster average time.
-// Faculties with no runs yet go last.
+// ratings those runs got. Same rule as individuals: ★ 3.5+ first, then the faster average time.
+// Faculties with no runs yet go last (the board hides them).
 function rankFaculties(posts: Post[], ratings: PostRating[]): FacultyRow[] {
   return FACULTIES.map((faculty) => {
     const runs = posts.filter((p) => p.faculty === faculty)
@@ -66,33 +66,32 @@ function rankFaculties(posts: Post[], ratings: PostRating[]): FacultyRow[] {
 }
 
 function FacultyBoard({ posts, ratings }: { posts: Post[]; ratings: PostRating[] }) {
-  const rows = rankFaculties(posts, ratings)
-  const ranked = rows.filter((r) => r.avgMs !== null)
+  // Only faculties that have posted a run.
+  const rows = rankFaculties(posts, ratings).filter((r) => r.avgMs !== null)
   return (
     <>
-      <p className="board-rule">
-        Each faculty's runs averaged. <b>★ {MIN_RATING}+</b> on average ranks first, then the fastest average time.
-      </p>
-      <ol className="board">
-        {rows.map((r, i) => (
-          <li key={r.faculty} className={r.avgMs === null ? 'empty-row' : undefined}>
-            <span className="place">{r.avgMs === null ? '–' : (MEDALS[i] ?? i + 1)}</span>
-            <span className="who">
-              <span>{r.faculty}</span>
-              <small>
-                {r.avgMs === null
-                  ? 'No runs yet'
-                  : `${r.avgStars !== null ? `★ ${r.avgStars.toFixed(1)}` : '★ –'} · ${r.people} ${r.people === 1 ? 'person' : 'people'} · ${r.runs} ${r.runs === 1 ? 'run' : 'runs'}`}
-              </small>
-            </span>
-            <span className="score">
-              <b className="best">{r.avgMs !== null ? `${(r.avgMs / 1000).toFixed(2)} s` : ''}</b>
-              {r.avgMs !== null && <span className="run-title">average</span>}
-            </span>
-          </li>
-        ))}
-      </ol>
-      {!ranked.length && <p className="empty">No faculty has a run yet. Pick yours on your Profile and post one!</p>}
+      <h2 className="board-title">Who has the best faculty chug?</h2>
+      {rows.length ? (
+        <ol className="board">
+          {rows.map((r, i) => (
+            <li key={r.faculty}>
+              <span className="place">{MEDALS[i] ?? i + 1}</span>
+              <span className="who">
+                <span>{r.faculty}</span>
+                <small>
+                  {r.avgStars !== null ? `★ ${r.avgStars.toFixed(1)}` : '★ –'} · {r.people} {r.people === 1 ? 'person' : 'people'} ·{' '}
+                  {r.runs} {r.runs === 1 ? 'run' : 'runs'}
+                </small>
+              </span>
+              <span className="score">
+                <b className="best">{(r.avgMs! / 1000).toFixed(2)} s</b>
+              </span>
+            </li>
+          ))}
+        </ol>
+      ) : (
+        <p className="empty">No faculty has a run yet. Pick yours on your Profile and post one!</p>
+      )}
     </>
   )
 }
@@ -128,7 +127,7 @@ export function Leaderboard() {
       <Profile mine={posts.filter(isMine)} />
 
       <a className="btn board-switch" href={facultyView ? '/leaderboard.html' : '/leaderboard.html?view=faculty'}>
-        {facultyView ? '← People leaderboard' : 'Faculty leaderboard →'}
+        {facultyView ? '← Individual leaderboard' : 'Faculty leaderboard →'}
       </a>
 
       {facultyView ? (

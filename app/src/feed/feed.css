@@ -216,7 +216,7 @@ body { min-height: 100dvh; }
 
 /* Leaderboard: switch between people and faculties */
 .board-switch { text-align: center; }
-.board li.empty-row { opacity: 0.45; }
+.board-title { margin: 4px 0 0; font-size: 20px; text-align: center; }
 
 /* Results: small white "Delete" under the Post button */
 .delete-run { align-self: center; margin-top: 4px; padding: 6px 12px; border: 0; background: none; color: #fff; font-size: 14px; font-weight: 600; opacity: 0.8; cursor: pointer; }
