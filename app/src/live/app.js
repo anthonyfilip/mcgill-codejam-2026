@@ -18,7 +18,7 @@ const CONFIG = {
   crackMinRms: 0.02,       // ...and at least this loud in absolute terms
   crackHighFreqShare: 0.45,// share of spectral energy above crackHighFreqHz
   crackHighFreqHz: 3000,
-  angleDeg: 60,            // forearm tilt from vertical that counts as "can tipped"
+  angleDeg: 35,            // forearm tilt from vertical that counts as "can tipped" (live: drinking ≈ 40–47°)
   mouthDist: 0.6,          // wrist-to-mouth distance, in body-scale units
   sendHoldMs: 300,         // how long the 🤙 "send it" (shaka) must be held
   sendAboveHead: false,    // false = a shaka anywhere in frame ends the run (true = must be above the nose)
