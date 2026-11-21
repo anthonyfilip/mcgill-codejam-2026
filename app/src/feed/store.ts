@@ -339,6 +339,34 @@ export async function ratePost(postId: string, stars: number): Promise<PostRatin
   return rating
 }
 
+// ---------- Passwords + log in ----------
+
+export const MIN_PASSWORD = 6
+
+// Set or change your password (so you can log back in on another phone).
+export async function setPassword(password: string, me = getProfile()): Promise<void> {
+  if (!supabase || !me) throw new Error('passwords need the shared database')
+  const { error } = await supabase.rpc('set_password', { p_profile_id: me.id, p_secret: me.secret, p_password: password })
+  if (error) throw error
+}
+
+export async function hasPassword(): Promise<boolean> {
+  const me = getProfile()
+  if (!supabase || !me) return false
+  const { data, error } = await supabase.rpc('has_password', { p_profile_id: me.id, p_secret: me.secret })
+  if (error) throw error
+  return data === true
+}
+
+// Username + password → your profile (and its secret) on this phone again.
+export async function login(username: string, password: string): Promise<MyProfile> {
+  if (!supabase) throw new Error('log in needs the shared database')
+  const { data, error } = await supabase.rpc('login', { p_username: username, p_password: password })
+  if (error) throw error
+  const r = (data as { id: string; secret: string; username: string; avatar_path: string | null; faculty: string | null }[])[0]
+  return { id: r.id, secret: r.secret, username: r.username, avatarUrl: publicUrl(AVATARS, r.avatar_path), faculty: r.faculty }
+}
+
 // ---------- Account ----------
 
 // Delete your account for good: your posts (with their comments and ratings), your comments,

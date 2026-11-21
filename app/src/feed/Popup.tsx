@@ -22,11 +22,13 @@ export function Popup({ title, onClose, children }: { title: string; onClose: ()
 export function DeletePopup({
   title,
   message,
+  confirmLabel = 'Delete',
   onConfirm,
   onClose,
 }: {
   title: string
   message?: string // optional extra warning under the question
+  confirmLabel?: string
   onConfirm: () => void
   onClose: () => void
 }) {
@@ -34,7 +36,7 @@ export function DeletePopup({
     <Popup title={title} onClose={onClose}>
       {message && <p className="popup-meta">{message}</p>}
       <button className="popup-delete" onClick={onConfirm}>
-        Delete
+        {confirmLabel}
       </button>
     </Popup>
   )

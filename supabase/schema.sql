@@ -262,3 +262,62 @@ grant execute on function public.delete_account(uuid, uuid) to anon, authenticat
 drop policy if exists "delete avatars of deleted profiles" on storage.objects;
 create policy "delete avatars of deleted profiles" on storage.objects for delete
   using (bucket_id = 'avatars' and not exists (select 1 from public.profiles where avatar_path = name));
+
+-- Passwords: log back into your profile on a new phone or after clearing the browser.
+-- Stored only as a bcrypt hash (pgcrypto), in profile_secrets, which nobody can read.
+create extension if not exists pgcrypto with schema extensions;
+alter table public.profile_secrets add column if not exists password_hash text;
+
+-- Set or change your password (proves it's you with the secret in your browser).
+create or replace function public.set_password(p_profile_id uuid, p_secret uuid, p_password text)
+returns void
+language plpgsql
+security definer
+set search_path = public, extensions
+as $$
+begin
+  if char_length(p_password) < 6 then
+    raise exception 'password must be at least 6 characters';
+  end if;
+  update profile_secrets set password_hash = crypt(p_password, gen_salt('bf'))
+  where profile_id = p_profile_id and secret = p_secret;
+  if not found then
+    raise exception 'not your profile';
+  end if;
+end;
+$$;
+grant execute on function public.set_password(uuid, uuid, text) to anon, authenticated;
+
+-- Does this profile have a password yet? (for the "Set a password" prompt)
+create or replace function public.has_password(p_profile_id uuid, p_secret uuid)
+returns boolean
+language sql
+security definer
+set search_path = public
+as $$
+  select coalesce((select password_hash is not null from profile_secrets where profile_id = p_profile_id and secret = p_secret), false);
+$$;
+grant execute on function public.has_password(uuid, uuid) to anon, authenticated;
+
+-- Log in with username + password: hands back the profile and its secret, so this browser
+-- can act as that profile again. Wrong guesses wait a moment, to slow down guessing.
+create or replace function public.login(p_username text, p_password text)
+returns table (id uuid, secret uuid, username text, avatar_path text, faculty text)
+language plpgsql
+security definer
+set search_path = public, extensions
+as $$
+begin
+  return query
+    select p.id, s.secret, p.username, p.avatar_path, p.faculty
+    from profiles p join profile_secrets s on s.profile_id = p.id
+    where p.username = lower(trim(p_username))
+      and s.password_hash is not null
+      and s.password_hash = crypt(p_password, s.password_hash);
+  if not found then
+    perform pg_sleep(0.5);
+    raise exception 'wrong username or password';
+  end if;
+end;
+$$;
+grant execute on function public.login(text, text) to anon, authenticated;

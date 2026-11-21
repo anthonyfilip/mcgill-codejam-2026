@@ -260,3 +260,19 @@ div.install-steps ol { padding-left: 20px; display: flex; flex-direction: column
 /* Profile: "Delete account" at the very bottom, small and quiet */
 .danger-link { align-self: center; margin: 24px 0 8px; padding: 6px 12px; border: 0; background: none; color: #f88; font-size: 13px; font-weight: 600; cursor: pointer; opacity: 0.8; }
 
+/* Log in form + Profile "Password" section */
+.login-form { display: flex; flex-direction: column; gap: 12px; }
+.login-form h2 { margin: 0; text-align: center; }
+.link-btn { align-self: center; padding: 4px; border: 0; background: none; color: #f5b400; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; }
+.field input[type='password'] { padding: 12px; border: 1px solid #444; border-radius: 8px; background: #111; color: #eee; font: inherit; font-size: 16px; }
+.account { display: flex; flex-direction: column; gap: 8px; padding: 16px; border-radius: 12px; background: #1d1d1d; }
+.account p { margin: 0; font-size: 14px; }
+.account-warn { color: #f5b400; }
+.account-ok { color: #8c8; }
+.account-ok .link-btn { font-size: 13px; }
+.account-form { display: flex; gap: 8px; }
+.account-form input { flex: 1; min-width: 0; padding: 10px 12px; border: 1px solid #444; border-radius: 8px; background: #111; color: #eee; font: inherit; font-size: 16px; }
+.account-form .btn { flex: none; padding: 10px 16px; }
+.account-msg { color: #aaa; }
+.account-logout { align-self: flex-start; color: #aaa; }
+
