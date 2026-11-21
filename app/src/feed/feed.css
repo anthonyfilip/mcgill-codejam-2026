@@ -269,4 +269,4 @@ div.install-steps ol { padding-left: 20px; display: flex; flex-direction: column
 .account-form .btn { flex: none; padding: 10px 16px; }
 .account-msg { color: #aaa; }
 .account-logout { align-self: flex-start; color: #aaa; }
-
+.install-pill.installed { cursor: default; }
