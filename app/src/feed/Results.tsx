@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import type { Post } from './posts'
+import { MAX_TITLE, type Post } from './posts'
 import { getName, getProfile } from './me'
 import { Profile } from './Profile'
 import { deleteDraft, isMine, loadDraft, loadPosts, samplePosts, savePost, type Draft } from './store'
@@ -17,6 +17,7 @@ const isDemo = params.has('demo')
 export function Results() {
   const [draft, setDraft] = useState<Draft | null | undefined>(isDemo ? DEMO : undefined) // undefined = loading
   const [all, setAll] = useState<Post[]>([])
+  const [title, setTitle] = useState('')
   const [desc, setDesc] = useState('')
   const [posted, setPosted] = useState(false)
   const [posting, setPosting] = useState(false)
@@ -50,6 +51,7 @@ export function Results() {
   async function post() {
     if (!draft) return
     if (!getProfile()) return alert('Make your profile first: tap your name at the top.')
+    if (!title.trim()) return
     setPosting(true)
     try {
       await savePost({
@@ -61,6 +63,7 @@ export function Results() {
         timeMs: draft.timeMs,
         maxAngle: draft.maxAngle,
         startedBy: draft.startedBy,
+        title: title.trim().slice(0, MAX_TITLE),
         description: desc.trim().slice(0, MAX_DESC),
         clip: draft.clip,
         cheers: 0,
@@ -99,6 +102,16 @@ export function Results() {
           <a className="btn primary" href="/feed.html">Posted ✔ View feed</a>
         ) : (
           <>
+            <label className="field title-field">
+              Name your shotgun
+              <input
+                value={title}
+                maxLength={MAX_TITLE}
+                placeholder="e.g. The Tuesday Torpedo"
+                onChange={(e) => setTitle(e.target.value)}
+              />
+            </label>
+            <div className="count">{title.length} / {MAX_TITLE}</div>
             <textarea
               className="desc-input"
               maxLength={MAX_DESC}
@@ -108,8 +121,8 @@ export function Results() {
               onChange={(e) => setDesc(e.target.value)}
             />
             <div className="count">{desc.length} / {MAX_DESC}</div>
-            <button className="btn primary" onClick={post} disabled={posting}>
-              {posting ? 'Posting…' : 'Post to feed'}
+            <button className="btn primary" onClick={post} disabled={posting || !title.trim()}>
+              {posting ? 'Posting…' : title.trim() ? 'Post to feed' : 'Name it to post'}
             </button>
           </>
         )}

@@ -51,6 +51,7 @@ create table if not exists public.posts (
   time_ms     integer not null check (time_ms > 0),
   max_angle   integer,
   started_by  text[] not null default '{}',
+  title       text not null default '' check (char_length(title) <= 40), -- the shotgun's name
   description text not null default '' check (char_length(description) <= 300),
   video_path  text,                -- path inside the "clips" storage bucket
   cheers      integer not null default 0,
@@ -104,6 +105,9 @@ drop policy if exists "anyone can read comments" on public.comments;
 create policy "anyone can read comments" on public.comments for select using (true);
 drop policy if exists "anyone can add comments" on public.comments;
 create policy "anyone can add comments"  on public.comments for insert with check (true);
+
+-- Added after the first version (no-op on a fresh setup).
+alter table public.posts add column if not exists title text not null default '' check (char_length(title) <= 40);
 
 -- Link posts and comments to the profile that made them (shows their current name/photo).
 alter table public.posts    add column if not exists profile_id uuid references public.profiles (id) on delete set null;

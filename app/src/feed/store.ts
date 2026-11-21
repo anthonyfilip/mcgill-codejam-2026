@@ -37,6 +37,7 @@ type Row = {
   time_ms: number
   max_angle: number | null
   started_by: string[]
+  title: string
   description: string
   video_path: string | null
   cheers: number
@@ -59,6 +60,7 @@ function fromRow(r: Row): Post {
     timeMs: r.time_ms,
     maxAngle: r.max_angle,
     startedBy: r.started_by,
+    title: r.title,
     description: r.description,
     clip: null,
     videoPath: r.video_path,
@@ -125,6 +127,7 @@ export async function savePost(post: Post): Promise<void> {
     time_ms: Math.round(post.timeMs),
     max_angle: post.maxAngle,
     started_by: post.startedBy,
+    title: post.title ?? '',
     description: post.description ?? '',
     video_path: videoPath,
   })

@@ -8,6 +8,7 @@ export type Post = {
   timeMs: number
   maxAngle: number | null
   startedBy: string[]
+  title?: string // the shotgun's name, up to 40 characters, required when posting
   description?: string // up to 300 characters, written when posting
   clip: Blob | null // local posts keep the video itself
   videoPath?: string | null // shared posts: file in the Supabase "clips" bucket
@@ -25,6 +26,7 @@ export type Comment = {
 }
 
 export const MAX_COMMENT = 200
+export const MAX_TITLE = 40
 
 // One person's star rating of a post: 1 to 5, 5 = best.
 export type PostRating = {
@@ -39,7 +41,7 @@ const minutesAgo = (m: number) => Date.now() - m * 60_000
 // Placeholder posts for the local (no Supabase) feed. No videos: the real test clips are
 // private and must never be served from the feed.
 export const SAMPLE_POSTS: Post[] = [
-  { id: 's1', user: 'anthony', postedAt: minutesAgo(4), timeMs: 3870, maxAngle: 118, startedBy: ['crack', 'mouth'], clip: null, cheers: 12 },
-  { id: 's2', user: 'lana', postedAt: minutesAgo(26), timeMs: 4210, maxAngle: 104, startedBy: ['crack', 'angle'], clip: null, cheers: 8 },
-  { id: 's3', user: 'sam', postedAt: minutesAgo(95), timeMs: 5530, maxAngle: 97, startedBy: ['mouth', 'angle'], clip: null, cheers: 3 },
+  { id: 's1', title: 'Tab Snapper', user: 'anthony', postedAt: minutesAgo(4), timeMs: 3870, maxAngle: 118, startedBy: ['crack', 'mouth'], clip: null, cheers: 12 },
+  { id: 's2', title: 'Friday Flood', user: 'lana', postedAt: minutesAgo(26), timeMs: 4210, maxAngle: 104, startedBy: ['crack', 'angle'], clip: null, cheers: 8 },
+  { id: 's3', title: 'Slow & Steady', user: 'sam', postedAt: minutesAgo(95), timeMs: 5530, maxAngle: 97, startedBy: ['mouth', 'angle'], clip: null, cheers: 3 },
 ]
