@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Avatar } from './Avatar'
 import { FeedVideo } from './FeedVideo'
 import { getName, getProfile, hasCheered, setCheered as rememberCheer } from './me'
 import { MAX_COMMENT, type Comment, type Post, type PostRating } from './posts'
-import { Profile } from './Profile'
+import { ProfileGate } from './Profile'
 import { AvgRating, Rating } from './Rating'
 import { addComment, cheer, deletePost, isMine, loadComments, loadPosts, isShared, loadRatings, ratePost, samplePosts } from './store'
 import { Tabs } from './Tabs'
@@ -63,8 +63,24 @@ function Comments({
   )
 }
 
-// onDelete is only passed for your own posts.
-function PostCard({
+// Slide-up panel for a post's rating and comments, over the bottom of the screen.
+function Sheet({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
+  return (
+    <div className="sheet-backdrop" onClick={onClose}>
+      <div className="sheet" role="dialog" aria-modal="true" aria-label={title} onClick={(e) => e.stopPropagation()}>
+        <div className="sheet-grip" />
+        <div className="sheet-head">
+          <b>{title}</b>
+          <button className="sheet-close" onClick={onClose} aria-label="Close">✕</button>
+        </div>
+        <div className="sheet-body">{children}</div>
+      </div>
+    </div>
+  )
+}
+
+// One full-screen post. onDelete is only passed for your own posts.
+function Reel({
   post,
   comments,
   ratings,
@@ -72,6 +88,9 @@ function PostCard({
   onRate,
   onComment,
   onDelete,
+  muted,
+  onToggleMute,
+  onBlocked,
 }: {
   post: Post
   comments: Comment[]
@@ -80,24 +99,16 @@ function PostCard({
   onRate: (stars: number) => Promise<void>
   onComment: (body: string) => Promise<void>
   onDelete?: () => void
+  muted: boolean
+  onToggleMute: () => void
+  onBlocked: () => void
 }) {
-  const [showComments, setShowComments] = useState(false)
+  const [sheet, setSheet] = useState(false)
   const [justRated, setJustRated] = useState(false)
-  const myStars = ratings.find((r) => r.profileId === getProfile()?.id)?.stars ?? null
-
-  // Rating opens the comments so you can add why.
-  async function rate(stars: number) {
-    try {
-      await onRate(stars)
-      setJustRated(true)
-      setShowComments(true)
-    } catch (e) {
-      alert(`Couldn't rate: ${(e as Error).message}`)
-    }
-  }
   const [cheered, setCheered] = useState(() => hasCheered(post.id))
   const [count, setCount] = useState(post.cheers)
   const videoUrl = useMemo(() => post.videoUrl ?? (post.clip ? URL.createObjectURL(post.clip) : null), [post])
+  const myStars = ratings.find((r) => r.profileId === getProfile()?.id)?.stars ?? null
 
   function toggleCheer() {
     const on = !cheered
@@ -106,67 +117,91 @@ function PostCard({
     rememberCheer(post.id, on)
     cheer(post, on ? 1 : -1).catch(console.error)
   }
-  return (
-    <article className="post">
-      <header>
-        <Avatar name={post.user} url={post.avatarUrl} />
-        <b>{post.user}</b>
-        <span className="when">{timeAgo(post.postedAt)}</span>
-        {onDelete && (
-          <button className="delete" onClick={onDelete} title="Delete post">
-            Delete
-          </button>
-        )}
-      </header>
 
+  // Rating keeps the sheet open and moves you on to the comment box.
+  async function rate(stars: number) {
+    try {
+      await onRate(stars)
+      setJustRated(true)
+    } catch (e) {
+      alert(`Couldn't rate: ${(e as Error).message}`)
+    }
+  }
+
+  return (
+    <article className="reel">
       {videoUrl ? (
-        <FeedVideo src={videoUrl} />
+        <FeedVideo src={videoUrl} muted={muted} onToggleMute={onToggleMute} onBlocked={onBlocked} />
       ) : (
         <div className="no-video">🍺</div>
       )}
 
-      {post.title && <h3 className="post-title">{post.title}</h3>}
-
-      <div className="stats">
-        <span className="time">{(post.timeMs / 1000).toFixed(2)} s</span>
-        <AvgRating stars={ratings.map((r) => r.stars)} />
+      <div className="reel-info">
+        <div className="reel-user">
+          <Avatar name={post.user} url={post.avatarUrl} />
+          <b>{post.user}</b>
+          <span className="when">{timeAgo(post.postedAt)}</span>
+        </div>
+        {post.title && <h3 className="reel-title">{post.title}</h3>}
+        <div className="reel-stats">
+          <span className="time">{(post.timeMs / 1000).toFixed(2)} s</span>
+          <AvgRating stars={ratings.map((r) => r.stars)} />
+        </div>
+        {post.description && <p className="reel-desc">{post.description}</p>}
       </div>
 
-      {post.description && <p className="desc">{post.description}</p>}
-
-      <Rating myStars={myStars} canRate={canRate} onRate={rate} />
-
-      <div className="actions">
-        <button className={cheered ? 'cheer on' : 'cheer'} onClick={toggleCheer}>
-          🍻 {count}
+      <div className="reel-actions">
+        <button className={cheered ? 'action on' : 'action'} onClick={toggleCheer} aria-label="Cheers">
+          <span className="action-icon">🍻</span>
+          {count}
         </button>
-        <button
-          className={showComments ? 'cheer on' : 'cheer'}
-          onClick={() => {
-            setShowComments(!showComments)
+        <button className={myStars ? 'action on' : 'action'} onClick={() => setSheet(true)} aria-label="Rate">
+          <span className="action-icon">⭐</span>
+          Rate
+        </button>
+        <button className="action" onClick={() => setSheet(true)} aria-label="Comments">
+          <span className="action-icon">💬</span>
+          {comments.length}
+        </button>
+        {onDelete && (
+          <button className="action delete" onClick={onDelete}>
+            Delete
+          </button>
+        )}
+      </div>
+
+      {sheet && (
+        <Sheet
+          title={`${post.title || 'Run'} · ${(post.timeMs / 1000).toFixed(2)} s`}
+          onClose={() => {
+            setSheet(false)
             setJustRated(false)
           }}
         >
-          Comment{comments.length > 0 && ` · ${comments.length}`}
-        </button>
-      </div>
-
-      {showComments && <Comments comments={comments} onAdd={onComment} justRated={justRated} />}
+          <Rating myStars={myStars} canRate={canRate} onRate={rate} />
+          <Comments comments={comments} onAdd={onComment} justRated={justRated} />
+        </Sheet>
+      )}
     </article>
   )
 }
 
 export function Feed() {
   // Everyone's posts, newest first (in the local feed: yours, then the samples).
-  const [posts, setPosts] = useState<Post[]>([])
+  const [posts, setPosts] = useState<Post[] | null>(null) // null = loading
   const [comments, setComments] = useState<Comment[]>([])
   const [ratings, setRatings] = useState<PostRating[]>([])
   const [error, setError] = useState('')
+  const [muted, setMuted] = useState(false)
+  const onBlocked = useCallback(() => setMuted(true), [])
 
   useEffect(() => {
     loadPosts()
       .then(setPosts)
-      .catch((e) => setError(`Couldn't load the feed: ${e.message}`))
+      .catch((e) => {
+        setPosts([])
+        setError(`Couldn't load the feed: ${e.message}`)
+      })
     loadComments().then(setComments).catch(console.error)
     loadRatings().then(setRatings).catch(console.error)
   }, [])
@@ -179,7 +214,7 @@ export function Feed() {
   }, [])
 
   async function comment(post: Post, body: string) {
-    if (!getProfile()) throw new Error('make your profile first (tap your name at the top)')
+    if (!getProfile()) throw new Error('make your profile first (Profile tab)')
     const c: Comment = { id: crypto.randomUUID(), postId: post.id, user: getName(), body, createdAt: Date.now() }
     await addComment(c)
     setComments((all) => [...all, c])
@@ -190,9 +225,19 @@ export function Feed() {
     setRatings((all) => [...all.filter((x) => x.id !== r.id), r])
   }
 
+  async function remove(post: Post) {
+    if (!confirm('Delete this post?')) return
+    try {
+      await deletePost(post)
+      setPosts((all) => (all ?? []).filter((p) => p.id !== post.id))
+    } catch (e) {
+      alert(`Couldn't delete: ${(e as Error).message}`)
+    }
+  }
+
   // Your own posts: you can delete them but not rate them.
-  const card = (p: Post, mine: boolean) => (
-    <PostCard
+  const reel = (p: Post, mine: boolean) => (
+    <Reel
       key={p.id}
       post={p}
       comments={comments.filter((c) => c.postId === p.id)}
@@ -201,27 +246,30 @@ export function Feed() {
       onRate={(stars) => rate(p, stars)}
       onComment={(body) => comment(p, body)}
       onDelete={mine ? () => remove(p) : undefined}
+      muted={muted}
+      onToggleMute={() => setMuted(!muted)}
+      onBlocked={onBlocked}
     />
   )
 
-  async function remove(post: Post) {
-    if (!confirm('Delete this post?')) return
-    try {
-      await deletePost(post)
-      setPosts(posts.filter((p) => p.id !== post.id))
-    } catch (e) {
-      alert(`Couldn't delete: ${(e as Error).message}`)
-    }
-  }
+  const all = [...(posts ?? []), ...samplePosts]
 
   return (
-    <main className="feed">
+    <>
+      <main className="reels">
+        {error && <p className="error reel-message">{error}</p>}
+        {posts === null && <p className="reel-message">Loading…</p>}
+        {posts !== null && !all.length && (
+          <div className="reel-message">
+            <p>No runs yet. Be the first!</p>
+            <a className="btn primary" href="/">Record a chug</a>
+          </div>
+        )}
+        {(posts ?? []).map((p) => reel(p, isMine(p)))}
+        {samplePosts.map((p) => reel(p, false))}
+      </main>
+      <ProfileGate />
       <Tabs active="/feed.html" />
-      <Profile mine={posts.filter(isMine)} />
-      {error && <p className="error">{error}</p>}
-
-      {posts.map((p) => card(p, isMine(p)))}
-      {samplePosts.map((p) => card(p, false))}
-    </main>
+    </>
   )
 }
