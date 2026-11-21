@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { MAX_TITLE, type Post } from './posts'
 import { getName, getProfile } from './me'
-import { Popup } from './Popup'
+import { DeletePopup, Popup } from './Popup'
 import { Profile } from './Profile'
 import { saveClip } from './share-video'
 import { deleteDraft, isMine, loadDraft, loadPosts, samplePosts, savePost, type Draft } from './store'
@@ -21,6 +21,7 @@ export function Results() {
   const [all, setAll] = useState<Post[]>([])
   const [title, setTitle] = useState('')
   const [needTitle, setNeedTitle] = useState(false) // "Must title chug before post" pop-up
+  const [confirmDelete, setConfirmDelete] = useState(false)
   const [desc, setDesc] = useState('')
   const [posting, setPosting] = useState(false)
 
@@ -133,7 +134,7 @@ export function Results() {
           ) : (
             <span />
           )}
-          <button className="small-link" onClick={retake}>
+          <button className="small-link" onClick={() => setConfirmDelete(true)}>
             Delete
           </button>
         </div>
@@ -143,6 +144,7 @@ export function Results() {
             {null}
           </Popup>
         )}
+        {confirmDelete && <DeletePopup title="Delete this chug?" onConfirm={retake} onClose={() => setConfirmDelete(false)} />}
       </section>
     </main>
   )

@@ -5,7 +5,7 @@ import { FeedVideo } from './FeedVideo'
 import { CommentIcon, ShareIcon } from './Icons'
 import { getName, getProfile, hasCheered, setCheered as rememberCheer } from './me'
 import { MAX_COMMENT, type Comment, type Post, type PostRating } from './posts'
-import { Popup } from './Popup'
+import { DeletePopup, Popup } from './Popup'
 import { ProfileGate } from './Profile'
 import { AvgRating, Rating } from './Rating'
 import { addComment, cheer, deletePost, isMine, loadComments, loadPosts, isShared, loadRatings, ratePost, samplePosts } from './store'
@@ -237,6 +237,7 @@ export function Feed() {
   const [ratings, setRatings] = useState<PostRating[]>([])
   const [error, setError] = useState('')
   const [muted, setMuted] = useState(false)
+  const [deleting, setDeleting] = useState<Post | null>(null) // asking "Delete this chug?"
   const onBlocked = useCallback(() => setMuted(true), [])
 
   useEffect(() => {
@@ -275,7 +276,7 @@ export function Feed() {
   }
 
   async function remove(post: Post) {
-    if (!confirm('Delete this post?')) return
+    setDeleting(null)
     try {
       await deletePost(post)
       setPosts((all) => (all ?? []).filter((p) => p.id !== post.id))
@@ -294,7 +295,7 @@ export function Feed() {
       canRate={!mine}
       onRate={(stars) => rate(p, stars)}
       onComment={(body) => comment(p, body)}
-      onDelete={mine ? () => remove(p) : undefined}
+      onDelete={mine ? () => setDeleting(p) : undefined}
       muted={muted}
       onToggleMute={() => setMuted(!muted)}
       onBlocked={onBlocked}
@@ -320,6 +321,7 @@ export function Feed() {
         {(posts ?? []).map((p) => reel(p, isMine(p)))}
         {samplePosts.map((p) => reel(p, false))}
       </main>
+      {deleting && <DeletePopup title="Delete this chug?" onConfirm={() => remove(deleting)} onClose={() => setDeleting(null)} />}
       <ProfileGate />
       <Tabs active="/feed.html" />
     </>
