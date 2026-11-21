@@ -13,10 +13,20 @@ import type { FrameSignals } from './signals'
 export const RULES = {
   // from src/live/app.js CONFIG
   mouthDist: 0.8, // tuned on the 18 labelled clips (was 0.6: cut through the middle of real drinking)
-  angleDeg: 0, // i.e. just "hand raised above the shoulder" — arm angle didn't separate drinking from not
   gapMs: 250,
   crackMouthHoldMs: 150, // a crack only counts once the can has been at the mouth this long (no cracks before it gets there)
-  visualStartMs: 800,
+  // Start needs ALL of: a sound (loud crack or click) with the can at the mouth, THEN within
+  // drinkConfirmMs the drinking motion — head tips back AND forearm swings toward vertical — with
+  // the can still at the mouth. The clock starts at the sound. Holding the can at the mouth alone
+  // never starts a run (live test, Sat). Measured over the 1.5 s after each labelled start vs the
+  // 0.5 s before: head rose ≥ 0.22 and forearm dropped ≥ 29° in every single-person clip; at other
+  // at-mouth moments the median was ~0.05 and 10–30°.
+  drinkConfirmMs: 1500,
+  drinkBaseMs: 500, // baseline = median over this long just before the sound
+  drinkHoldMs: 300, // ...vs the median over the last this-long (≥ 3 frames): the motion must last
+  headBackRise: 0.15, // head tilt rise, in shoulder widths (0.15 and 0.2 scored the same on single clips; 0.15 finds more group starts)
+  armSwingDeg: 25, // forearm angle drop toward vertical, in degrees...
+  armUpDeg: 45, // ...or the forearm already within this of vertical
   minRunMs: 1000,
   // Crack = sudden bright jump vs the half-second before (src/detect/cracks.ts cracksByContrast).
   // Tuned on the 18 clips: 8 runs started by a crack, all within 0.5 s; 0 false cracks in a
@@ -31,13 +41,11 @@ export const RULES = {
   // Wrist lost right after 2+ frames at the mouth = the arm/can is covering the face (full tilt):
   // still drinking for up to this long. Clip 02 ended 1.24 s early without it.
   hiddenHoldMs: 500,
-  // No loud crack: the visual start says roughly when, so take the strongest CLICK (loudest ~6 ms
-  // above 6 kHz, src/detect/cracks.ts clicksFromProfile) just before it. The crack was the strongest
-  // click in 7/8 single-person clips; trusting the first click instead started clips 5–45 s early.
+  // Clicks = loudest ~6 ms above 6 kHz (src/detect/cracks.ts clicksFromProfile): catch cracks the
+  // 46 ms detector misses in noisy rooms. Of several clicks before drinking, the strongest wins (the
+  // crack was the strongest click in 7/8 single-person clips).
   clickHighFreqHz: 6000,
   clickDb: 15, // dB above the median click of the previous crackLookS (15 and 20 scored the same)
-  clickBeforeMs: 2500, // covers late visual starts (clip 03: +1.9 s); 2.5 and 3 s scored the same
-  clickAfterMs: 300,
   // End = when the head comes forward (head tilt steps down), searched around the moment the can
   // left the mouth. Head tilt was the closest signal to the labelled ends (median 0.13 s) and stays
   // visible when the arm covers the face.
@@ -58,10 +66,10 @@ export interface Detection {
   ignoredCracks: number // cracks heard with the can not at the mouth
 }
 
-type Sample = { t: number; headTilt: number | null } // t in ms
-type TimedClick = { t: number; db: number } // t in ms
+type Sample = { t: number; headTilt: number | null; armAngle?: number | null } // t in ms
+type Sound = { t: number; db: number } // t in ms; a loud crack has db = Infinity
 type EndRules = Pick<Rules, 'endSearchBeforeMs' | 'endSearchAfterMs' | 'headStepMs' | 'headStepZ'>
-type ClickRules = Pick<Rules, 'clickBeforeMs' | 'clickAfterMs'>
+type DrinkRules = Pick<Rules, 'drinkConfirmMs' | 'drinkBaseMs' | 'drinkHoldMs' | 'headBackRise' | 'armSwingDeg' | 'armUpDeg'>
 
 /** Shared with the live tracker. Moves the end to where the head tilt drops most sharply near
  *  `end` (the head coming forward). Returns `end` unchanged if there's no clear drop. */
@@ -84,29 +92,56 @@ export function refineEnd(samples: Sample[], end: number, R: EndRules): number {
   return best.z >= R.headStepZ ? best.t : end
 }
 
-/** Shared with the live tracker. The strongest click just before a visual start, or null. */
-export function pickClick(clicks: TimedClick[], start: number, R: ClickRules): number | null {
-  const near = clicks.filter((c) => c.t >= start - R.clickBeforeMs && c.t <= start + R.clickAfterMs)
-  if (!near.length) return null
-  return near.reduce((a, b) => (b.db > a.db ? b : a)).t
+/** Shared with the live tracker. Is the drinking motion under way `now`, after a sound at `tc`?
+ *  Over the last drinkHoldMs (all after the sound), the median head tilt must be ≥ headBackRise
+ *  above, AND the median forearm angle ≥ armSwingDeg below, their medians over drinkBaseMs just
+ *  before the sound. Medians, so one jittery frame can't pass (clips 13 and 18 did). */
+export function drankAfter(samples: Sample[], tc: number, now: number, R: DrinkRules): boolean {
+  const median = (a: number[]) => [...a].sort((x, y) => x - y)[a.length >> 1]
+  if (now - tc < R.drinkHoldMs) return false // need a full window after the sound
+  const from = now - R.drinkHoldMs
+  // [baseline median, recent median] for a signal, or null if too few readings.
+  const medians = (key: 'headTilt' | 'armAngle'): [number, number] | null => {
+    const before: number[] = [], recent: number[] = []
+    for (const s of samples) {
+      const v = s[key]
+      if (v == null) continue
+      if (s.t >= tc - R.drinkBaseMs && s.t <= tc) before.push(v)
+      else if (s.t > from && s.t <= now) recent.push(v)
+    }
+    return before.length >= 2 && recent.length >= 3 ? [median(before), median(recent)] : null
+  }
+  const head = medians('headTilt')
+  const arm = medians('armAngle')
+  const headBack = !!head && head[1] - head[0] >= R.headBackRise
+  // Forearm swung toward vertical — or was already up there (can held high before the crack: clip 03).
+  const armUp = !!arm && (arm[0] - arm[1] >= R.armSwingDeg || arm[1] <= R.armUpDeg)
+  return headBack && armUp
+}
+
+/** Shared with the live tracker. Once the drinking motion has followed any sound heard with the can
+ *  at the mouth in the last drinkConfirmMs, the start is the strongest of those sounds (a loud crack
+ *  beats any click) — its time; else null. */
+export function confirmedStart(sounds: Sound[], samples: Sample[], now: number, R: DrinkRules): number | null {
+  const recent = sounds.filter((s) => s.t <= now && now - s.t <= R.drinkConfirmMs)
+  if (!recent.some((s) => drankAfter(samples, s.t, now, R))) return null
+  return recent.reduce((a, b) => (b.db > a.db ? b : a)).t
 }
 
 export function detect(rows: FrameSignals[], cracks: Crack[], R: Rules = RULES, clickList: Click[] = []): Detection {
   const ms = (s: number) => s * 1000
-  const head = rows.map((r) => ({ t: ms(r.t), headTilt: r.headTilt }))
+  const head = rows.map((r) => ({ t: ms(r.t), headTilt: r.headTilt, armAngle: r.armAngle }))
   const clicks = clickList.map((c) => ({ t: ms(c.t), db: c.db }))
   let mouthFrames = 0 // consecutive frames with the wrist seen at the mouth
   let lastSeenAtMouth = -Infinity
   let mouthSince: number | null = null
   let lastMouthAt = -Infinity
-  let angleSince: number | null = null
-  let lastAngleAt = -Infinity
   let start: number | null = null
   let startBy = 'not detected'
   let ignored = 0
   let ci = 0
   let ki = 0
-  const clicksAtMouth: TimedClick[] = [] // clicks heard with the can at the mouth long enough
+  const sounds: Sound[] = [] // cracks and clicks heard with the can at the mouth long enough
 
   const stretch = (isTrue: boolean, t: number, since: number | null, last: number): [number | null, number] => {
     if (isTrue) return [since === null || t - last > R.gapMs ? t : since, t]
@@ -119,17 +154,15 @@ export function detect(rows: FrameSignals[], cracks: Crack[], R: Rules = RULES, 
   for (const row of rows) {
     const t = ms(row.t)
 
-    // Cracks that happened up to this frame (audio is checked between frames).
+    // Sounds that happened up to this frame (audio is checked between frames).
     while (start === null && ci < cracks.length && ms(cracks[ci].t) <= t) {
       const tc = ms(cracks[ci].t)
-      if (heldLongEnough(tc)) {
-        start = tc
-        startBy = 'crack with can at mouth'
-      } else ignored++
+      if (heldLongEnough(tc)) sounds.push({ t: tc, db: Infinity })
+      else ignored++
       ci++
     }
     while (start === null && ki < clicks.length && clicks[ki].t <= t) {
-      if (heldLongEnough(clicks[ki].t)) clicksAtMouth.push(clicks[ki])
+      if (heldLongEnough(clicks[ki].t)) sounds.push(clicks[ki])
       ki++
     }
 
@@ -140,18 +173,15 @@ export function detect(rows: FrameSignals[], cracks: Crack[], R: Rules = RULES, 
     }
     const hidden = row.liveMouthDist === null && t - lastSeenAtMouth <= R.hiddenHoldMs
     const atMouth = seenAtMouth || hidden
-    const tipped = hidden || (row.liveAngle !== null && row.liveAngle >= R.angleDeg)
     ;[mouthSince, lastMouthAt] = stretch(atMouth, t, mouthSince, lastMouthAt)
-    ;[angleSince, lastAngleAt] = stretch(tipped, t, angleSince, lastAngleAt)
 
     if (start === null) {
-      // No crack heard: at mouth + tipped together long enough (back-dated).
-      if (atMouth && tipped && mouthSince !== null && angleSince !== null) {
-        const both = Math.max(mouthSince, angleSince)
-        if (t - both >= R.visualStartMs) {
-          const click = pickClick(clicksAtMouth, both, R)
-          start = click ?? both
-          startBy = click === null ? 'mouth + tipped (no crack)' : 'click (crack), then mouth + tipped'
+      // Sound at the mouth, then the drinking motion, can still at the mouth → start at the sound.
+      if (atMouth) {
+        const s = confirmedStart(sounds, head, t, R)
+        if (s !== null) {
+          start = s
+          startBy = sounds.find((x) => x.t === s)!.db === Infinity ? 'crack, then drinking' : 'click (crack), then drinking'
         }
       }
       continue
