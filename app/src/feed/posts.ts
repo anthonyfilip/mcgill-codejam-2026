@@ -13,6 +13,17 @@ export type Post = {
   cheers: number
 }
 
+// A comment on a post.
+export type Comment = {
+  id: string
+  postId: string
+  user: string
+  body: string // up to 200 characters
+  createdAt: number // ms since epoch
+}
+
+export const MAX_COMMENT = 200
+
 const minutesAgo = (m: number) => Date.now() - m * 60_000
 
 // Placeholder posts for the local (no Supabase) feed. No videos: the real test clips are

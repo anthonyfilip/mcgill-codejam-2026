@@ -4,7 +4,7 @@
 // Drafts (finished runs not yet posted) always stay in this browser.
 import { createClient } from '@supabase/supabase-js'
 import { addMyPost, myPosts, removeMyPost } from './me'
-import { SAMPLE_POSTS, type Post } from './posts'
+import { SAMPLE_POSTS, type Comment, type Post } from './posts'
 
 const url = import.meta.env.VITE_SUPABASE_URL as string | undefined
 const key = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined
@@ -62,12 +62,13 @@ function fromRow(r: Row): Post {
 const DB = 'shotgun-feed'
 const POSTS = 'posts'
 const DRAFTS = 'drafts'
+const COMMENTS = 'comments'
 
 function open(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB, 2)
+    const req = indexedDB.open(DB, 3)
     req.onupgradeneeded = () => {
-      for (const name of [POSTS, DRAFTS]) {
+      for (const name of [POSTS, DRAFTS, COMMENTS]) {
         if (!req.result.objectStoreNames.contains(name)) req.result.createObjectStore(name, { keyPath: 'id' })
       }
     }
@@ -142,6 +143,33 @@ export async function deletePost(post: Post): Promise<void> {
 export async function cheer(post: Post, delta: 1 | -1): Promise<void> {
   if (!supabase) return
   const { error } = await supabase.rpc('cheer', { post_id: post.id, delta })
+  if (error) throw error
+}
+
+// ---------- Comments ----------
+
+type CommentRow = { id: string; post_id: string; user_name: string; body: string; created_at: string }
+
+// Every comment, oldest first (the feed groups them by post).
+export async function loadComments(): Promise<Comment[]> {
+  if (!supabase) {
+    const comments = await read<Comment[]>(COMMENTS, (s) => s.getAll())
+    return comments.sort((a, b) => a.createdAt - b.createdAt)
+  }
+  const { data, error } = await supabase.from('comments').select('*').order('created_at')
+  if (error) throw error
+  return (data as CommentRow[]).map((r) => ({
+    id: r.id,
+    postId: r.post_id,
+    user: r.user_name,
+    body: r.body,
+    createdAt: Date.parse(r.created_at),
+  }))
+}
+
+export async function addComment(c: Comment): Promise<void> {
+  if (!supabase) return write(COMMENTS, (s) => s.put(c))
+  const { error } = await supabase.from('comments').insert({ id: c.id, post_id: c.postId, user_name: c.user, body: c.body })
   if (error) throw error
 }
 
