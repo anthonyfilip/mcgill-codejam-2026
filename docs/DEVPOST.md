@@ -106,6 +106,6 @@ Everything runs in the browser — no server touches the camera or microphone.
 - [ ] Demo video (≤ 2–3 min): GET SENDY! → crack → drink → 🤙 → results → feed → leaderboard,
       plus 10 s of the lab's accuracy table.
 - [ ] Screenshots: tracker mid-run with the skeleton, results page, leaderboard, lab scoreboard.
-- [ ] Supabase: tighten the "anyone can delete" rules on posts/clips before the demo, so nobody
-      can wipe the leaderboard.
+- [x] Supabase: only the poster can delete their post (`delete_post()` checks their profile
+      secret), and a clip can only be removed once its post is gone. Done in #4.
 - [ ] Re-check the accuracy numbers in the lab right before submitting if thresholds changed.

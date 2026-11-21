@@ -22,7 +22,8 @@ uses a can of Celsius.
 - **Results, feed and leaderboard.** Every run gets a results page with a replay clip, can be
   named and posted to a shared feed with a description, rated with stars and commented on. The
   leaderboard ranks runs rated ★3.5+ first, then by fastest time, with each run's name and day.
-- **Profiles.** Pick a username and photo; your runs, personal best and rank follow you.
+- **Profiles.** Pick a unique username and a photo; your profile shows your runs, personal best
+  and cheers. No passwords yet: a profile belongs to the browser that made it.
 
 ## How accurate is it?
 
@@ -124,9 +125,7 @@ docs/                        status, architecture, devpost draft
 ## Team
 
 - **Anthony Filip** — tracker: camera/mic detection, crack detector, shaka, accuracy lab
-- **Lana Avdalovic** — live tracker v1, results page, feed, profiles, ratings, leaderboard
-
-*(TODO: check names/roles.)*
+- **Lana Avdalovic** — live tracker v1, results page, feed, comments, ratings, profiles, leaderboard, Supabase
 
 ## Built with
 
