@@ -3,7 +3,7 @@
 // saved in this browser only (IndexedDB) so the app still works offline.
 // Drafts (finished runs not yet posted) always stay in this browser.
 import { createClient } from '@supabase/supabase-js'
-import { addMyPost, forgetMe, getProfile, myPosts, removeMyPost, setProfile, type MyProfile } from './me'
+import { addMyPost, forgetMe, getProfile, myPosts, removeMyPost, type MyProfile } from './me'
 import { SAMPLE_POSTS, type Comment, type Post, type PostRating } from './posts'
 
 const url = import.meta.env.VITE_SUPABASE_URL as string | undefined
@@ -189,21 +189,18 @@ export async function isUsernameTaken(username: string, myId?: string): Promise<
   return data.length > 0
 }
 
-// A profile made before Supabase was connected only exists in this browser: upload it now.
-// Returns false if someone else has since taken its name (the pop-up should ask for a new one).
+// Is the profile this browser remembers still in the database? If it was deleted (account
+// deleted, or the app wiped for a fresh start), forget it here and reload, so the
+// make-a-profile pop-up appears instead of silently bringing the old account back.
 export async function ensureProfileSaved(): Promise<boolean> {
   const me = getProfile()
   if (!supabase || !me) return true
   const { data, error } = await supabase.from('profiles').select('id').eq('id', me.id)
   if (error) throw error
   if (data.length) return true
-  try {
-    setProfile(await saveProfile(me, null))
-    return true
-  } catch (e) {
-    if ((e as Error).message === 'taken') return false
-    throw e
-  }
+  forgetMe()
+  location.reload()
+  return true
 }
 
 // Create or update your profile; `photo` = a new picture to upload (already resized).
