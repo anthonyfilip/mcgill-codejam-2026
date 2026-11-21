@@ -19,9 +19,20 @@ export function Popup({ title, onClose, children }: { title: string; onClose: ()
 }
 
 // "Delete this …?" in the same pop-up: ✕ cancels, the small Delete button confirms.
-export function DeletePopup({ title, onConfirm, onClose }: { title: string; onConfirm: () => void; onClose: () => void }) {
+export function DeletePopup({
+  title,
+  message,
+  onConfirm,
+  onClose,
+}: {
+  title: string
+  message?: string // optional extra warning under the question
+  onConfirm: () => void
+  onClose: () => void
+}) {
   return (
     <Popup title={title} onClose={onClose}>
+      {message && <p className="popup-meta">{message}</p>}
       <button className="popup-delete" onClick={onConfirm}>
         Delete
       </button>

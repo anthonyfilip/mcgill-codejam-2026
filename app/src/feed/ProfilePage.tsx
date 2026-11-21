@@ -5,7 +5,8 @@ import type { Post } from './posts'
 import { ProfileGate } from './Profile'
 import { InstallApp } from './InstallApp'
 import { ProfileForm } from './ProfileModal'
-import { ensureProfileSaved, isMine, loadPosts, samplePosts } from './store'
+import { DeletePopup } from './Popup'
+import { deleteAccount, ensureProfileSaved, isMine, loadPosts, samplePosts } from './store'
 import { Tabs } from './Tabs'
 
 const secs = (ms: number) => (ms / 1000).toFixed(2)
@@ -35,6 +36,7 @@ export function ProfilePage() {
   const isMe = !viewing || viewing === me?.username
   const [posts, setPosts] = useState<Post[] | null>(null) // null = loading
   const [nameTaken, setNameTaken] = useState(false)
+  const [deletingAccount, setDeletingAccount] = useState(false)
 
   useEffect(() => {
     if (isMe)
@@ -111,6 +113,27 @@ export function ProfilePage() {
             </p>
           )}
         </>
+      )}
+
+      {isMe && me && (
+        <button className="danger-link" onClick={() => setDeletingAccount(true)}>
+          Delete account
+        </button>
+      )}
+      {deletingAccount && (
+        <DeletePopup
+          title="Delete your account?"
+          message="Your profile, all your shotguns and their videos, your comments and your ratings will be gone for good. This can't be undone."
+          onConfirm={async () => {
+            try {
+              await deleteAccount()
+              location.replace('/feed.html')
+            } catch (e) {
+              alert(`Couldn't delete your account: ${(e as Error).message}`)
+            }
+          }}
+          onClose={() => setDeletingAccount(false)}
+        />
       )}
 
       {!isMe && <ProfileGate />}
