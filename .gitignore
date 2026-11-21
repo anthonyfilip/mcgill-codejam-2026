@@ -22,3 +22,9 @@ venv/
 Thumbs.db
 .vscode/
 .idea/
+
+# Test videos of real people - never commit
+Chug_Examples/
+
+# Playwright MCP scratch output
+.playwright-mcp/

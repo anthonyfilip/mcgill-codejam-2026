@@ -15,18 +15,30 @@ Rule of thumb: if a line here wouldn't change Claude's behaviour, delete it.
 -->
 
 ## Project
-- **What:** TODO — one sentence on what we're building and for whom.
-- **Track / sponsor prize:** TODO
-- **Deadline:** TODO (submission time, Devpost link). Demo > completeness.
+- **What:** A web app that uses the camera + microphone to automatically time and
+  verify someone shotgunning a can, with leaderboards (individual and school vs school).
+- **Track / sponsor prize:** Celsius (sponsor) — live demo uses a Celsius can. TODO: confirm prize/track name.
+- **Hackathon:** McGill CodeJam 2026, 36 h. Started Fri 2026-11-20 19:00; submission ~Sun 2026-11-22 07:00
+  (TODO: confirm exact time + Devpost link). Demo > completeness.
 - More context: [docs/architecture.md](docs/architecture.md) · progress: [docs/STATUS.md](docs/STATUS.md)
 
 ## Stack & commands
-TODO — fill in once the stack is chosen. Keep these exact and copy-pasteable.
-- Install: `TODO`
-- Dev server: `TODO`
-- Test: `TODO`
-- Lint/format: `TODO`
-- Deploy: `TODO`
+Vite + React + TypeScript in `app/`. MediaPipe Tasks Vision (pose, hands, face) and the
+Web Audio API run in the browser — no backend for detection. Supabase for the leaderboard (later).
+All commands run from `app/`:
+- Install: `npm install`
+- Dev server: `npm run dev` → http://localhost:5173
+- Build / type-check: `npm run build`
+- Lint: `npm run lint`
+- Deploy: TODO (Vercel, from GitHub)
+
+## Test data
+- `Chug_Examples/` — 18 real shotgun clips (`shotgun_01.mp4` … `shotgun_18.mp4`). Gitignored:
+  real people, never commit or upload them anywhere.
+- `Chug_Examples/labels.csv` — ground truth per clip: `start_s`, `end_s`, `people_in_frame`,
+  `contestant`, `camera_angle`, `lighting`, `outcome`, `notes`.
+- Shotgunning = can held ~horizontal at the mouth, tab pop starts the pour. The start signal
+  is the tab pop + hand at the can top, not a tilt-up like a normal chug.
 
 ## How to work
 1. **Think before coding.** State assumptions out loud. If a request is ambiguous,
@@ -50,6 +62,9 @@ TODO — fill in once the stack is chosen. Keep these exact and copy-pasteable.
 - Don't add a dependency without saying why; prefer what's already installed.
 - If a fix fails twice, stop and explain what you've learned instead of thrashing.
 - Update [docs/STATUS.md](docs/STATUS.md) when a feature lands or a plan changes.
+- Any change to start/stop detection must be checked against the labelled clips in
+  `Chug_Examples/labels.csv` before calling it done — report how far off the timer was.
+- Camera/mic data stays in the browser. Never upload video or audio unless a feature explicitly needs it.
 
 ## Gotchas (append a line every time Claude gets something wrong)
 - Windows dev machine: shell is PowerShell — use `;` not `&&`, and `$env:VAR` for env vars.
