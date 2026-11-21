@@ -23,3 +23,8 @@ body { padding-bottom: var(--tabbar); }
 html, body { touch-action: pan-y pinch-zoom; }
 /* Full height so screen-pinned parts (feed, tab bar) keep their place while the page slides. */
 body { min-height: 100dvh; }
+
+/* Camera buttons (flip, light): centre the white icons; dark icon on the gold "light on" state */
+#flip, #light { display: grid; place-items: center; }
+#light.on { color: #111; }
+
