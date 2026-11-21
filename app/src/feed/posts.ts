@@ -24,10 +24,19 @@ export type Comment = {
   user: string
   profileId?: string | null // who wrote it (to show their rating, or "Author")
   body: string // up to 200 characters
+  cheers?: number
   createdAt: number // ms since epoch
 }
 
 export const MAX_COMMENT = 200
+
+// Words for 1–5 stars (rating pop-up, averages, and next to commenters' names).
+export const RATING_LABELS = ['', 'Super poop', 'Poop', 'Good', 'Epic', 'Legendary']
+
+// Limits the database also enforces (supabase/schema.sql).
+export const MIN_RUN_MS = 1000
+export const MAX_RUN_MS = 120_000
+export const MAX_CLIP_BYTES = 50 * 1024 * 1024
 
 // McGill faculties people can pick on their profile. Keep in sync with the check in
 // supabase/schema.sql (profiles.faculty).

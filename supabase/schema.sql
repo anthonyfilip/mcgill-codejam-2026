@@ -196,3 +196,43 @@ begin
 end;
 $$;
 grant execute on function public.delete_post(uuid, uuid, uuid) to anon, authenticated;
+
+-- Runs must be 1–120 seconds (stops fake 0.01 s "chugs" posted straight to the database).
+alter table public.posts drop constraint if exists posts_time_range;
+alter table public.posts add constraint posts_time_range check (time_ms between 1000 and 120000);
+
+-- Uploads: clips are videos up to 50 MB, profile photos are images up to 2 MB.
+update storage.buckets set file_size_limit = 52428800, allowed_mime_types = '{video/*}' where id = 'clips';
+update storage.buckets set file_size_limit = 2097152, allowed_mime_types = '{image/*}' where id = 'avatars';
+
+-- Comment cheers, through a function so visitors can't edit anything else.
+alter table public.comments add column if not exists cheers integer not null default 0;
+
+create or replace function public.cheer_comment(p_comment_id uuid, delta integer)
+returns void
+language sql
+security definer
+set search_path = public
+as $$
+  update comments set cheers = greatest(0, cheers + sign(delta)::integer) where id = p_comment_id;
+$$;
+grant execute on function public.cheer_comment(uuid, integer) to anon, authenticated;
+
+-- Delete your own comment (checks the secret in your browser, like delete_post).
+create or replace function public.delete_comment(p_comment_id uuid, p_profile_id uuid, p_secret uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if not exists (select 1 from profile_secrets where profile_id = p_profile_id and secret = p_secret) then
+    raise exception 'not your profile';
+  end if;
+  delete from comments where id = p_comment_id and profile_id = p_profile_id;
+  if not found then
+    raise exception 'not your comment';
+  end if;
+end;
+$$;
+grant execute on function public.delete_comment(uuid, uuid, uuid) to anon, authenticated;

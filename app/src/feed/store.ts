@@ -250,6 +250,7 @@ type CommentRow = {
   user_name: string
   profile_id: string | null
   body: string
+  cheers: number
   created_at: string
   profiles: { username: string } | null
 }
@@ -269,6 +270,7 @@ export async function loadComments(): Promise<Comment[]> {
     profileId: r.profile_id,
     body: r.body,
     createdAt: Date.parse(r.created_at),
+    cheers: r.cheers,
   }))
 }
 
@@ -281,6 +283,22 @@ export async function addComment(c: Comment): Promise<void> {
     profile_id: getProfile()?.id ?? null,
     body: c.body,
   })
+  if (error) throw error
+}
+
+// Delete your own comment (the database checks this browser's profile secret).
+export async function deleteComment(c: Comment): Promise<void> {
+  if (!supabase) return write(COMMENTS, (s) => s.delete(c.id))
+  const me = getProfile()
+  if (!me) throw new Error('not your comment')
+  const { error } = await supabase.rpc('delete_comment', { p_comment_id: c.id, p_profile_id: me.id, p_secret: me.secret })
+  if (error) throw error
+}
+
+// +1 or -1 cheer on a comment. Only stored in the shared feed.
+export async function cheerComment(c: Comment, delta: 1 | -1): Promise<void> {
+  if (!supabase) return
+  const { error } = await supabase.rpc('cheer_comment', { p_comment_id: c.id, delta })
   if (error) throw error
 }
 

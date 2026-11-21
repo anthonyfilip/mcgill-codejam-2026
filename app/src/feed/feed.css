@@ -250,3 +250,9 @@ div.install-steps ol { padding-left: 20px; display: flex; flex-direction: column
 .install-steps .btn { margin-top: 8px; text-align: center; }
 .glyph { display: inline-flex; vertical-align: middle; padding: 2px; border-radius: 6px; background: #2a2a2a; color: #4ea1ff; }
 
+/* Comment: 🍻 on the right, a small Delete under your own */
+.comment-cheer { flex: none; margin-left: auto; padding: 4px 8px; border: 0; border-radius: 999px; background: none; color: #aaa; font-size: 13px; cursor: pointer; }
+.comment-cheer.on { background: rgba(245, 180, 0, 0.2); color: #f5b400; }
+.comment-delete { margin-top: 4px; padding: 0; border: 0; background: none; color: #888; font-size: 12px; cursor: pointer; }
+.sheet-list .comment p { flex: 1; min-width: 0; }
+

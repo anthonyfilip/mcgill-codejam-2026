@@ -3,6 +3,7 @@
 // adds "upload a video", and when a run finishes saves it as a draft and opens the results
 // page. Hook-up: docs/feed-integration.md.
 import './share.css'
+import { MAX_CLIP_BYTES } from './posts'
 import { saveDraft } from './store'
 import { installSwipeNav } from './swipeNav'
 
@@ -99,6 +100,8 @@ fileInput.onchange = async () => {
   const file = fileInput.files?.[0]
   fileInput.value = '' // so picking the same file again still triggers
   if (!file) return
+  if (!file.type.startsWith('video/')) return setStatus('That file isn\'t a video. Pick a video of your chug.')
+  if (file.size > MAX_CLIP_BYTES) return setStatus('That video is over 50 MB. Pick a shorter clip.')
   upload.classList.add('busy')
   preview.hidden = false
   try {

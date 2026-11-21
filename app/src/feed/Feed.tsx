@@ -4,11 +4,11 @@ import { Avatar } from './Avatar'
 import { FeedVideo } from './FeedVideo'
 import { CommentIcon, ShareIcon, StarIcon } from './Icons'
 import { getName, getProfile, hasCheered, setCheered as rememberCheer } from './me'
-import { MAX_COMMENT, type Comment, type Post, type PostRating } from './posts'
+import { MAX_COMMENT, RATING_LABELS, type Comment, type Post, type PostRating } from './posts'
 import { DeletePopup, Popup } from './Popup'
 import { ProfileGate } from './Profile'
 import { AvgRating, Rating } from './Rating'
-import { addComment, cheer, deletePost, isMine, loadComments, loadPosts, isShared, loadRatings, ratePost, samplePosts } from './store'
+import { addComment, cheer, cheerComment, deleteComment, deletePost, isMine, loadComments, loadPosts, isShared, loadRatings, ratePost, samplePosts } from './store'
 import { sharePost } from './share-video'
 import { Tabs } from './Tabs'
 
@@ -22,21 +22,43 @@ function timeAgo(ms: number) {
 // Instagram-style comments: a panel that slides up from the bottom. The comments scroll;
 // the "Add a comment…" box stays pinned at the bottom. Drawn straight into <body>: inside the
 // feed it sat under the tab bar, which covered the comment box.
-// Beside each commenter's name: "Author" for the person who posted, otherwise the stars they
-// gave this post (nothing if they haven't rated it).
+// 🍻 on a comment: one per person (remembered in this browser), tap again to take it back.
+function CommentCheer({ comment }: { comment: Comment }) {
+  const key = `comment:${comment.id}`
+  const [on, setOn] = useState(() => hasCheered(key))
+  const [count, setCount] = useState(comment.cheers ?? 0)
+  function toggle() {
+    setOn(!on)
+    setCount(count + (on ? -1 : 1))
+    rememberCheer(key, !on)
+    cheerComment(comment, on ? -1 : 1).catch(console.error)
+  }
+  return (
+    <button className={on ? 'comment-cheer on' : 'comment-cheer'} onClick={toggle} aria-label="Cheers">
+      🍻 {count > 0 && count}
+    </button>
+  )
+}
+
+// Beside each commenter's name: "Author" for the person who posted, otherwise how they rated
+// this post, e.g. "Legendary ★" (nothing if they haven't rated it). Your own comments can be deleted.
 function CommentSheet({
   post,
   comments,
   ratings,
   onAdd,
+  onDelete,
   onClose,
 }: {
   post: Post
   comments: Comment[]
   ratings: PostRating[]
   onAdd: (body: string) => Promise<void>
+  onDelete: (c: Comment) => void
   onClose: () => void
 }) {
+  const me = getProfile()?.id
+  const [deleting, setDeleting] = useState<Comment | null>(null)
   const isAuthor = (c: Comment) => (c.profileId && post.profileId ? c.profileId === post.profileId : c.user === post.user)
   const starsBy = (c: Comment) => ratings.find((r) => r.profileId === c.profileId)?.stars
   const [text, setText] = useState('')
@@ -111,12 +133,21 @@ function CommentSheet({
                   {isAuthor(c) ? (
                     <span className="author-tag">Author</span>
                   ) : (
-                    starsBy(c) && <span className="comment-stars">★ {starsBy(c)}</span>
+                    starsBy(c) && <span className="comment-stars">{RATING_LABELS[starsBy(c)!]} ★</span>
                   )}{' '}
                   <span className="when">{timeAgo(c.createdAt)}</span>
                   <br />
                   {c.body}
+                  {me && c.profileId === me && (
+                    <>
+                      <br />
+                      <button className="comment-delete" onClick={() => setDeleting(c)}>
+                        Delete
+                      </button>
+                    </>
+                  )}
                 </p>
+                <CommentCheer comment={c} />
               </div>
             ))
           ) : (
@@ -127,6 +158,16 @@ function CommentSheet({
           <input value={text} maxLength={MAX_COMMENT} placeholder="Add a comment…" onChange={(e) => setText(e.target.value)} />
           <button disabled={sending || !text.trim()}>Post</button>
         </form>
+        {deleting && (
+          <DeletePopup
+            title="Delete this comment?"
+            onConfirm={() => {
+              onDelete(deleting)
+              setDeleting(null)
+            }}
+            onClose={() => setDeleting(null)}
+          />
+        )}
       </div>
     </div>,
     document.body,
@@ -141,6 +182,7 @@ function Reel({
   canRate,
   onRate,
   onComment,
+  onDeleteComment,
   onDelete,
   muted,
   onToggleMute,
@@ -152,6 +194,7 @@ function Reel({
   canRate: boolean
   onRate: (stars: number) => Promise<void>
   onComment: (body: string) => Promise<void>
+  onDeleteComment: (c: Comment) => void
   onDelete?: () => void
   muted: boolean
   onToggleMute: () => void
@@ -242,7 +285,14 @@ function Reel({
         </Popup>
       )}
       {commenting && (
-        <CommentSheet post={post} comments={comments} ratings={ratings} onAdd={onComment} onClose={() => setCommenting(false)} />
+        <CommentSheet
+          post={post}
+          comments={comments}
+          ratings={ratings}
+          onAdd={onComment}
+          onDelete={onDeleteComment}
+          onClose={() => setCommenting(false)}
+        />
       )}
     </article>
   )
@@ -300,6 +350,15 @@ export function Feed() {
     setComments((all) => [...all, c])
   }
 
+  async function removeComment(c: Comment) {
+    try {
+      await deleteComment(c)
+      setComments((all) => all.filter((x) => x.id !== c.id))
+    } catch (e) {
+      alert(`Couldn't delete: ${(e as Error).message}`)
+    }
+  }
+
   async function rate(post: Post, stars: number) {
     const r = await ratePost(post.id, stars)
     setRatings((all) => [...all.filter((x) => x.id !== r.id), r])
@@ -325,6 +384,7 @@ export function Feed() {
       canRate={!mine}
       onRate={(stars) => rate(p, stars)}
       onComment={(body) => comment(p, body)}
+      onDeleteComment={removeComment}
       onDelete={mine ? () => setDeleting(p) : undefined}
       muted={muted}
       onToggleMute={() => setMuted(!muted)}
