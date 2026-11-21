@@ -51,11 +51,14 @@ All commands run from `app/`:
 - Deploy: automatic — every push to `main` runs `.github/workflows/deploy.yml` (Vercel CLI, repo
   secret `VERCEL_TOKEN`; Supabase env vars live in the Vercel project) → https://shotgun-tracker-xi.vercel.app.
   So merging a PR ships it live; manual redeploy: Actions → Deploy to Vercel → Run workflow.
+  **Only Lana merges into `main`.** The Vercel project is on Lana's free (Hobby) account, which
+  only deploys commits authored by her: a merge by anyone else fails with "The commit author
+  doesn't have access to this team" (it ships with Lana's next merge).
 
 ## Git workflow
 Work on a branch, never directly on `main`: `git switch main; git pull; git switch -c <task>` →
-commit small → push → open a PR (`gh pr create --body-file <file>`) → the other person merges →
-both `git switch main; git pull`. Merge small and often.
+commit small → push → open a PR (`gh pr create --body-file <file>`) → **Lana merges it** (never
+merge your own PR otherwise; see Deploy above) → both `git switch main; git pull`. Merge small and often.
 
 ## Test data
 - `Chug_Examples/` — 18 real shotgun clips (`shotgun_01.mp4` … `shotgun_18.mp4`). Gitignored:
