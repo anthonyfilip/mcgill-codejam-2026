@@ -19,7 +19,6 @@ body { margin: 0; font-family: system-ui, sans-serif; background: #111; color: #
 
 .stats { display: flex; flex-wrap: wrap; align-items: baseline; gap: 12px; padding: 12px 12px 0; }
 .stats .time { font-size: 28px; font-weight: 700; font-variant-numeric: tabular-nums; }
-.stats .by { color: #888; font-size: 13px; }
 
 .cheer { margin: 12px; padding: 8px 14px; border: 0; border-radius: 999px; background: #2a2a2a; color: #eee; font-size: 16px; cursor: pointer; }
 .cheer.on { background: #f5b400; color: #111; }

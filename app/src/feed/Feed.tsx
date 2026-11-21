@@ -28,8 +28,6 @@ function PostCard({ post }: { post: Post }) {
 
       <div className="stats">
         <span className="time">{(post.timeMs / 1000).toFixed(2)} s</span>
-        {post.maxAngle !== null && <span>{post.maxAngle}° max</span>}
-        <span className="by">started by {post.startedBy.join(' + ')}</span>
       </div>
 
       <button className={cheered ? 'cheer on' : 'cheer'} onClick={() => setCheered(!cheered)}>
