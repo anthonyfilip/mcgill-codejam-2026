@@ -288,6 +288,9 @@ export function Feed() {
 
   return (
     <>
+      <a className="record-btn" href="/">
+        📷 Record a chug
+      </a>
       <main className="reels">
         {error && <p className="error reel-message">{error}</p>}
         {posts === null && <p className="reel-message">Loading…</p>}

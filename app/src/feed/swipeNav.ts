@@ -1,9 +1,9 @@
-// Swipe left/right anywhere on a page to move to the next/previous tab, in tab-bar order:
-// Feed ⇄ Record ⇄ Leaderboard ⇄ Profile. Vertical swipes (scrolling the feed) are ignored.
-const ORDER = ['/feed.html', '/', '/leaderboard.html', '/profile.html']
+// Sideways swipes as shortcuts: on the feed, swipe left to record a chug; on the record
+// page, swipe right to go back to the feed. Vertical swipes (scrolling the feed) are ignored.
 
+// `left` / `right`: where a swipe in that direction goes (finger moving left / right).
 // `allowed` lets a page switch it off, e.g. the tracker while a run is armed or going.
-export function installSwipeNav(current: string, allowed: () => boolean = () => true) {
+export function installSwipeNav(to: { left?: string; right?: string }, allowed: () => boolean = () => true) {
   let x0 = 0
   let y0 = 0
   let t0 = 0
@@ -34,8 +34,8 @@ export function installSwipeNav(current: string, allowed: () => boolean = () => 
       const dy = e.changedTouches[0].clientY - y0
       // A quick, clearly sideways swipe of at least 70 px.
       if (Date.now() - t0 > 700 || Math.abs(dx) < 70 || Math.abs(dx) < 2 * Math.abs(dy)) return
-      const next = ORDER[ORDER.indexOf(current) + (dx < 0 ? 1 : -1)]
-      if (next !== undefined) location.href = next
+      const next = dx < 0 ? to.left : to.right
+      if (next) location.href = next
     },
     { passive: true },
   )
