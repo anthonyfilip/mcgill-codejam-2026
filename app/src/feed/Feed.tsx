@@ -169,7 +169,7 @@ function Reel({
   }
 
   return (
-    <article className="reel">
+    <article className="reel" id={`reel-${post.id}`}>
       {videoUrl ? (
         <FeedVideo src={videoUrl} muted={muted} onToggleMute={onToggleMute} onBlocked={onBlocked} />
       ) : (
@@ -232,6 +232,12 @@ function Reel({
   )
 }
 
+// /feed.html?user=<name>&post=<id>: just that person's shotguns (opened from their profile),
+// starting at the one tapped. /feed.html?post=<id> (a shared link): that post first.
+const params = new URLSearchParams(location.search)
+const onlyUser = params.get('user')
+const startPost = params.get('post')
+
 export function Feed() {
   // Everyone's posts, newest first (in the local feed: yours, then the samples).
   const [posts, setPosts] = useState<Post[] | null>(null) // null = loading
@@ -245,9 +251,8 @@ export function Feed() {
   useEffect(() => {
     loadPosts()
       .then((all) => {
-        // A shared link (?post=<id>) opens with that post first.
-        const shared = new URLSearchParams(location.search).get('post')
-        const i = all.findIndex((p) => p.id === shared)
+        if (onlyUser) return setPosts(all.filter((p) => p.user === onlyUser))
+        const i = all.findIndex((p) => p.id === startPost)
         setPosts(i > 0 ? [all[i], ...all.slice(0, i), ...all.slice(i + 1)] : all)
       })
       .catch((e) => {
@@ -304,13 +309,25 @@ export function Feed() {
     />
   )
 
-  const all = [...(posts ?? []), ...samplePosts]
+  // From someone's profile: jump to the shotgun they tapped (scroll up/down for the rest).
+  useEffect(() => {
+    if (onlyUser && startPost && posts) document.getElementById(`reel-${startPost}`)?.scrollIntoView({ block: 'start' })
+  }, [posts])
+
+  const samples = onlyUser ? samplePosts.filter((p) => p.user === onlyUser) : samplePosts
+  const all = [...(posts ?? []), ...samples]
 
   return (
     <>
-      <a className="record-btn" href="/">
-        Record a chug
-      </a>
+      {onlyUser ? (
+        <a className="record-btn back-btn" href={`/profile.html?user=${encodeURIComponent(onlyUser)}`}>
+          ← {onlyUser}
+        </a>
+      ) : (
+        <a className="record-btn" href="/">
+          Record a chug
+        </a>
+      )}
       <main className="reels">
         {error && <p className="error reel-message">{error}</p>}
         {posts === null && <p className="reel-message">Loading…</p>}
@@ -321,7 +338,7 @@ export function Feed() {
           </div>
         )}
         {(posts ?? []).map((p) => reel(p, isMine(p)))}
-        {samplePosts.map((p) => reel(p, false))}
+        {samples.map((p) => reel(p, false))}
       </main>
       {deleting && <DeletePopup title="Delete this chug?" onConfirm={() => remove(deleting)} onClose={() => setDeleting(null)} />}
       <ProfileGate />

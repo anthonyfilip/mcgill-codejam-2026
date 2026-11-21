@@ -2,14 +2,12 @@ import { useEffect, useMemo, useState } from 'react'
 import { Avatar } from './Avatar'
 import { getProfile } from './me'
 import type { Post } from './posts'
-import { Popup } from './Popup'
 import { ProfileGate } from './Profile'
 import { ProfileForm } from './ProfileModal'
 import { ensureProfileSaved, isMine, loadPosts, samplePosts } from './store'
 import { Tabs } from './Tabs'
 
 const secs = (ms: number) => (ms / 1000).toFixed(2)
-const day = (ms: number) => new Date(ms).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
 const videoOf = (p: Post) => p.videoUrl ?? (p.clip ? URL.createObjectURL(p.clip) : null)
 
 // One square in the video grid: a still from the clip with the time on top.
@@ -32,7 +30,6 @@ export function ProfilePage() {
   const isMe = !viewing || viewing === me?.username
   const [posts, setPosts] = useState<Post[] | null>(null) // null = loading
   const [nameTaken, setNameTaken] = useState(false)
-  const [playing, setPlaying] = useState<Post | null>(null)
 
   useEffect(() => {
     if (isMe)
@@ -44,10 +41,13 @@ export function ProfilePage() {
       .catch(() => setPosts([]))
   }, [isMe, viewing])
 
+  // Tapping a shotgun opens this person's shotguns in the Chugs view, starting at that one.
+  const openReels = (p: Post) =>
+    (location.href = `/feed.html?user=${encodeURIComponent(isMe ? (me?.username ?? '') : viewing!)}&post=${encodeURIComponent(p.id)}`)
+
   const runs = posts ?? []
   const best = runs.length ? Math.min(...runs.map((p) => p.timeMs)) : null
   const cheers = runs.reduce((sum, p) => sum + p.cheers, 0)
-  const playUrl = useMemo(() => (playing ? videoOf(playing) : null), [playing])
 
   return (
     <main className="feed">
@@ -82,7 +82,7 @@ export function ProfilePage() {
           ) : runs.length ? (
             <div className="grid">
               {runs.map((p) => (
-                <Tile key={p.id} post={p} onOpen={() => setPlaying(p)} />
+                <Tile key={p.id} post={p} onOpen={() => openReels(p)} />
               ))}
             </div>
           ) : (
@@ -91,16 +91,6 @@ export function ProfilePage() {
             </p>
           )}
         </>
-      )}
-
-      {playing && (
-        <Popup title={`${playing.title || 'Run'} · ${secs(playing.timeMs)} s`} onClose={() => setPlaying(null)}>
-          {playUrl ? <video className="popup-video" src={playUrl} controls autoPlay playsInline /> : <div className="no-video">🍺</div>}
-          <p className="popup-meta">
-            {day(playing.postedAt)}
-            {playing.description && <> · {playing.description}</>}
-          </p>
-        </Popup>
       )}
 
       {!isMe && <ProfileGate />}
