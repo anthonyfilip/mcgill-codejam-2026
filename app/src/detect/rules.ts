@@ -7,6 +7,7 @@
 // left the mouth and didn't come back for leaveMs", which is the time live would report.
 
 import type { Crack } from '../audio/offline'
+import type { Click } from './cracks'
 import type { FrameSignals } from './signals'
 
 export const RULES = {
@@ -30,11 +31,13 @@ export const RULES = {
   // Wrist lost right after 2+ frames at the mouth = the arm/can is covering the face (full tilt):
   // still drinking for up to this long. Clip 02 ended 1.24 s early without it.
   hiddenHoldMs: 500,
-  // No loud crack: the visual start says roughly when, so look for a quieter crack just before it.
-  // A lower bar is only safe in this small window (everywhere, it started 03 and 17 seconds early).
-  softCrackScore: 2,
-  softCrackBeforeMs: 1500,
-  softCrackAfterMs: 300,
+  // No loud crack: the visual start says roughly when, so take the strongest CLICK (loudest ~6 ms
+  // above 6 kHz, src/detect/cracks.ts clicksFromProfile) just before it. The crack was the strongest
+  // click in 7/8 single-person clips; trusting the first click instead started clips 5–45 s early.
+  clickHighFreqHz: 6000,
+  clickDb: 15, // dB above the median click of the previous crackLookS (15 and 20 scored the same)
+  clickBeforeMs: 2500, // covers late visual starts (clip 03: +1.9 s); 2.5 and 3 s scored the same
+  clickAfterMs: 300,
   // End = when the head comes forward (head tilt steps down), searched around the moment the can
   // left the mouth. Head tilt was the closest signal to the labelled ends (median 0.13 s) and stays
   // visible when the arm covers the face.
@@ -56,9 +59,9 @@ export interface Detection {
 }
 
 type Sample = { t: number; headTilt: number | null } // t in ms
-type SoftCrack = { t: number; score: number } // t in ms
+type TimedClick = { t: number; db: number } // t in ms
 type EndRules = Pick<Rules, 'endSearchBeforeMs' | 'endSearchAfterMs' | 'headStepMs' | 'headStepZ'>
-type SoftRules = Pick<Rules, 'softCrackBeforeMs' | 'softCrackAfterMs'>
+type ClickRules = Pick<Rules, 'clickBeforeMs' | 'clickAfterMs'>
 
 /** Shared with the live tracker. Moves the end to where the head tilt drops most sharply near
  *  `end` (the head coming forward). Returns `end` unchanged if there's no clear drop. */
@@ -81,20 +84,17 @@ export function refineEnd(samples: Sample[], end: number, R: EndRules): number {
   return best.z >= R.headStepZ ? best.t : end
 }
 
-/** Shared with the live tracker. The strongest quiet crack just before a visual start, or null. */
-export function pickSoftCrack(cracks: SoftCrack[], start: number, R: SoftRules): number | null {
-  const near = cracks.filter((c) => c.t >= start - R.softCrackBeforeMs && c.t <= start + R.softCrackAfterMs)
+/** Shared with the live tracker. The strongest click just before a visual start, or null. */
+export function pickClick(clicks: TimedClick[], start: number, R: ClickRules): number | null {
+  const near = clicks.filter((c) => c.t >= start - R.clickBeforeMs && c.t <= start + R.clickAfterMs)
   if (!near.length) return null
-  return near.reduce((a, b) => (b.score > a.score ? b : a)).t
+  return near.reduce((a, b) => (b.db > a.db ? b : a)).t
 }
 
-/** Crack score as the detector computes it (jump × brightness), for pickSoftCrack. */
-export const crackScore = (c: Crack) => c.ratio * Math.min(c.high, 1.5)
-
-export function detect(rows: FrameSignals[], cracks: Crack[], R: Rules = RULES, softCracks: Crack[] = []): Detection {
+export function detect(rows: FrameSignals[], cracks: Crack[], R: Rules = RULES, clickList: Click[] = []): Detection {
   const ms = (s: number) => s * 1000
   const head = rows.map((r) => ({ t: ms(r.t), headTilt: r.headTilt }))
-  const soft = softCracks.map((c) => ({ t: ms(c.t), score: crackScore(c) }))
+  const clicks = clickList.map((c) => ({ t: ms(c.t), db: c.db }))
   let mouthFrames = 0 // consecutive frames with the wrist seen at the mouth
   let lastSeenAtMouth = -Infinity
   let mouthSince: number | null = null
@@ -105,8 +105,8 @@ export function detect(rows: FrameSignals[], cracks: Crack[], R: Rules = RULES, 
   let startBy = 'not detected'
   let ignored = 0
   let ci = 0
-  let si = 0
-  const softAtMouth: typeof soft = [] // quiet cracks heard with the can at the mouth long enough
+  let ki = 0
+  const clicksAtMouth: TimedClick[] = [] // clicks heard with the can at the mouth long enough
 
   const stretch = (isTrue: boolean, t: number, since: number | null, last: number): [number | null, number] => {
     if (isTrue) return [since === null || t - last > R.gapMs ? t : since, t]
@@ -128,9 +128,9 @@ export function detect(rows: FrameSignals[], cracks: Crack[], R: Rules = RULES, 
       } else ignored++
       ci++
     }
-    while (start === null && si < soft.length && soft[si].t <= t) {
-      if (heldLongEnough(soft[si].t)) softAtMouth.push(soft[si])
-      si++
+    while (start === null && ki < clicks.length && clicks[ki].t <= t) {
+      if (heldLongEnough(clicks[ki].t)) clicksAtMouth.push(clicks[ki])
+      ki++
     }
 
     const seenAtMouth = row.liveMouthDist !== null && row.liveMouthDist < R.mouthDist
@@ -149,9 +149,9 @@ export function detect(rows: FrameSignals[], cracks: Crack[], R: Rules = RULES, 
       if (atMouth && tipped && mouthSince !== null && angleSince !== null) {
         const both = Math.max(mouthSince, angleSince)
         if (t - both >= R.visualStartMs) {
-          const quiet = pickSoftCrack(softAtMouth, both, R)
-          start = quiet ?? both
-          startBy = quiet === null ? 'mouth + tipped (no crack)' : 'quiet crack, then mouth + tipped'
+          const click = pickClick(clicksAtMouth, both, R)
+          start = click ?? both
+          startBy = click === null ? 'mouth + tipped (no crack)' : 'click (crack), then mouth + tipped'
         }
       }
       continue

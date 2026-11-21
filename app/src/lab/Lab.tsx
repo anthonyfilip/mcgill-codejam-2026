@@ -2,7 +2,7 @@ import { DrawingUtils, HandLandmarker, PoseLandmarker } from '@mediapipe/tasks-v
 import { useEffect, useRef, useState } from 'react'
 import { attachMeter } from '../audio/meter'
 import { type Crack, findCracks, soundProfile } from '../audio/offline'
-import { cracksByContrast, type SoundProfile } from '../detect/cracks'
+import { clicksFromProfile, cracksByContrast, type SoundProfile } from '../detect/cracks'
 import { type ClipLabel, type EditableField, loadLabels, saveLabel } from '../data/labels'
 import { detect, RULES } from '../detect/rules'
 import { computeSignals, type FrameSignals, pickContestant, signalsToCsv } from '../detect/signals'
@@ -58,9 +58,10 @@ export function Lab() {
       const snd = await fetch(soundUrl(c))
       const profile = snd.ok ? ((await snd.json()) as SoundProfile) : null
       const cracks = profile ? cracksByContrast(profile, RULES) : (saved?.cracks ?? [])
-      // Quieter cracks, only used in a small window before a visual start (RULES.softCrackScore).
-      const soft = profile ? cracksByContrast(profile, { ...RULES, crackScore: RULES.softCrackScore }) : []
-      out.push({ clip: c, label: labelMap.get(c), det: saved ? detect(saved.rows, cracks, RULES, soft) : null })
+      // Clicks (~6 ms, above 6 kHz), only used in a small window before a visual start.
+      // Profiles saved before clicks existed have none: re-run "save sound profiles".
+      const clicks = profile ? clicksFromProfile(profile, RULES) : []
+      out.push({ clip: c, label: labelMap.get(c), det: saved ? detect(saved.rows, cracks, RULES, clicks) : null })
     }
     setScores(out)
   }
@@ -223,7 +224,7 @@ export function Lab() {
     try {
       for (let i = 0; i < clips.length; i++) {
         setStatus(`Measuring sound: ${clips[i]} (${i + 1}/${clips.length})`)
-        const p = await soundProfile(`/clips/${encodeURIComponent(clips[i])}`, RULES.crackHighFreqHz)
+        const p = await soundProfile(`/clips/${encodeURIComponent(clips[i])}`, RULES.crackHighFreqHz, RULES.clickHighFreqHz)
         await fetch(soundUrl(clips[i]), { method: 'POST', body: JSON.stringify(p) })
       }
       await rescore(clips, labels)

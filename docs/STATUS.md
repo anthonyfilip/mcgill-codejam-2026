@@ -19,22 +19,24 @@ Backup: a recorded run of the full demo, in case the live camera fails on stage.
 - **Tracker:** HD webcam, full pose model, zoomed wrist crops (works ~2–3 m back), hand skeleton
   overlay, debug panel (person size, crack score, finger readings).
 - **Start:** crack with the can already at the mouth for ≥ 0.15 s (no more cracks just before it
-  gets there); fallback = can at mouth + hand raised for 0.8 s, back-dated — and if a quieter crack
-  (score ≥ 2, can at the mouth ≥ 0.15 s) was heard in the 1.5 s before that, the clock starts at it.
-  Cracks with the can elsewhere are ignored.
+  gets there); fallback = can at mouth + hand raised for 0.8 s — and the clock starts at the
+  strongest **click** (loudest ~6 ms above 6 kHz, ≥ 15 dB over the previous 0.5 s, can at the mouth
+  ≥ 0.15 s) in the 2.5 s before that, else back-dated to when both became true. The 46 ms crack
+  detector misses cracks in noisy clips; at 6 ms the crack was the strongest click in 7/8 single
+  clips. Cracks with the can elsewhere are ignored.
 - **End:** 🤙 shaka anywhere in frame (3D finger bends; works back-of-hand too), no hold — one frame ends it; refused
   while the can is still at the mouth; time = when the head came forward (head tilt drop) near the
   last moment the can was at the mouth, else that moment. Wrist hidden right after being at the
   mouth (arm covering the face) counts as still drinking for 0.5 s.
 - **Crack detector:** sudden bright jump vs the previous 0.5 s. Real Monster crack at ~2 m on the
   laptop mic scored in the thousands (threshold 4); 0 false cracks in a noisy no-crack recording.
-- **Accuracy (lab, 18 labelled clips, Sat after head-tilt end):** single-person — start avg error
-  0.57 s (was 0.64), end 0.18 s (was 0.40; 6/8 within ±0.25 s), run time 0.66 s (was 0.73).
-  Groups — start 0.21 s (was 0.65), end 1.13 s (was 1.22). All clips: 17/18 found.
-  (0.15 s at-mouth rule for cracks: single-person unchanged; group clip 01 lost its quiet crack.)
-  What's left on single-person clips is the no-crack start (03 +1.9 s; 10 +1.4 s has missing frames
-  near its start — re-analyse it in the lab). Head tilt was the signal closest to the labelled ends
-  (median 0.13 s); no video signal times the tab pop — only the crack does.
+- **Accuracy (lab, 18 labelled clips, Sat — head-tilt end + click start):** single-person — start
+  avg error 0.30 s (was 0.64), end 0.18 s (was 0.40; 6/8 within ±0.25 s), run time 0.39 s (was
+  0.73). Groups — start 0.21 s (was 0.65), end 1.13 s (was 1.22). All clips: 17/18 found.
+  Clip 10 (+1.4 s) is a data problem: its saved analysis has no frames 20.8–23.7 s, around the
+  crack — re-analyse it in the lab (tab visible); with it, single start would be ~0.14 s.
+  Head tilt was the signal closest to the labelled ends (median 0.13 s); no video signal times
+  the tab pop — only the crack does. Sound profiles were re-saved with the new `click` field.
 - **Feed side (Lana):** results page (PB, rank, retake, name + description), shared feed with
   clips, ★ ratings (final once given), comments, profiles (username + photo), leaderboard (★3.5+
   first, then fastest), only the poster can delete their post.

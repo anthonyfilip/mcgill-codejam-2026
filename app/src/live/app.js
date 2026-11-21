@@ -4,7 +4,8 @@ import {
   GestureRecognizer,
 } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14";
 import { handAngles, nearestHand, toPx } from "../detect/angles.ts";
-import { refineEnd, pickSoftCrack } from "../detect/rules.ts"; // shared with the lab, so both time the same way
+import { refineEnd, pickClick } from "../detect/rules.ts"; // shared with the lab, so both time the same way
+import { loudestFrame } from "../audio/offline.ts";
 
 // All thresholds in one place. Starting guesses — tune with real cans.
 const CONFIG = {
@@ -18,11 +19,14 @@ const CONFIG = {
   // Wrist lost right after 2+ frames at the mouth = arm/can covering the face at full tilt: still drinking
   // for up to this long (clip 02 ended 1.24 s early without it).
   hiddenHoldMs: 500,
-  // No loud crack: look for a quieter one just before the visual start (a lower bar is only safe in
-  // this small window — everywhere, it started clips 03 and 17 seconds early).
-  softCrackScore: 2,
-  softCrackBeforeMs: 1500,
-  softCrackAfterMs: 300,
+  // No loud crack: take the strongest CLICK (loudest ~6 ms above 6 kHz, src/detect/cracks.ts
+  // clicksFromProfile) just before the visual start. The crack was the strongest click in 7/8
+  // single-person clips; trusting the first click instead started clips 5–45 s early.
+  clickHighFreqHz: 6000,
+  clickFrameS: 256 / 44100, // ~6 ms
+  clickDb: 15,             // dB above the median click of the previous crackLookS
+  clickBeforeMs: 2500,     // covers late visual starts (clip 03: +1.9 s)
+  clickAfterMs: 300,
   // End = when the head comes forward (head tilt steps down) near when the can left the mouth.
   // Closest signal to the labelled ends (median 0.13 s); visible even when the arm covers the face.
   endSearchBeforeMs: 1500,
@@ -65,7 +69,7 @@ const ELBOW_L = 13, ELBOW_R = 14, WRIST_L = 15, WRIST_R = 16;
 const $ = (id) => document.getElementById(id);
 const video = $("video"), canvas = $("overlay"), ctx2d = canvas.getContext("2d");
 
-let pose, gesture, handCrop, stream, analyser, highAnalyser, audioCtx, recorder, chunks = [];
+let pose, gesture, handCrop, stream, analyser, highAnalyser, clickAnalyser, audioCtx, recorder, chunks = [];
 const cropCanvas = document.createElement("canvas");
 const cropCtx = cropCanvas.getContext("2d", { willReadFrequently: true });
 let state = "idle"; // idle → armed → running → done
@@ -80,15 +84,15 @@ let live = {};      // latest readings, for the debug panel
 // *Since = when the current stretch began (null if not currently true); last*At = last frame it was true.
 // mouthFrames / lastSeenAtMouth: consecutive frames with the wrist seen at the mouth (for hiddenHoldMs).
 const track = { mouthSince: null, lastMouthAt: -Infinity, angleSince: null, lastAngleAt: -Infinity, mouthFrames: 0, lastSeenAtMouth: -Infinity };
-// Recent head tilt readings and quieter cracks: { t, headTilt } / { t, score }, last few seconds.
-let headLog = [], softCracks = [], lastSoftAt = -Infinity;
+// Recent head tilt readings and clicks heard with the can at the mouth: { t, headTilt } / { t, db }.
+let headLog = [], clicks = [];
 const LOG_MS = 6000;
 
 function resetTrack() {
   track.mouthSince = track.angleSince = null;
   track.lastMouthAt = track.lastAngleAt = track.lastSeenAtMouth = -Infinity;
   track.mouthFrames = 0;
-  softCracks = [];
+  clicks = [];
 }
 
 // Update a stretch: true this frame extends it; false for longer than gapMs ends it.
@@ -158,6 +162,14 @@ async function setup() {
   highAnalyser.fftSize = 2048;
   highAnalyser.smoothingTimeConstant = 0;
   mic.connect(hp1).connect(hp2).connect(highAnalyser);
+  // And through a 6 kHz high-pass for clicks. A bigger buffer (~90 ms) so no audio is lost between
+  // polls when a slow video frame delays the 20 ms timer.
+  const hp3 = audioCtx.createBiquadFilter(), hp4 = audioCtx.createBiquadFilter();
+  for (const hp of [hp3, hp4]) { hp.type = "highpass"; hp.frequency.value = CONFIG.clickHighFreqHz; }
+  clickAnalyser = audioCtx.createAnalyser();
+  clickAnalyser.fftSize = 4096;
+  clickAnalyser.smoothingTimeConstant = 0;
+  mic.connect(hp3).connect(hp4).connect(clickAnalyser);
 
   const vision = await FilesetResolver.forVisionTasks(
     "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm"
@@ -213,14 +225,7 @@ function checkCrack() {
 
   const isCrack = recentRms.length >= look && rms >= CONFIG.crackMinRms && score >= CONFIG.crackScore;
   const t = performance.now();
-  // Quieter cracks, kept for the visual-start fallback (one per 300 ms, like cracksByContrast) —
-  // only those heard with the can at the mouth for crackMouthHoldMs.
-  if (recentRms.length >= look && rms >= CONFIG.crackMinRms && score >= CONFIG.softCrackScore &&
-      t - lastSoftAt > 300) {
-    lastSoftAt = t;
-    if (crackCounts(t)) softCracks.push({ t, score });
-    while (softCracks.length && t - softCracks[0].t > LOG_MS) softCracks.shift();
-  }
+  checkClick(t, look);
   if (isCrack && state === "armed" && t - seen.crack > 300) { // one crack = one event, not every 20 ms poll
     seen.crack = t;
     // Sequence rule: the crack must happen with the can already at the mouth for crackMouthHoldMs.
@@ -232,6 +237,32 @@ function checkCrack() {
   }
   live.rms = rms; live.jump = jump; live.highShare = highShare; live.crackScore = score;
   live.peakScore = Math.max(score, (live.peakScore ?? 0) * 0.97); // decays, so a brief pop stays readable
+}
+
+// Clicks (same as the lab's sound profile "click" + clicksFromProfile): the loudest ~6 ms above
+// 6 kHz in the audio that arrived since the last poll, in dB above the median of the previous
+// crackLookS of polls. Kept only with the can at the mouth for crackMouthHoldMs; the visual start
+// then takes the strongest one just before it (pickClick).
+const clickBuf = new Float32Array(4096);
+const recentClick = [];
+let lastPollAt = null;
+
+function checkClick(t, look) {
+  clickAnalyser.getFloatTimeDomainData(clickBuf);
+  const sr = audioCtx.sampleRate;
+  const fresh = lastPollAt === null ? Math.round(0.02 * sr) : Math.min(clickBuf.length, Math.round(((t - lastPollAt) / 1000) * sr));
+  lastPollAt = t;
+  const { e, end } = loudestFrame(clickBuf, clickBuf.length - fresh, clickBuf.length, Math.round(CONFIG.clickFrameS * sr));
+  const db = recentClick.length >= look ? 10 * Math.log10((e + 1e-12) / (median(recentClick) + 1e-12)) : 0;
+  recentClick.push(e);
+  if (recentClick.length > look) recentClick.shift();
+  const at = t - ((clickBuf.length - end) / sr) * 1000; // when the click happened, not when we polled
+  if (db >= CONFIG.clickDb && crackCounts(at)) {
+    clicks.push({ t: at, db });
+    while (clicks.length && t - clicks[0].t > LOG_MS) clicks.shift();
+  }
+  live.clickDb = db;
+  live.peakClick = Math.max(db, (live.peakClick ?? 0) * 0.97);
 }
 
 // ---------- Signals 2 + 3: angle and mouth (pose) ----------
@@ -415,8 +446,8 @@ function loop() {
   if (state === "armed" && track.mouthSince !== null && track.angleSince !== null) {
     const bothSince = Math.max(track.mouthSince, track.angleSince);
     if (atMouth && tipped && now - bothSince >= CONFIG.visualStartMs) {
-      const quiet = pickSoftCrack(softCracks, bothSince, CONFIG);
-      if (quiet !== null) startRun(quiet, ["quiet crack", "can at mouth", "can tipped"]);
+      const click = pickClick(clicks, bothSince, CONFIG);
+      if (click !== null) startRun(click, ["click (crack)", "can at mouth", "can tipped"]);
       else startRun(bothSince, ["can at mouth", "can tipped", "no crack heard"]);
     }
   }
@@ -480,6 +511,7 @@ function loop() {
     `state ${state}\n` +
     `camera ${video.videoWidth}×${video.videoHeight} · person ${shoulderPx ? `${shoulderPx.toFixed(0)} px shoulders` : "not found"} · hands via ${live.handMode ?? "-"}\n` +
     `audio rms ${live.rms?.toFixed(3)} · jump ×${live.jump?.toFixed(1)} · bright ${live.highShare?.toFixed(2)} · crack score ${live.crackScore?.toFixed(1)} (recent peak ${live.peakScore?.toFixed(1)}, need ${CONFIG.crackScore})\n` +
+    `click ${live.clickDb?.toFixed(0) ?? "-"} dB (recent peak ${live.peakClick?.toFixed(0) ?? "-"}, need ${CONFIG.clickDb}) · clicks at mouth: ${clicks.length}\n` +
     `angle ${p?.angle?.toFixed(0) ?? "-"}°  mouth ${p?.mouthDist?.toFixed(2) ?? "-"}${hidden ? " (hidden — holding)" : ""}  head tilt ${live.headTilt?.toFixed(2) ?? "-"}\n` +
     `drinking hand: ${ang ? `arm ${ang.arm?.toFixed(0) ?? "-"}° · hand ${ang.hand.toFixed(0)}° · wrist bend ${ang.wristFlex?.toFixed(0) ?? "-"}° · can ~${ang.can.toFixed(0)}° from upright` : "not matched"}\n` +
     `at mouth for ${(mouthHeldMs(now) / 1000).toFixed(1)}s` +
