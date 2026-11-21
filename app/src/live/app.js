@@ -75,6 +75,9 @@ const CONFIG = {
 
 // Phones (touch screen as the main pointer) get the lighter settings below, to stay ≥ 15 fps.
 const PHONE = matchMedia("(pointer: coarse)").matches;
+// Developer extras — the debug panel and the Detection lab link — only on the local dev server
+// (`npm run dev`); the deployed site that friends test on doesn't show them.
+const DEV = import.meta.env.DEV;
 // "full" is more accurate than "lite" on small/far-away people, at some speed cost — so laptops
 // keep "full" (what the lab's accuracy numbers were measured with) and phones use "lite".
 const POSE_MODEL = PHONE
@@ -88,6 +91,10 @@ const ELBOW_L = 13, ELBOW_R = 14, WRIST_L = 15, WRIST_R = 16;
 
 const $ = (id) => document.getElementById(id);
 const video = $("video"), canvas = $("overlay"), ctx2d = canvas.getContext("2d");
+if (!DEV) {
+  $("debug").remove();
+  document.querySelector(".devlink")?.remove();
+}
 
 let pose, gesture, handCrop, stream, analyser, highAnalyser, clickAnalyser, audioCtx, recorder, chunks = [];
 let facing = "user";  // "user" = front camera (mirrored on screen), "environment" = back camera
@@ -681,6 +688,7 @@ function frame() {
     $(`sig-${k}`).classList.toggle("on", state === "armed" && now - seen[k] <= CONFIG.windowMs);
   }
   $("sig-send").classList.toggle("on", send);
+  if (!DEV) return; // the debug panel only exists on the local dev server
   const shoulderPx = lm ? Math.hypot((lm[SHOULDER_L].x - lm[SHOULDER_R].x) * canvas.width, (lm[SHOULDER_L].y - lm[SHOULDER_R].y) * canvas.height) : null;
   $("debug").textContent =
     `state ${state} · ${live.fps?.toFixed(0) ?? "-"} fps · ${PHONE ? "phone (lite pose model)" : "laptop (full pose model)"} · ${facing === "user" ? "front" : "back"} camera\n` +
