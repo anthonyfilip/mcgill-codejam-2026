@@ -12,8 +12,9 @@ const PAGES = { feed: Feed, results: Results, leaderboard: Leaderboard, profile:
 const page = document.body.dataset.page as keyof typeof PAGES
 const Page = PAGES[page] ?? Feed
 
-// On the feed, swipe left to record a chug.
-if (page === 'feed') installSwipeNav({ left: '/' })
+// Swipe left/right through Feed ⇄ Record ⇄ Leaderboard ⇄ Profile (results isn't part of it).
+const SWIPE_HREF = { feed: '/feed.html', leaderboard: '/leaderboard.html', profile: '/profile.html' } as const
+if (page in SWIPE_HREF) installSwipeNav(SWIPE_HREF[page as keyof typeof SWIPE_HREF])
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
