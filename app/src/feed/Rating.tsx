@@ -1,6 +1,6 @@
 import { useState } from 'react'
 
-const LABELS = ['', 'Weak', 'Okay', 'Solid', 'Great', 'Legendary']
+const LABELS = ['', 'Super poop', 'Poop', 'Good', 'Epic', 'Legendary']
 
 // 5 tappable stars to rate a post (5 = best). Once you've rated, it's locked.
 // The average lives next to the time (see AvgRating).

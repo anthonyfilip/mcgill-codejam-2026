@@ -3,6 +3,7 @@ import { Avatar } from './Avatar'
 import { FeedVideo } from './FeedVideo'
 import { getName, getProfile, hasCheered, setCheered as rememberCheer } from './me'
 import { MAX_COMMENT, type Comment, type Post, type PostRating } from './posts'
+import { Popup } from './Popup'
 import { ProfileGate } from './Profile'
 import { AvgRating, Rating } from './Rating'
 import { addComment, cheer, deletePost, isMine, loadComments, loadPosts, isShared, loadRatings, ratePost, samplePosts } from './store'
@@ -63,22 +64,6 @@ function Comments({
   )
 }
 
-// Slide-up panel for a post's rating and comments, over the bottom of the screen.
-function Sheet({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
-  return (
-    <div className="sheet-backdrop" onClick={onClose}>
-      <div className="sheet" role="dialog" aria-modal="true" aria-label={title} onClick={(e) => e.stopPropagation()}>
-        <div className="sheet-grip" />
-        <div className="sheet-head">
-          <b>{title}</b>
-          <button className="sheet-close" onClick={onClose} aria-label="Close">✕</button>
-        </div>
-        <div className="sheet-body">{children}</div>
-      </div>
-    </div>
-  )
-}
-
 // One full-screen post. onDelete is only passed for your own posts.
 function Reel({
   post,
@@ -103,7 +88,7 @@ function Reel({
   onToggleMute: () => void
   onBlocked: () => void
 }) {
-  const [sheet, setSheet] = useState(false)
+  const [open, setOpen] = useState(false) // rating + comments pop-up
   const [justRated, setJustRated] = useState(false)
   const [cheered, setCheered] = useState(() => hasCheered(post.id))
   const [count, setCount] = useState(post.cheers)
@@ -118,7 +103,7 @@ function Reel({
     cheer(post, on ? 1 : -1).catch(console.error)
   }
 
-  // Rating keeps the sheet open and moves you on to the comment box.
+  // Rating keeps the pop-up open and moves you on to the comment box.
   async function rate(stars: number) {
     try {
       await onRate(stars)
@@ -137,11 +122,11 @@ function Reel({
       )}
 
       <div className="reel-info">
-        <div className="reel-user">
+        <a className="reel-user" href={`/profile.html?user=${encodeURIComponent(post.user)}`}>
           <Avatar name={post.user} url={post.avatarUrl} />
           <b>{post.user}</b>
           <span className="when">{timeAgo(post.postedAt)}</span>
-        </div>
+        </a>
         {post.title && <h3 className="reel-title">{post.title}</h3>}
         <div className="reel-stats">
           <span className="time">{(post.timeMs / 1000).toFixed(2)} s</span>
@@ -155,11 +140,11 @@ function Reel({
           <span className="action-icon">🍻</span>
           {count}
         </button>
-        <button className={myStars ? 'action on' : 'action'} onClick={() => setSheet(true)} aria-label="Rate">
+        <button className={myStars ? 'action on' : 'action'} onClick={() => setOpen(true)} aria-label="Rate">
           <span className="action-icon">⭐</span>
           Rate
         </button>
-        <button className="action" onClick={() => setSheet(true)} aria-label="Comments">
+        <button className="action" onClick={() => setOpen(true)} aria-label="Comments">
           <span className="action-icon">💬</span>
           {comments.length}
         </button>
@@ -170,17 +155,17 @@ function Reel({
         )}
       </div>
 
-      {sheet && (
-        <Sheet
+      {open && (
+        <Popup
           title={`${post.title || 'Run'} · ${(post.timeMs / 1000).toFixed(2)} s`}
           onClose={() => {
-            setSheet(false)
+            setOpen(false)
             setJustRated(false)
           }}
         >
           <Rating myStars={myStars} canRate={canRate} onRate={rate} />
           <Comments comments={comments} onAdd={onComment} justRated={justRated} />
-        </Sheet>
+        </Popup>
       )}
     </article>
   )

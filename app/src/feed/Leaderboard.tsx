@@ -81,14 +81,16 @@ export function Leaderboard() {
           >
             {i === firstBelow && <span className="divider">Below ★ {MIN_RATING} or not rated yet</span>}
             <span className="place">{MEDALS[i] ?? i + 1}</span>
-            <Avatar name={r.user} url={r.avatarUrl} />
-            <span className="who">
+            <a className="board-user" href={`/profile.html?user=${encodeURIComponent(r.user)}`}>
+              <Avatar name={r.user} url={r.avatarUrl} />
+            </a>
+            <a className="who" href={`/profile.html?user=${encodeURIComponent(r.user)}`}>
               {r.user}
               <small>
                 {r.best.avg !== null ? `★ ${r.best.avg.toFixed(1)}` : '★ –'} · {day(r.best.postedAt)} · {r.runs}{' '}
                 {r.runs === 1 ? 'run' : 'runs'}
               </small>
-            </span>
+            </a>
             <span className="score">
               <b className="best">{(r.best.timeMs / 1000).toFixed(2)} s</b>
               {r.best.title && <span className="run-title">{r.best.title}</span>}
