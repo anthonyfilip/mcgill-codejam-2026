@@ -1,3 +1,4 @@
+import './install' // catches Chrome's install prompt as early as possible
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './feed.css'

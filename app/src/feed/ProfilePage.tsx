@@ -3,6 +3,7 @@ import { Avatar } from './Avatar'
 import { getProfile } from './me'
 import type { Post } from './posts'
 import { ProfileGate } from './Profile'
+import { InstallApp } from './InstallApp'
 import { ProfileForm } from './ProfileModal'
 import { ensureProfileSaved, isMine, loadPosts, samplePosts } from './store'
 import { Tabs } from './Tabs'
@@ -16,7 +17,11 @@ function Tile({ post, onOpen }: { post: Post; onOpen: () => void }) {
   return (
     <button className="tile" onClick={onOpen} aria-label={`${post.title || 'Run'}, ${secs(post.timeMs)} seconds`}>
       {/* #t=0.1 makes iPhones show a frame instead of a black square */}
-      {url ? <video src={`${url}#t=0.1`} muted playsInline preload="metadata" /> : <span className="tile-empty">🍺</span>}
+      {url ? (
+        <video src={`${url}#t=0.1`} muted playsInline preload="metadata" />
+      ) : (
+        <span className="tile-empty">🍺</span>
+      )}
       <span className="tile-time">{secs(post.timeMs)} s</span>
     </button>
   )
@@ -54,12 +59,15 @@ export function ProfilePage() {
       <Tabs active={isMe ? '/profile.html' : undefined} />
 
       {isMe ? (
-        <section className="profile-page">
-          <ProfileForm nameTaken={nameTaken} />
-          <a className="btn record-cta" href="/">
-            Record a chug
-          </a>
-        </section>
+        <>
+          <section className="profile-page">
+            <ProfileForm nameTaken={nameTaken} />
+            <a className="btn record-cta" href="/">
+              Record a chug
+            </a>
+          </section>
+          <InstallApp />
+        </>
       ) : (
         <section className="person">
           <Avatar name={viewing!} url={runs[0]?.avatarUrl} big />
@@ -71,9 +79,15 @@ export function ProfilePage() {
       {(!isMe || me) && (
         <>
           <div className="profile-page-stats">
-            <div><b>{runs.length}</b>runs</div>
-            <div><b>{best !== null ? `${secs(best)} s` : '–'}</b>best</div>
-            <div><b>{cheers}</b>🍻 cheers</div>
+            <div>
+              <b>{runs.length}</b>runs
+            </div>
+            <div>
+              <b>{best !== null ? `${secs(best)} s` : '–'}</b>best
+            </div>
+            <div>
+              <b>{cheers}</b>🍻 cheers
+            </div>
           </div>
 
           <h3 className="section-title">{isMe ? 'Your shotguns' : 'Shotguns'}</h3>
@@ -87,7 +101,13 @@ export function ProfilePage() {
             </div>
           ) : (
             <p className="empty">
-              No shotguns yet.{isMe && <> <a href="/">Record your first chug</a></>}
+              No shotguns yet.
+              {isMe && (
+                <>
+                  {' '}
+                  <a href="/">Record your first chug</a>
+                </>
+              )}
             </p>
           )}
         </>
