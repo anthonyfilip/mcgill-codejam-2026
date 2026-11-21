@@ -27,9 +27,13 @@ Backup: a recorded run of the full demo, in case the live camera fails on stage.
 - Repo, CLAUDE.md, MCP servers (playwright, context7), `/demo-check` skill.
 - 18 example clips collected and renamed; `labels.csv` created.
 
+- Detection lab (`app/src/lab/`): pick a clip, Analyse → pose + hands overlay, six signal
+  graphs vs labelled start/end, "Download signals CSV". Runs ~8 frames/s with both models.
+
 ## In progress
-- Filling in start/end times in `Chug_Examples/labels.csv` (team).
-- Scaffolding the app + detection lab.
+- Filling in start/end times in `Chug_Examples/labels.csv` (team) — needed before tuning.
+- Next: run every clip through the lab, look at what the signals do at the labelled
+  start/end, then write the start/stop rules in `app/src/detect/`.
 
 ## Next / cut list (drop from the bottom if time runs out)
 - Form score
