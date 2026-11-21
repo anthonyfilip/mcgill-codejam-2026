@@ -26,5 +26,7 @@ body { min-height: 100dvh; }
 
 /* Camera buttons (flip, light): centre the white icons; dark icon on the gold "light on" state */
 #flip, #light { display: grid; place-items: center; }
-#light.on { color: #111; }
+/* Flash off = bolt with a line through it; on = plain bolt. Same dark circle either way. */
+#light.on { background: rgba(0, 0, 0, 0.5); color: #fff; }
+#light.on .slash { display: none; }
 

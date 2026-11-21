@@ -42,7 +42,8 @@ const icon = (paths: string) =>
 const flip = document.getElementById('flip')
 if (flip) flip.innerHTML = icon('<path d="M20 11a8 8 0 0 0-14.3-4.9L4 8"/><path d="M4 3v5h5"/><path d="M4 13a8 8 0 0 0 14.3 4.9L20 16"/><path d="M20 21v-5h-5"/>')
 const light = document.getElementById('light')
-if (light) light.innerHTML = icon('<path d="M13 2 4 14h7l-1 8 9-12h-7l1-8z" fill="currentColor"/>')
+// The line through the bolt means "flash off"; it disappears when the light is on (share.css).
+if (light) light.innerHTML = icon('<path d="M13 2 4 14h7l-1 8 9-12h-7l1-8z" fill="currentColor"/><g class="slash"><path d="M3 3l18 18" stroke="#000" stroke-width="5"/><path d="M3 3l18 18" stroke-width="2"/></g>')
 
 const hint = document.getElementById('state')
 if (hint?.textContent === 'Tap Arm to start') hint.textContent = ''
