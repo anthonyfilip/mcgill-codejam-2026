@@ -3,6 +3,7 @@
 // adds "upload a video", and when a run finishes saves it as a draft and opens the results
 // page. Hook-up: docs/feed-integration.md.
 import './share.css'
+import { isIOS } from './install'
 import { MAX_CLIP_BYTES } from './posts'
 import { saveDraft } from './store'
 import { installSwipeNav } from './swipeNav'
@@ -64,6 +65,37 @@ if (light) light.innerHTML = icon('<path d="M13 2 4 14h7l-1 8 9-12h-7l1-8z" fill
 
 const hint = document.getElementById('state')
 if (hint?.textContent === 'Tap Arm to start') hint.textContent = ''
+
+// iPhones keep asking for the camera; once it's working, tell them (once) how to stop that.
+const TIP_KEY = 'shotgun-camera-tip-seen'
+const tipSeen = () => {
+  try {
+    return localStorage.getItem(TIP_KEY) === '1'
+  } catch {
+    return true
+  }
+}
+if (isIOS && !tipSeen()) {
+  document.getElementById('video')?.addEventListener(
+    'playing',
+    () => {
+      const tip = document.createElement('div')
+      tip.className = 'camera-tip'
+      tip.innerHTML =
+        '<b>Tired of being asked for the camera?</b><span>Settings → Apps → Safari → Camera and Microphone → Allow</span><button>Got it</button>'
+      tip.querySelector('button')!.onclick = () => {
+        try {
+          localStorage.setItem(TIP_KEY, '1')
+        } catch {
+          // private mode: it may show again next time
+        }
+        tip.remove()
+      }
+      document.getElementById('stage')?.append(tip)
+    },
+    { once: true },
+  )
+}
 
 async function openResults(run: RunFinished) {
   const id = crypto.randomUUID()

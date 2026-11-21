@@ -37,14 +37,21 @@ const AddGlyph = () => (
 )
 
 // Small "getSendy! the app" button, top-left of the profile → installs on Android, explains the
-// steps on iPhone. Hidden once you're using the installed app.
+// steps on iPhone. In the installed app it stays, with a ✓.
 export function InstallApp() {
   const [, rerender] = useState(0)
   const [help, setHelp] = useState(false)
   const [copied, setCopied] = useState(false)
   useEffect(() => onInstallChange(() => rerender((n) => n + 1)), [])
 
-  if (isInstalled()) return null
+  if (isInstalled()) {
+    return (
+      <span className="install-pill installed" title="You're using the installed app">
+        <img src="/icon-192.png" alt="" />
+        getSendy! the app ✓
+      </span>
+    )
+  }
 
   async function add() {
     if (canPromptInstall()) await promptInstall()
