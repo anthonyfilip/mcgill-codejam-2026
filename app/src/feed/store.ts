@@ -3,7 +3,7 @@
 // saved in this browser only (IndexedDB) so the app still works offline.
 // Drafts (finished runs not yet posted) always stay in this browser.
 import { createClient } from '@supabase/supabase-js'
-import { addMyPost, getProfile, myPosts, removeMyPost, setProfile, type MyProfile } from './me'
+import { addMyPost, forgetMe, getProfile, myPosts, removeMyPost, setProfile, type MyProfile } from './me'
 import { SAMPLE_POSTS, type Comment, type Post, type PostRating } from './posts'
 
 const url = import.meta.env.VITE_SUPABASE_URL as string | undefined
@@ -337,6 +337,29 @@ export async function ratePost(postId: string, stars: number): Promise<PostRatin
   })
   if (error) throw error
   return rating
+}
+
+// ---------- Account ----------
+
+// Delete your account for good: your posts (with their comments and ratings), your comments,
+// your ratings, your profile, and the video and photo files. Then forget you in this browser.
+export async function deleteAccount(): Promise<void> {
+  const me = getProfile()
+  if (!me) return
+  if (!supabase) {
+    for (const store of [POSTS, COMMENTS, RATINGS, DRAFTS]) await write(store, (s) => s.clear())
+    return forgetMe()
+  }
+  // Note the files first: once the rows are gone we can't look them up.
+  const { data: posts } = await supabase.from('posts').select('video_path').eq('profile_id', me.id)
+  const { data: profile } = await supabase.from('profiles').select('avatar_path').eq('id', me.id).maybeSingle()
+  const { error } = await supabase.rpc('delete_account', { p_profile_id: me.id, p_secret: me.secret })
+  if (error) throw error
+  const clips = (posts ?? []).map((p) => p.video_path as string | null).filter((p): p is string => !!p)
+  if (clips.length) await supabase.storage.from(BUCKET).remove(clips)
+  if (profile?.avatar_path) await supabase.storage.from(AVATARS).remove([profile.avatar_path])
+  await write(DRAFTS, (s) => s.clear())
+  forgetMe()
 }
 
 // ---------- Drafts ----------

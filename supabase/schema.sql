@@ -236,3 +236,29 @@ begin
 end;
 $$;
 grant execute on function public.delete_comment(uuid, uuid, uuid) to anon, authenticated;
+
+-- Delete your own account: your posts (and, by cascade, the comments and ratings on them),
+-- your comments elsewhere, your ratings, then the profile and its secret. The app removes
+-- the video and photo files afterwards (storage rules below only allow that once the rows are gone).
+create or replace function public.delete_account(p_profile_id uuid, p_secret uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if not exists (select 1 from profile_secrets where profile_id = p_profile_id and secret = p_secret) then
+    raise exception 'not your profile';
+  end if;
+  delete from posts where profile_id = p_profile_id;
+  delete from comments where profile_id = p_profile_id;
+  delete from ratings where profile_id = p_profile_id;
+  delete from profiles where id = p_profile_id;
+end;
+$$;
+grant execute on function public.delete_account(uuid, uuid) to anon, authenticated;
+
+-- A profile photo can only be deleted once no profile uses it (delete_account runs first).
+drop policy if exists "delete avatars of deleted profiles" on storage.objects;
+create policy "delete avatars of deleted profiles" on storage.objects for delete
+  using (bucket_id = 'avatars' and not exists (select 1 from public.profiles where avatar_path = name));

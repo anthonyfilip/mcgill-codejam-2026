@@ -44,3 +44,15 @@ export const removeMyPost = (id: string) => toggleId('shotgun-my-posts', id, fal
 
 export const hasCheered = (id: string) => idSet('shotgun-cheered').has(id)
 export const setCheered = (id: string, on: boolean) => toggleId('shotgun-cheered', id, on)
+
+// After deleting your account: forget your profile, your posts and your cheers in this browser.
+export function forgetMe() {
+  for (const key of ['shotgun-profile', 'shotgun-my-posts', 'shotgun-cheered']) {
+    try {
+      localStorage.removeItem(key)
+    } catch {
+      // private mode etc.
+    }
+  }
+}
+

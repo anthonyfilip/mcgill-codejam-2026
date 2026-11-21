@@ -257,3 +257,6 @@ div.install-steps ol { padding-left: 20px; display: flex; flex-direction: column
 .comment-delete { margin-top: 4px; padding: 0; border: 0; background: none; color: #888; font-size: 12px; cursor: pointer; }
 .sheet-list .comment p { flex: 1; min-width: 0; }
 
+/* Profile: "Delete account" at the very bottom, small and quiet */
+.danger-link { align-self: center; margin: 24px 0 8px; padding: 6px 12px; border: 0; background: none; color: #f88; font-size: 13px; font-weight: 600; cursor: pointer; opacity: 0.8; }
+
