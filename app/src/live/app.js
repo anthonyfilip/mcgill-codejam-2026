@@ -239,12 +239,9 @@ $("light").classList.toggle("on", lightOn);
 async function openCamera() {
   if (!navigator.mediaDevices?.getUserMedia) throw new Error("camera needs a secure (https) page");
   stream?.getTracks().forEach((t) => t.stop()); // phones can't open two cameras at once
-  // A phone held upright asks for portrait HD: asking for 1280×720 made back cameras send a
-  // landscape picture, shown as a thin strip on the tall screen (phone test, Sat).
-  const upright = PHONE && innerHeight > innerWidth;
   stream = await navigator.mediaDevices.getUserMedia({
     // Ask for HD: someone across the room needs the pixels. The browser falls back if unsupported.
-    video: { facingMode: facing, width: { ideal: upright ? 720 : 1280 }, height: { ideal: upright ? 1280 : 720 } },
+    video: { facingMode: facing, width: { ideal: 1280 }, height: { ideal: 720 } },
     // Raw audio: noise suppression would eat the crack transient.
     audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
   });
@@ -259,10 +256,8 @@ async function openCamera() {
   applyLight(); // a new camera track starts with its flashlight off
 }
 
-// The camera view takes the camera's own shape on laptops; on phones it's a fixed tall box that the
-// picture fills, cropped at the edges if it doesn't match (style.css #stage.phone) — the detection
-// still uses the whole picture. The overlay matches the video's pixels. Runs again on rotation.
-if (PHONE) $("stage").classList.add("phone");
+// The camera view takes the camera's own shape (portrait on a phone held upright), and the
+// overlay matches its pixels. Runs again if the phone rotates (the video's size changes).
 function fitStage() {
   const w = video.videoWidth, h = video.videoHeight;
   if (!w || !h) return;
