@@ -27,10 +27,14 @@ export const RULES = {
   // never starts a run (live test, Sat). Measured over the 1.5 s after each labelled start vs the
   // 0.5 s before: head rose ≥ 0.22 and forearm dropped ≥ 29° in every single-person clip; at other
   // at-mouth moments the median was ~0.05 and 10–30°.
-  drinkConfirmMs: 1500,
-  drinkBaseMs: 500, // baseline = median over this long just before the sound
-  drinkHoldMs: 300, // ...vs the median over the last this-long (≥ 3 frames): the motion must last
-  headBackRise: 0.15, // head tilt rise, in shoulder widths (0.15 and 0.2 scored the same on single clips; 0.15 finds more group starts)
+  // Re-tuned Sat ~15:00 on BOTH the old and a fresh analysis of the clips (a fresh model run reads
+  // clips differently): 2.5 s / 0.1 / 0.5 s starts all 8 single clips on both with no early false
+  // start; the old 1.5 s / 0.15 / 0.3 s missed clip 18 (slow drinker, head barely tips back in
+  // 1.5 s). The longer hold is what keeps jittery frames out with the looser rise and window.
+  drinkConfirmMs: 2500,
+  drinkBaseMs: 500, // baseline = median over this long, ending at the last reading before the sound
+  drinkHoldMs: 500, // ...vs the median over the last this-long (≥ 3 frames): the motion must last
+  headBackRise: 0.1, // head tilt rise, in shoulder widths
   armSwingDeg: 25, // forearm angle drop toward vertical, in degrees...
   armUpDeg: 45, // ...or the forearm already within this of vertical
   minRunMs: 1000,
@@ -47,6 +51,10 @@ export const RULES = {
   // Wrist lost right after 2+ frames at the mouth = the arm/can is covering the face (full tilt):
   // still drinking for up to this long. Clip 02 ended 1.24 s early without it.
   hiddenHoldMs: 500,
+  // A crack while the can hides the face (pose lost): it still counts if the can had been at the
+  // mouth ≥ crackMouthHoldMs, with a real person, when the pose was lost, nothing was seen since,
+  // and the sound is within this long of that moment. Clip 03 (fresh analysis): face hidden ~1 s.
+  hiddenCrackMs: 1200,
   // Clicks = loudest ~6 ms above 6 kHz (src/detect/cracks.ts clicksFromProfile): catch cracks the
   // 46 ms detector misses in noisy rooms. Of several clicks before drinking, the strongest wins (the
   // crack was the strongest click in 7/8 single-person clips).
@@ -75,7 +83,7 @@ export interface Detection {
 type Sample = { t: number; headTilt: number | null; armAngle?: number | null } // t in ms
 type Sound = { t: number; db: number } // t in ms; a loud crack has db = Infinity
 type EndRules = Pick<Rules, 'endSearchBeforeMs' | 'endSearchAfterMs' | 'headStepMs' | 'headStepZ'>
-type DrinkRules = Pick<Rules, 'drinkConfirmMs' | 'drinkBaseMs' | 'drinkHoldMs' | 'headBackRise' | 'armSwingDeg' | 'armUpDeg'>
+type DrinkRules = Pick<Rules, 'drinkConfirmMs' | 'drinkBaseMs' | 'drinkHoldMs' | 'headBackRise' | 'armSwingDeg' | 'armUpDeg' | 'hiddenCrackMs'>
 
 /** Shared with the live tracker. Moves the end to where the head tilt drops most sharply near
  *  `end` (the head coming forward). Returns `end` unchanged if there's no clear drop. */
@@ -106,13 +114,18 @@ export function drankAfter(samples: Sample[], tc: number, now: number, R: DrinkR
   const median = (a: number[]) => [...a].sort((x, y) => x - y)[a.length >> 1]
   if (now - tc < R.drinkHoldMs) return false // need a full window after the sound
   const from = now - R.drinkHoldMs
-  // [baseline median, recent median] for a signal, or null if too few readings.
+  // [baseline median, recent median] for a signal, or null if too few readings. The baseline is the
+  // drinkBaseMs of readings ending at the last one before the sound — normally right at the sound,
+  // but up to hiddenCrackMs earlier when the can hid the face as it was cracked (clip 03).
   const medians = (key: 'headTilt' | 'armAngle'): [number, number] | null => {
+    let lastBefore = -Infinity
+    const look = Math.max(R.drinkBaseMs, R.hiddenCrackMs)
+    for (const s of samples) if (s[key] != null && s.t <= tc && s.t >= tc - look) lastBefore = Math.max(lastBefore, s.t)
     const before: number[] = [], recent: number[] = []
     for (const s of samples) {
       const v = s[key]
       if (v == null) continue
-      if (s.t >= tc - R.drinkBaseMs && s.t <= tc) before.push(v)
+      if (s.t >= lastBefore - R.drinkBaseMs && s.t <= lastBefore) before.push(v)
       else if (s.t > from && s.t <= now) recent.push(v)
     }
     return before.length >= 2 && recent.length >= 3 ? [median(before), median(recent)] : null
@@ -142,6 +155,8 @@ export function detect(rows: FrameSignals[], cracks: Crack[], R: Rules = RULES, 
   // The start only looks at frames with a real person (the end uses every frame, `head`).
   const headStart = rows.map((r) => (personOk(r) ? { t: ms(r.t), headTilt: r.headTilt, armAngle: r.armAngle } : { t: ms(r.t), headTilt: null, armAngle: null }))
   let lastPersonOkAt = -Infinity
+  let lastPoseAt = -Infinity // last frame with any pose at all
+  let heldAtLastMouth = 0 // how long the can had been at the mouth at its last at-mouth frame
   const clicks = clickList.map((c) => ({ t: ms(c.t), db: c.db }))
   let mouthFrames = 0 // consecutive frames with the wrist seen at the mouth
   let lastSeenAtMouth = -Infinity
@@ -162,8 +177,13 @@ export function detect(rows: FrameSignals[], cracks: Crack[], R: Rules = RULES, 
   // A crack counts only with the can already at the mouth for crackMouthHoldMs, and a real person
   // seen within hiddenHoldMs before it — the same allowance as "face hidden by the can" (the arm and
   // can often cover the face right as it's cracked).
+  // Or: the face is hidden by the can — the pose was lost while the can was at the mouth (held long
+  // enough, real person), nothing has been seen since, and it's within hiddenCrackMs.
+  const hiddenAtCrack = (t: number) =>
+    lastPoseAt <= lastMouthAt && t - lastMouthAt <= R.hiddenCrackMs && heldAtLastMouth >= R.crackMouthHoldMs &&
+    lastPersonOkAt >= lastPoseAt - R.gapMs // the last pose seen was a real person
   const heldLongEnough = (t: number) =>
-    atMouthAt(t) && t - mouthSince! >= R.crackMouthHoldMs && t - lastPersonOkAt <= R.hiddenHoldMs
+    (atMouthAt(t) && t - mouthSince! >= R.crackMouthHoldMs && t - lastPersonOkAt <= R.hiddenHoldMs) || hiddenAtCrack(t)
 
   for (const row of rows) {
     const t = ms(row.t)
@@ -190,6 +210,8 @@ export function detect(rows: FrameSignals[], cracks: Crack[], R: Rules = RULES, 
     ;[mouthSince, lastMouthAt] = stretch(atMouth, t, mouthSince, lastMouthAt)
     const realPerson = personOk(row)
     if (realPerson) lastPersonOkAt = t
+    if (row.liveMouthDist !== null) lastPoseAt = t
+    if (atMouth && mouthSince !== null) heldAtLastMouth = t - mouthSince
 
     if (start === null) {
       // Sound at the mouth, then the drinking motion, can still at the mouth, real person in this

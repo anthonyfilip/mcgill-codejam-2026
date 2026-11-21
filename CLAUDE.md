@@ -65,8 +65,8 @@ both `git switch main; git pull`. Merge small and often.
 - `Chug_Examples/signals/` — cached lab analysis (`<clip>.json` vision, `<clip>.audio.json` sound
   profile, `live_monster_*.audio.json` laptop-mic recordings). Re-score in the lab is instant.
 - Everything in `Chug_Examples/` exists only on Anthony's laptop — not in git, not backed up.
-- Current accuracy (single-person clips, analysis re-run Sat ~14:00): start found in 6/8 (03 and 18
-  missed); on those, start 0.18 s avg error, end 0.12 s, run time 0.16 s. See docs/STATUS.md.
+- Current accuracy (single-person clips, analysis re-run Sat ~14:00): start found in 8/8, start
+  0.15 s avg error; run time 0.15 s on 7 clips (clip 18's end is 1.2 s late). See docs/STATUS.md.
 
 ## How to work
 1. **Think before coding.** State assumptions out loud. If a request is ambiguous,
