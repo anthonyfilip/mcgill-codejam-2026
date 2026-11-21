@@ -33,7 +33,13 @@ async function openResults(run: RunFinished) {
   location.href = `/results.html?run=${id}`
 }
 
-window.addEventListener('run:finished', (e) => openResults((e as CustomEvent<RunFinished>).detail))
+window.addEventListener('run:finished', (e) => {
+  // If the hand-off fails (e.g. storage blocked in a private tab), say so instead of
+  // leaving the person on the tracker's own results with only "Download".
+  openResults((e as CustomEvent<RunFinished>).detail).catch((err) => {
+    alert(`Couldn't open your results to post: ${(err as Error).message}. You can still download the clip below.`)
+  })
+})
 
 // "Upload a video of your chug", under the signal lights: timed with the tracker's rules.
 const upload = document.createElement('section')
