@@ -3,6 +3,7 @@ import { Avatar } from './Avatar'
 import { getProfile } from './me'
 import type { Post } from './posts'
 import { ProfileGate } from './Profile'
+import { AccountSection } from './AccountSection'
 import { InstallApp } from './InstallApp'
 import { ProfileForm } from './ProfileModal'
 import { DeletePopup } from './Popup'
@@ -69,6 +70,7 @@ export function ProfilePage() {
             </a>
           </section>
           <InstallApp />
+          {me && <AccountSection />}
         </>
       ) : (
         <section className="person">
