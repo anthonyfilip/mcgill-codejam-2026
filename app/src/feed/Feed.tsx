@@ -2,12 +2,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Avatar } from './Avatar'
 import { FeedVideo } from './FeedVideo'
+import { CommentIcon, SaveIcon, ShareIcon } from './Icons'
 import { getName, getProfile, hasCheered, setCheered as rememberCheer } from './me'
 import { MAX_COMMENT, type Comment, type Post, type PostRating } from './posts'
 import { Popup } from './Popup'
 import { ProfileGate } from './Profile'
 import { AvgRating, Rating } from './Rating'
 import { addComment, cheer, deletePost, isMine, loadComments, loadPosts, isShared, loadRatings, ratePost, samplePosts } from './store'
+import { saveVideo, sharePost } from './share-video'
 import { Tabs } from './Tabs'
 
 function timeAgo(ms: number) {
@@ -198,10 +200,27 @@ function Reel({
           <span className="action-icon">⭐</span>
           Rate
         </button>
-        <button className="action" onClick={() => setCommenting(true)} aria-label="Comments">
-          <span className="action-icon">💬</span>
-          {comments.length}
+        <button className="action" onClick={() => setCommenting(true)} aria-label={`Comments (${comments.length})`}>
+          <span className="action-icon">
+            <CommentIcon />
+            {comments.length > 0 && <span className="action-badge">{comments.length}</span>}
+          </span>
+          Comment
         </button>
+        <button className="action" onClick={() => sharePost(post)} aria-label="Share">
+          <span className="action-icon">
+            <ShareIcon />
+          </span>
+          Share
+        </button>
+        {(post.videoUrl || post.clip) && (
+          <button className="action" onClick={() => saveVideo(post)} aria-label="Save video">
+            <span className="action-icon">
+              <SaveIcon />
+            </span>
+            Save
+          </button>
+        )}
         {onDelete && (
           <button className="action delete" onClick={onDelete}>
             Delete
@@ -230,7 +249,12 @@ export function Feed() {
 
   useEffect(() => {
     loadPosts()
-      .then(setPosts)
+      .then((all) => {
+        // A shared link (?post=<id>) opens with that post first.
+        const shared = new URLSearchParams(location.search).get('post')
+        const i = all.findIndex((p) => p.id === shared)
+        setPosts(i > 0 ? [all[i], ...all.slice(0, i), ...all.slice(i + 1)] : all)
+      })
       .catch((e) => {
         setPosts([])
         setError(`Couldn't load the feed: ${e.message}`)
@@ -290,7 +314,7 @@ export function Feed() {
   return (
     <>
       <a className="record-btn" href="/">
-        📷 Record a chug
+        Record a chug
       </a>
       <main className="reels">
         {error && <p className="error reel-message">{error}</p>}
