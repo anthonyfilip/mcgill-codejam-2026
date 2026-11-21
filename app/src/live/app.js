@@ -621,9 +621,15 @@ function frame() {
       else if (now - lastMouth >= CONFIG.endSearchAfterMs + CONFIG.headStepMs) {
         const end = Math.max(refineEnd(headLog, lastMouth, CONFIG), run.startAt + CONFIG.minRunMs);
         endRun(end, end === lastMouth ? "can left mouth (🤙 confirmed)" : "head came forward (🤙 confirmed)");
+      } else {
+        // 🤙 seen: stop the clock on screen NOW, at the moment the can left the mouth (phone test,
+        // Sat: it kept counting for up to 0.9 s). The head-tilt search above finishes a moment later
+        // and may nudge the final time.
+        $("timer").textContent = ((lastMouth - run.startAt) / 1000).toFixed(2);
+        setStateText("🤙 Got it!");
       }
     }
-    if (state === "running") $("timer").textContent = ((now - run.startAt) / 1000).toFixed(2);
+    if (state === "running" && run.sendAt == null) $("timer").textContent = ((now - run.startAt) / 1000).toFixed(2);
   }
 
   draw(p, ang, handsPx, send);
