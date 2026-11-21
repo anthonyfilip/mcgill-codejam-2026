@@ -8,6 +8,12 @@ on:
     branches: [main]
   workflow_dispatch: # also allow a manual run from the Actions tab
 
+# One deploy at a time, newest wins: when two merges land close together, the older run is
+# cancelled so it can't finish last and replace the newer site (happened with #32 / #33).
+concurrency:
+  group: deploy-production
+  cancel-in-progress: true
+
 env:
   # Not secret: they only name the Vercel team and project.
   VERCEL_ORG_ID: team_tEENSma1OruqYGLTE6AjWeSR
