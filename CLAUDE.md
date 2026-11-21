@@ -48,7 +48,9 @@ All commands run from `app/`:
 - Install: `npm install`
 - Dev server: `npm run dev` → http://localhost:5173 (tracker), `/feed.html`, `/leaderboard.html`, `/lab.html`
 - Build / type-check: `npm run build` · Lint: `npm run lint` · Tracker syntax: `node --check src/live/app.js`
-- Deploy: TODO (Vercel, from GitHub; set the two `VITE_SUPABASE_*` env vars there)
+- Deploy: automatic — every push to `main` runs `.github/workflows/deploy.yml` (Vercel CLI, repo
+  secret `VERCEL_TOKEN`; Supabase env vars live in the Vercel project) → https://shotgun-tracker-xi.vercel.app.
+  So merging a PR ships it live; manual redeploy: Actions → Deploy to Vercel → Run workflow.
 
 ## Git workflow
 Work on a branch, never directly on `main`: `git switch main; git pull; git switch -c <task>` →
