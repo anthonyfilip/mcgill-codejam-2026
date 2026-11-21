@@ -9,7 +9,8 @@ Tomorrow's plan: [TODO.md](TODO.md).
 3. Drink, lower the can, flash a 🤙 → timer stops (back-dated to when the can left the mouth).
 4. Results page: time, replay, personal best, rank → name the run → post.
 5. Feed shows it (rate ★, comment) → Leaderboard ranks it.
-6. Accuracy slide: "finish within 0.4 s of frame-by-frame timing on real videos."
+6. Accuracy slide: "chug time within 0.16 s on average of frame-by-frame timing on real videos"
+   (8 single-person phone clips; 7/8 within a quarter second).
 
 Backup: a recorded run of the full demo, in case the live camera fails on stage.
 
@@ -18,14 +19,27 @@ Backup: a recorded run of the full demo, in case the live camera fails on stage.
   its clip → shared feed → leaderboard. Lana's profile is on the same database.
 - **Tracker:** HD webcam, full pose model, zoomed wrist crops (works ~2–3 m back), hand skeleton
   overlay, debug panel (person size, crack score, finger readings).
-- **Start:** crack with the can at the mouth (or up to 1 s before it gets there); fallback = can
-  at mouth + hand raised for 0.8 s, back-dated. Cracks with the can elsewhere are ignored.
+- **Start:** crack with the can already at the mouth for ≥ 0.15 s (no more cracks just before it
+  gets there); fallback = can at mouth + hand raised for 0.8 s — and the clock starts at the
+  strongest **click** (loudest ~6 ms above 6 kHz, ≥ 15 dB over the previous 0.5 s, can at the mouth
+  ≥ 0.15 s) in the 2.5 s before that, else back-dated to when both became true. The 46 ms crack
+  detector misses cracks in noisy clips; at 6 ms the crack was the strongest click in 7/8 single
+  clips. Cracks with the can elsewhere are ignored.
 - **End:** 🤙 shaka anywhere in frame (3D finger bends; works back-of-hand too), no hold — one frame ends it; refused
-  while the can is still at the mouth; time = last moment the can was at the mouth.
+  while the can is still at the mouth; time = when the head came forward (head tilt drop) near the
+  last moment the can was at the mouth, else that moment. Wrist hidden right after being at the
+  mouth (arm covering the face) counts as still drinking for 0.5 s.
 - **Crack detector:** sudden bright jump vs the previous 0.5 s. Real Monster crack at ~2 m on the
   laptop mic scored in the thousands (threshold 4); 0 false cracks in a noisy no-crack recording.
-- **Accuracy (lab, 18 labelled clips):** single-person — start 8/8, avg error 0.64 s (5/8 within
-  ±0.5 s); end 8/8, avg error 0.40 s (6/8 within ±0.5 s). All clips: 17/18 found.
+- **Accuracy (lab, 18 labelled clips, Sat — head-tilt end + click start):** single-person — start
+  avg error 0.15 s (was 0.64), end 0.14 s (was 0.40), **run time 0.16 s (was 0.73; 7/8 within
+  ±0.25 s, worst 0.26 s; runs read ~0.1 s short on average)**. Groups — start 0.21 s (was 0.65),
+  end 1.13 s (was 1.22; follows the wrong person). 17/18 found.
+  Clips 10 and 04 were re-analysed (old saves had a 3 s gap at the crack / stopped before the end):
+  run time −1.57 → +0.06 s and −0.52 → −0.19 s. Clip 10's crack lands exactly where the can starts
+  tilting from upright.
+  Head tilt was the signal closest to the labelled ends (median 0.13 s); no video signal times
+  the tab pop — only the crack does. Sound profiles were re-saved with the new `click` field.
 - **Feed side (Lana):** results page (PB, rank, retake, name + description), shared feed with
   clips, ★ ratings (final once given), comments, profiles (username + photo), leaderboard (★3.5+
   first, then fastest), only the poster can delete their post.

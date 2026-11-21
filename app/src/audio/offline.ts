@@ -9,8 +9,28 @@ export type { Crack } from '../detect/cracks'
 const WINDOW = 2048 // samples per measurement, like the live AnalyserNode (fftSize 2048)
 const HOP_S = 0.02 // live checks every 20 ms
 
-/** Loudness + brightness every 20 ms for the whole clip. */
-export async function soundProfile(url: string, highHz = 3000): Promise<SoundProfile> {
+const CLICK_FRAME_S = 256 / 44100 // ~6 ms: a can crack is a click this short
+
+async function highPassed(mono: Float32Array<ArrayBuffer>, sr: number, hz: number): Promise<Float32Array> {
+  const off = new OfflineAudioContext(1, mono.length, sr)
+  const src = off.createBufferSource()
+  const buf = off.createBuffer(1, mono.length, sr)
+  buf.copyToChannel(mono, 0)
+  src.buffer = buf
+  const hp1 = off.createBiquadFilter()
+  const hp2 = off.createBiquadFilter()
+  for (const hp of [hp1, hp2]) {
+    hp.type = 'highpass'
+    hp.frequency.value = hz
+  }
+  src.connect(hp1).connect(hp2).connect(off.destination)
+  src.start()
+  return (await off.startRendering()).getChannelData(0)
+}
+
+/** Loudness + brightness every 20 ms for the whole clip, plus "click": the loudest ~6 ms of
+ *  sound above clickHz among the newest 20 ms of each window (what a live poll sees as new). */
+export async function soundProfile(url: string, highHz = 3000, clickHz = 6000): Promise<SoundProfile> {
   const bytes = await (await fetch(url)).arrayBuffer()
   const decoder = new OfflineAudioContext(1, 1, 44100)
   const audio = await decoder.decodeAudioData(bytes)
@@ -23,25 +43,15 @@ export async function soundProfile(url: string, highHz = 3000): Promise<SoundPro
     for (let i = 0; i < ch.length; i++) mono[i] += ch[i] / audio.numberOfChannels
   }
 
-  // High-passed copy (two cascaded filters ≈ steep cut) to measure the "bright" share.
-  const off = new OfflineAudioContext(1, audio.length, sr)
-  const src = off.createBufferSource()
-  const monoBuf = off.createBuffer(1, audio.length, sr)
-  monoBuf.copyToChannel(mono, 0)
-  src.buffer = monoBuf
-  const hp1 = off.createBiquadFilter()
-  const hp2 = off.createBiquadFilter()
-  for (const hp of [hp1, hp2]) {
-    hp.type = 'highpass'
-    hp.frequency.value = highHz
-  }
-  src.connect(hp1).connect(hp2).connect(off.destination)
-  src.start()
-  const high = (await off.startRendering()).getChannelData(0)
+  // High-passed copies (two cascaded filters ≈ steep cut): "bright" share, and the click band.
+  const high = await highPassed(mono, sr, highHz)
+  const clickBand = await highPassed(mono, sr, clickHz)
 
   const hop = Math.round(HOP_S * sr)
+  const frame = Math.round(CLICK_FRAME_S * sr)
   const rmsOut: number[] = []
   const highOut: number[] = []
+  const clickOut: number[] = []
   for (let start = 0; start + WINDOW <= mono.length; start += hop) {
     let e = 0
     let eh = 0
@@ -51,8 +61,22 @@ export async function soundProfile(url: string, highHz = 3000): Promise<SoundPro
     }
     rmsOut.push(+Math.sqrt(e / WINDOW).toFixed(5))
     highOut.push(+(e > 0 ? eh / e : 0).toFixed(4))
+    clickOut.push(+loudestFrame(clickBand, start + WINDOW - hop, start + WINDOW, frame).e.toPrecision(4))
   }
-  return { hopS: hop / sr, rms: rmsOut, high: highOut, highHz }
+  return { hopS: hop / sr, rms: rmsOut, high: highOut, highHz, click: clickOut, clickHz }
+}
+
+/** The loudest `frame`-sample stretch (half-frame steps) ending in (from, to]: its mean-square
+ *  energy `e` and the sample index where it ends. Shared with the live tracker. */
+export function loudestFrame(x: ArrayLike<number>, from: number, to: number, frame: number): { e: number; end: number } {
+  let best = { e: 0, end: to }
+  const step = Math.max(1, frame >> 1)
+  for (let end = to; end > from && end - frame >= 0; end -= step) {
+    let e = 0
+    for (let i = end - frame; i < end; i++) e += x[i] * x[i]
+    if (e / frame > best.e) best = { e: e / frame, end }
+  }
+  return best
 }
 
 export async function findCracks(url: string, cfg: ContrastRules & { crackHighFreqHz: number }): Promise<Crack[]> {
