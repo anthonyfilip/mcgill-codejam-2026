@@ -1,13 +1,42 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>app</title>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <title>Shotgun Tracker</title>
+  <link rel="stylesheet" href="/src/live/style.css">
+</head>
+<body>
+  <main>
+    <div id="stage">
+      <video id="video" playsinline muted></video>
+      <canvas id="overlay"></canvas>
+      <div id="timer">0.00</div>
+      <div id="state">Tap Arm to start</div>
+    </div>
+
+    <div id="signals">
+      <div class="sig" id="sig-crack">Crack</div>
+      <div class="sig" id="sig-angle">Angle</div>
+      <div class="sig" id="sig-mouth">Mouth</div>
+      <div class="sig" id="sig-send">🤘 Send</div>
+    </div>
+
+    <button id="arm">Arm</button>
+
+    <section id="results" hidden>
+      <h2>Results</h2>
+      <p>Time: <b id="r-time"></b> s</p>
+      <p>Max angle: <b id="r-max"></b>° · Avg angle: <b id="r-avg"></b>°</p>
+      <p>Started by: <b id="r-by"></b></p>
+      <video id="replay" controls playsinline></video>
+      <a id="download" download>Download clip</a>
+    </section>
+
+    <pre id="debug"></pre>
+    <p class="devlink"><a href="/lab.html">Detection lab (test on recorded clips) →</a></p>
+  </main>
+  <script type="module" src="/src/live/app.js"></script>
+</body>
 </html>

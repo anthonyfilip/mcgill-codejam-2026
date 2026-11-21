@@ -30,6 +30,10 @@ Backup: a recorded run of the full demo, in case the live camera fails on stage.
 - Detection lab (`app/src/lab/`): pick a clip, Analyse → pose + hands overlay, six signal
   graphs vs labelled start/end, "Download signals CSV". Runs ~8 frames/s with both models.
 
+- Live tracker (Lana): webcam + mic, auto-start on 2 of 3 signals (crack / arm angle /
+  wrist at mouth), 🤘 to end, results with time + angles + replay clip. Main page of the app.
+  Not yet tested against the labelled clips.
+
 ## In progress
 - Filling in start/end times in `Chug_Examples/labels.csv` (team) — needed before tuning.
 - Next: run every clip through the lab, look at what the signals do at the labelled

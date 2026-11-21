@@ -23,11 +23,16 @@ Rule of thumb: if a line here wouldn't change Claude's behaviour, delete it.
 - More context: [docs/architecture.md](docs/architecture.md) · progress: [docs/STATUS.md](docs/STATUS.md)
 
 ## Stack & commands
-Vite + React + TypeScript in `app/`. MediaPipe Tasks Vision (pose, hands, face) and the
-Web Audio API run in the browser — no backend for detection. Supabase for the leaderboard (later).
+Vite app in `app/` with two pages. MediaPipe Tasks Vision and the Web Audio API run in
+the browser — no backend for detection. Supabase for the leaderboard (later).
+- **Live tracker** — `app/index.html` + `app/src/live/` (plain JS, Lana's). The product:
+  Arm → auto-start on 2 of 3 signals (crack / arm angle / wrist at mouth) → 🤘 above head to end.
+  All thresholds are in `CONFIG` at the top of `src/live/app.js`.
+- **Detection lab** — `app/lab.html` + `app/src/lab/` (React + TypeScript). Dev tool: label
+  clips, graph signals against `labels.csv`.
 All commands run from `app/`:
 - Install: `npm install`
-- Dev server: `npm run dev` → http://localhost:5173
+- Dev server: `npm run dev` → live tracker at http://localhost:5173, lab at http://localhost:5173/lab.html
 - Build / type-check: `npm run build`
 - Lint: `npm run lint`
 - Deploy: TODO (Vercel, from GitHub)
@@ -68,3 +73,6 @@ All commands run from `app/`:
 
 ## Gotchas (append a line every time Claude gets something wrong)
 - Windows dev machine: shell is PowerShell — use `;` not `&&`, and `$env:VAR` for env vars.
+- `npm` commands must run inside `app/`, not the repo root (there's no package.json at the root).
+- Once a `<video>` feeds an AudioContext it's silent unless also connected to `ctx.destination`.
+- The live tracker and the lab use different MediaPipe versions (CDN 0.10.14 vs npm 1.2.3) — keep in mind when comparing results.

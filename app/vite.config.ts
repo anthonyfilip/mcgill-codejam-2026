@@ -112,4 +112,13 @@ function serveClips(): Plugin {
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react(), serveClips()],
+  build: {
+    rollupOptions: {
+      // Two pages: the live tracker (index.html, Lana's) and the detection lab (lab.html).
+      input: {
+        main: path.resolve(import.meta.dirname, 'index.html'),
+        lab: path.resolve(import.meta.dirname, 'lab.html'),
+      },
+    },
+  },
 })
