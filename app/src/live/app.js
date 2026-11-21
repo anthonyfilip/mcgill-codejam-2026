@@ -19,8 +19,10 @@ const CONFIG = {
   crackMinRms: 0.02,       // ...and at least this loud in absolute terms
   crackHighFreqShare: 0.45,// share of spectral energy above crackHighFreqHz
   crackHighFreqHz: 3000,
-  angleDeg: 28,            // forearm tilt from vertical that counts as "can tipped" (live: close ≈ 40–47°, at 2–3 m ≈ 29–39°)
-  mouthDist: 0.6,          // wrist-to-mouth distance, in body-scale units
+  // Tuned on the 18 labelled clips (lab → "Analyse all clips"): arm angle barely differed between
+  // drinking and not (both ~25°), so "tipped" now just means the hand is raised above the shoulder.
+  angleDeg: 0,             // forearm tilt from vertical that counts as "can tipped"
+  mouthDist: 0.8,          // wrist-to-mouth distance, in body-scale units (clips: drinking 0.25–0.66, otherwise 1.0–1.4)
   sendHoldMs: 300,         // how long the 🤙 "send it" (shaka) must be held
   sendAboveHead: false,    // false = a shaka anywhere in frame ends the run (true = must be above the nose)
   thumbOutRatio: 0.4,      // thumb tip → index knuckle distance, in palm lengths (live: shaka ~0.55, but a fist is similar)

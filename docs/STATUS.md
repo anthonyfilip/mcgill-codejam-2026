@@ -34,6 +34,13 @@ Backup: a recorded run of the full demo, in case the live camera fails on stage.
   wrist at mouth), 🤘 to end, results with time + angles + replay clip. Main page of the app.
   Not yet tested against the labelled clips.
 
+- Accuracy scoring (lab → "Analyse all clips & score"): all 18 clips labelled and analysed;
+  rules in `app/src/detect/rules.ts` mirror the live tracker. Tuned mouthDist 0.6→0.8 and
+  dropped the arm-angle requirement. Single-person clips: start found 8/8, avg error 1.0 s;
+  end found 8/8, avg error 0.40 s (6/8 within ±0.5 s). All clips: 17/18 found.
+  Weak spots: crack only detected in 3 clips (others start from the mouth fallback → late),
+  clip 05 false start from party noise, clip 11 person's arm never found.
+
 ## In progress
 - Filling in start/end times in `Chug_Examples/labels.csv` (team) — needed before tuning.
 - Next: run every clip through the lab, look at what the signals do at the labelled
