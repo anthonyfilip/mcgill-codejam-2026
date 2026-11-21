@@ -25,6 +25,11 @@ Backup: a recorded run of the full demo, in case the live camera fails on stage.
   while armed) on touch devices, fps in the debug panel; audio started inside the GET SENDY! tap
   (iPhone); screen kept awake while armed/running; vibration on start/finish (Android); records
   mp4 when supported so clips play on iPhones. Laptops behave as before.
+- **🔦 Light for night chugs (Sat, built — not tried on a phone):** a button next to 🔄; when on,
+  from GET SENDY! until the run ends: back camera → the phone's flashlight where the browser can
+  switch it (camera `torch` capability: Android Chrome; iPhones usually can't — then a "turn the
+  room lights on" hint); front camera → the page around the camera view turns white like a ring
+  light (turn screen brightness up by hand). Remembered per device.
 - **Start needs ALL of** (Sat — live test started runs just from holding the can at the mouth):
   1. the can at the mouth for ≥ 0.15 s, then 2. a sound — a loud crack or a **click** (loudest
   ~6 ms above 6 kHz, ≥ 15 dB over the previous 0.5 s), then 3. within 1.5 s the drinking motion,
