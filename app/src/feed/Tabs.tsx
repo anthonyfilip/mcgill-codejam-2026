@@ -5,7 +5,8 @@ const TABS = [
 ]
 
 // Instagram-style tab bar fixed to the bottom of the screen. Recording is reached from the
-// feed's "Record a chug" button, a swipe left on the feed, or the button on your profile.
+// feed's "Record a chug" button, a swipe left on the feed (src/feed/swipeNav.ts), or the button
+// on your profile.
 export function Tabs({ active }: { active?: string }) {
   return (
     <nav className="tabbar">

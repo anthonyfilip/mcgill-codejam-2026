@@ -24,9 +24,9 @@ tabs.innerHTML = [
   .join('')
 document.body.append(tabs)
 
-// Swipe right to go back to the feed, but never once GET SENDY! has been tapped (it stays
-// disabled while armed and during the run), so a run can't be left by accident.
-installSwipeNav({ right: '/feed.html' }, () => !(document.getElementById('arm') as HTMLButtonElement | null)?.disabled)
+// Swipe right to the feed, left to the leaderboard, but never once GET SENDY! has been tapped
+// (it stays disabled while armed and during the run), so a run can't be left by accident.
+installSwipeNav('/', () => !(document.getElementById('arm') as HTMLButtonElement | null)?.disabled)
 
 // Our start button: renamed, and moved onto the camera view (styled in share.css).
 // The "Tap Arm to start" hint goes; the tracker's later status messages still show.
