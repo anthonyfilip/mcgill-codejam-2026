@@ -61,7 +61,7 @@ export function ProfileForm({ nameTaken = false }: { nameTaken?: boolean }) {
   }
 
   async function save() {
-    if (problem || !USERNAME_RE.test(username)) return
+    if (problem || !USERNAME_RE.test(username) || !faculty) return
     setSaving(true)
     setError('')
     try {
@@ -92,7 +92,8 @@ export function ProfileForm({ nameTaken = false }: { nameTaken?: boolean }) {
         {nameTaken && <p className="hint bad">Someone else took “{current?.username}”. Pick a new name.</p>}
 
         <label className="photo-pick">
-          <Avatar name={username || '?'} url={photoUrl} big />
+          {/* No photo yet: a plain yellow circle (no letter, no question mark). */}
+          {photoUrl ? <Avatar name={username} url={photoUrl} big /> : <span className="avatar big" />}
           <span>{photoUrl ? 'Change photo' : 'Add a photo'}</span>
           <input type="file" accept="image/*" hidden onChange={(e) => pickPhoto(e.target.files?.[0])} />
         </label>
@@ -117,7 +118,9 @@ export function ProfileForm({ nameTaken = false }: { nameTaken?: boolean }) {
         <label className="field">
           Faculty
           <select value={faculty} onChange={(e) => setFaculty(e.target.value)}>
-            <option value="">Choose your faculty (optional)</option>
+            <option value="" disabled>
+              Choose your faculty
+            </option>
             {FACULTIES.map((f) => (
               <option key={f} value={f}>
                 {f}
@@ -125,13 +128,14 @@ export function ProfileForm({ nameTaken = false }: { nameTaken?: boolean }) {
             ))}
           </select>
         </label>
+        {!faculty && <div className="hint">Pick your faculty to save</div>}
 
         {error && <p className="error">{error}</p>}
 
         <button
           className="btn primary"
           onClick={save}
-          disabled={saving || bad || !username || (unchanged && !photo && faculty === (current?.faculty ?? ''))}
+          disabled={saving || bad || !username || !faculty || (unchanged && !photo && faculty === (current?.faculty ?? ''))}
         >
           {saving ? 'Saving…' : 'Save'}
         </button>
