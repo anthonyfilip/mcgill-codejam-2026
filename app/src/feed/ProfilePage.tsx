@@ -64,6 +64,7 @@ export function ProfilePage() {
         <section className="person">
           <Avatar name={viewing!} url={runs[0]?.avatarUrl} big />
           <h2>{viewing}</h2>
+          {runs[0]?.faculty && <span className="faculty-tag">{runs[0].faculty}</span>}
         </section>
       )}
 

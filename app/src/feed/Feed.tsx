@@ -178,6 +178,7 @@ function Reel({
         <a className="reel-user" href={`/profile.html?user=${encodeURIComponent(post.user)}`}>
           <Avatar name={post.user} url={post.avatarUrl} />
           <b>{post.user}</b>
+          {post.faculty && <span className="faculty-tag">{post.faculty}</span>}
           <span className="when">{timeAgo(post.postedAt)}</span>
         </a>
         {post.title && <h3 className="reel-title">{post.title}</h3>}

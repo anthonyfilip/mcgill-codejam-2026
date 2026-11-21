@@ -58,6 +58,7 @@ export function Results() {
         user: getName(),
         profileId: getProfile()?.id ?? null,
         avatarUrl: getProfile()?.avatarUrl ?? null,
+        faculty: getProfile()?.faculty ?? null,
         postedAt: Date.now(),
         timeMs: draft.timeMs,
         maxAngle: draft.maxAngle,

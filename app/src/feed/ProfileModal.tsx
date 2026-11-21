@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Avatar } from './Avatar'
 import { getProfile, setProfile } from './me'
+import { FACULTIES } from './posts'
 import { isUsernameTaken, saveProfile, USERNAME_RE } from './store'
 
 const PHOTO_SIZE = 256 // px, square
@@ -32,6 +33,7 @@ export function ProfileForm({ nameTaken = false }: { nameTaken?: boolean }) {
   const current = getProfile()
   const [username, setUsername] = useState(nameTaken ? '' : (current?.username ?? ''))
   const [photo, setPhoto] = useState<Blob | null>(null)
+  const [faculty, setFaculty] = useState(current?.faculty ?? '')
   const [taken, setTaken] = useState<boolean | null>(null) // null = not checked yet
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -64,7 +66,9 @@ export function ProfileForm({ nameTaken = false }: { nameTaken?: boolean }) {
     setError('')
     try {
       const saved = await saveProfile(
-        current ? { ...current, username } : { id: crypto.randomUUID(), secret: crypto.randomUUID(), username, avatarUrl: null },
+        current
+          ? { ...current, username, faculty: faculty || null }
+          : { id: crypto.randomUUID(), secret: crypto.randomUUID(), username, avatarUrl: null, faculty: faculty || null },
         photo,
       )
       setProfile(saved)
@@ -110,12 +114,24 @@ export function ProfileForm({ nameTaken = false }: { nameTaken?: boolean }) {
         </label>
         <div className={bad && username ? 'hint bad' : taken === false && !unchanged ? 'hint good' : 'hint'}>{hint}</div>
 
+        <label className="field">
+          Faculty
+          <select value={faculty} onChange={(e) => setFaculty(e.target.value)}>
+            <option value="">Choose your faculty (optional)</option>
+            {FACULTIES.map((f) => (
+              <option key={f} value={f}>
+                {f}
+              </option>
+            ))}
+          </select>
+        </label>
+
         {error && <p className="error">{error}</p>}
 
         <button
           className="btn primary"
           onClick={save}
-          disabled={saving || bad || !username || (unchanged && !photo)}
+          disabled={saving || bad || !username || (unchanged && !photo && faculty === (current?.faculty ?? ''))}
         >
           {saving ? 'Saving…' : 'Save'}
         </button>

@@ -2,6 +2,7 @@
 export type Post = {
   id: string
   user: string
+  faculty?: string | null // the poster's McGill faculty, if they picked one
   profileId?: string | null // who posted it (their current name/photo are looked up)
   avatarUrl?: string | null
   postedAt: number // ms since epoch
@@ -26,6 +27,23 @@ export type Comment = {
 }
 
 export const MAX_COMMENT = 200
+
+// McGill faculties people can pick on their profile. Keep in sync with the check in
+// supabase/schema.sql (profiles.faculty).
+export const FACULTIES = [
+  'Arts',
+  'Science',
+  'Arts & Science',
+  'Engineering',
+  'Business',
+  'Music',
+  'Education',
+  'Law',
+  'Dental Medicine',
+  'Environmental Sciences',
+  'Continuing Studies',
+  'Health Sciences',
+] as const
 export const MAX_TITLE = 40
 
 // One person's star rating of a post: 1 to 5, 5 = best.
