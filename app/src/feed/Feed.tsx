@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Avatar } from './Avatar'
 import { FeedVideo } from './FeedVideo'
-import { CommentIcon, ShareIcon } from './Icons'
+import { CommentIcon, ShareIcon, StarIcon } from './Icons'
 import { getName, getProfile, hasCheered, setCheered as rememberCheer } from './me'
 import { MAX_COMMENT, type Comment, type Post, type PostRating } from './posts'
 import { DeletePopup, Popup } from './Popup'
@@ -196,8 +196,10 @@ function Reel({
           <span className="action-icon">🍻</span>
           {count}
         </button>
-        <button className={myStars ? 'action on' : 'action'} onClick={() => setRating(true)} aria-label="Rate">
-          <span className="action-icon">⭐</span>
+        <button className="action" onClick={() => setRating(true)} aria-label={myStars ? `You rated ${myStars} of 5` : 'Rate'}>
+          <span className="action-icon">
+            <StarIcon filled={!!myStars} />
+          </span>
           Rate
         </button>
         <button className="action" onClick={() => setCommenting(true)} aria-label={`Comments (${comments.length})`}>

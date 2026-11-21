@@ -25,3 +25,11 @@ export const SaveIcon = () => (
     <path d="M5 21h14" />
   </Svg>
 )
+
+// Outline until you've rated the post, then filled.
+export const StarIcon = ({ filled }: { filled: boolean }) => (
+  <Svg>
+    <path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3 6.4 20.2l1.1-6.2L3 9.6l6.2-.9L12 3z" fill={filled ? 'currentColor' : 'none'} />
+  </Svg>
+)
+
