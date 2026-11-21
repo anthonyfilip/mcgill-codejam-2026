@@ -122,7 +122,7 @@ export function Results() {
 
         <div className="row">
           <button className="btn" onClick={retake}>Retake</button>
-          {videoUrl && <a className="btn" href={videoUrl} download="shotgun.webm">Download</a>}
+          {videoUrl && <a className="btn" href={videoUrl} download={`shotgun.${draft.clip?.type.includes('mp4') ? 'mp4' : 'webm'}`}>Download</a>}
         </div>
       </section>
     </main>

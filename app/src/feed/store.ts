@@ -319,6 +319,21 @@ export async function ratePost(postId: string, stars: number): Promise<PostRatin
 
 // ---------- Drafts ----------
 
-export const saveDraft = (draft: Draft) => write(DRAFTS, (s) => s.put(draft))
-export const loadDraft = (id: string) => read<Draft | undefined>(DRAFTS, (s) => s.get(id))
+// iPhone Safari often fails to store a recorded video Blob in IndexedDB ("Error preparing
+// Blob/File data"), so drafts keep the clip as raw bytes + its type, and rebuild the Blob on load.
+type StoredDraft = Omit<Draft, 'clip'> & { clipBytes: ArrayBuffer | null; clipType: string }
+
+export async function saveDraft(draft: Draft): Promise<void> {
+  const { clip, ...rest } = draft
+  const stored: StoredDraft = { ...rest, clipBytes: clip ? await clip.arrayBuffer() : null, clipType: clip?.type ?? '' }
+  return write(DRAFTS, (s) => s.put(stored))
+}
+
+export async function loadDraft(id: string): Promise<Draft | undefined> {
+  const d = await read<(StoredDraft & { clip?: Blob | null }) | undefined>(DRAFTS, (s) => s.get(id))
+  if (!d) return undefined
+  const { clipBytes, clipType, clip, ...rest } = d
+  // Drafts saved before this change still have `clip` as a Blob.
+  return { ...rest, clip: clipBytes ? new Blob([clipBytes], { type: clipType }) : (clip ?? null) }
+}
 export const deleteDraft = (id: string) => write(DRAFTS, (s) => s.delete(id))
