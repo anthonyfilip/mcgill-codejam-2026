@@ -239,11 +239,11 @@ body { min-height: 100dvh; }
 
 /* Profile: "Get the app" (Add to Home Screen) */
 .install { display: grid; grid-template-columns: auto 1fr; gap: 12px; align-items: center; padding: 16px; border-radius: 12px; background: #1d1d1d; }
-.install > b, .install > p { grid-column: 1 / -1; margin: 0; }
-.install > p { color: #8c8; }
+.install > b, .install > p:not(.install-text) { grid-column: 1 / -1; margin: 0; }
+.install-title { justify-self: start; font-size: 16px; }
+.install > p:not(.install-text) { color: #8c8; }
 .install-icon { width: 52px; height: 52px; border-radius: 12px; }
-.install-text b { font-size: 16px; }
-.install-text p { margin: 2px 0 0; color: #aaa; font-size: 13px; }
+.install-text { margin: 0; color: #aaa; font-size: 13px; }
 .install .btn { grid-column: 1 / -1; text-align: center; }
 .install-steps { margin: 12px 16px 4px; padding-left: 20px; display: flex; flex-direction: column; gap: 12px; line-height: 1.4; }
 div.install-steps { padding-left: 0; }
@@ -268,8 +268,7 @@ div.install-steps ol { padding-left: 20px; display: flex; flex-direction: column
 .account { display: flex; flex-direction: column; gap: 8px; padding: 16px; border-radius: 12px; background: #1d1d1d; }
 .account p { margin: 0; font-size: 14px; }
 .account-warn { color: #f5b400; }
-.account-ok { color: #8c8; }
-.account-ok .link-btn { font-size: 13px; }
+.account-change { align-self: flex-start; padding: 0; border: 0; background: none; color: #ccc; font: inherit; font-size: 13px; font-weight: 400; cursor: pointer; }
 .account-form { display: flex; gap: 8px; }
 .account-form input { flex: 1; min-width: 0; padding: 10px 12px; border: 1px solid #444; border-radius: 8px; background: #111; color: #eee; font: inherit; font-size: 16px; }
 .account-form .btn { flex: none; padding: 10px 16px; }
