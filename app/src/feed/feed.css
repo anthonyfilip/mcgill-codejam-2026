@@ -93,3 +93,10 @@ img.avatar { object-fit: cover; }
 button.star:hover { transform: scale(1.15); }
 span.star { cursor: default; }
 .stars-label { margin-left: 8px; color: #aaa; font-size: 13px; }
+
+/* Leaderboard rule + divider between rated 3.5+ and the rest */
+.board-rule { margin: 0; color: #aaa; font-size: 14px; text-align: center; }
+.board-rule b { color: #f5b400; }
+.board li { flex-wrap: wrap; }
+.board .divider { flex-basis: 100%; margin: -4px 0 4px; color: #888; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; }
+.board li.below { border-top: 2px dashed #444; }
