@@ -30,8 +30,8 @@ const CONFIG = {
   headBackRise: 0.1,       // head tilt rise, shoulder widths (holding still ~0.05)
   armSwingDeg: 25,         // forearm drop toward vertical (every labelled start ≥ 29°; holding still 10–30°)...
   armUpDeg: 45,            // ...or the forearm already within this of vertical (can held high before the crack)
-  // End rule: the 🤙 confirms the end, but the time stops when the can last left the mouth.
-  maxBackdateMs: 4000,     // only back-date if the can left the mouth at most this long before the 🤙
+  // End rule: the 🤙 confirms the end, but the time always stops when the can last left the mouth,
+  // however long after that the 🤙 comes (Lana, Sat: a 🤙 > 4 s later used to set the time instead).
   // Wrist lost right after 2+ frames at the mouth = arm/can covering the face at full tilt: still drinking
   // for up to this long (clip 02 ended 1.24 s early without it).
   hiddenHoldMs: 500,
@@ -717,10 +717,11 @@ function frame() {
     }
     if (run.sendAt != null && atMouth) run.sendAt = null; // went back to drinking
     if (run.sendAt != null) {
-      // End = when the head came forward near the last moment the can was at the mouth, if that
-      // was recent; otherwise the 🤙 itself. Wait until there's enough head tilt after it to search.
+      // End = when the head came forward near the last moment the can was at the mouth, however
+      // long ago the 🤙 came after it. Only if the can was never seen at the mouth during the run is
+      // the 🤙 itself the end. Wait until there's enough head tilt after it to search.
       const lastMouth = track.lastMouthAt;
-      const backdate = lastMouth > run.startAt + CONFIG.minRunMs && run.sendAt - lastMouth <= CONFIG.maxBackdateMs;
+      const backdate = lastMouth > run.startAt + CONFIG.minRunMs;
       if (!backdate) endRun(run.sendAt, "🤙 (can not tracked)");
       else if (now - lastMouth >= CONFIG.endSearchAfterMs + CONFIG.headStepMs) {
         const end = Math.max(refineEnd(headLog, lastMouth, CONFIG), run.startAt + CONFIG.minRunMs);
