@@ -70,6 +70,12 @@ img.avatar { object-fit: cover; }
 .modal-backdrop { position: fixed; inset: 0; z-index: 10; display: grid; place-items: center; padding: 16px; background: rgba(0, 0, 0, 0.7); }
 .modal { width: 100%; max-width: 360px; display: flex; flex-direction: column; gap: 12px; padding: 20px; border-radius: 16px; background: #1d1d1d; color: #eee; }
 .modal h2 { margin: 0; text-align: center; }
+/* Welcome step of the first-visit pop-up (ProfileModal.tsx) */
+.modal { max-height: 100%; overflow-y: auto; }
+.welcome-intro { margin: 0; line-height: 1.4; }
+.welcome-steps { margin: 0; padding-left: 22px; display: flex; flex-direction: column; gap: 8px; line-height: 1.4; }
+.welcome-actions { display: flex; gap: 10px; margin-top: 4px; }
+.welcome-actions .btn { min-height: 44px; }
 .photo-pick { display: flex; flex-direction: column; align-items: center; gap: 8px; color: #f5b400; font-weight: 600; cursor: pointer; }
 .photo-pick .avatar.big { width: 96px; height: 96px; font-size: 40px; }
 .field { display: flex; flex-direction: column; gap: 6px; font-weight: 600; }
