@@ -161,5 +161,32 @@ person in group videos, head-to-head challenges, and spill detection.
 
 ## Built with
 
-JavaScript · TypeScript · React · Vite · MediaPipe Tasks Vision (pose and hand landmarks) ·
-Web Audio API · Supabase (Postgres, storage, row-level security) · Vercel · GitHub Actions
+**Languages**
+- **TypeScript:** the social app's pages (feed, results, comments, ratings, profiles,
+  leaderboards), the code that talks to the database (`src/feed/store.ts`), and the shared
+  detection maths used by both the tracker and the lab (angles, crack detector, start/end rules).
+- **JavaScript:** the live tracker (`src/live/app.js`). It runs the camera and microphone, tracks
+  the body and hands every frame, listens for the crack, runs the timer and records the clip.
+- **CSS:** the whole look: the dark Instagram-style design, the full-screen swipeable Chugs feed,
+  the bottom tab bar, the slide-up comments panel, pop-ups, and spacing around iPhone notches.
+- **PLpgSQL:** the database functions in `supabase/schema.sql` that guard every protected action:
+  saving a profile, logging in (bcrypt passwords), posting, rating, cheering, and deleting
+  posts, comments and accounts. Each one checks that the request really comes from the owner.
+- **HTML:** the page shells for each screen (feed, record, results, leaderboard, profile, lab),
+  the Record screen's camera layout, and the tags that make the site installable as an app.
+
+**Tools**
+- **Supabase:** the backend. A Postgres database for profiles, posts, comments and ratings,
+  storage for the videos and profile photos, and row-level security rules that decide who can
+  read or change what.
+- **Vercel:** hosts the live site at getsendy-app.vercel.app. A GitHub Action deploys every
+  push to `main` automatically.
+- **React:** builds the social screens as reusable components (feed videos, rating pop-up,
+  comments panel, profile, leaderboards) and keeps them updated as people post, rate and comment.
+- **Vite:** the development server with instant reload, and the build that bundles every page
+  for production. It also serves the private test clips to the detection lab during development.
+- **MediaPipe Tasks Vision:** Google's on-device AI models. The pose model finds the mouth,
+  wrists, head tilt and arm angle; the hand model gives 21 points per hand, which we turn into
+  the 🤙 shaka detector.
+- **Web Audio API:** analyses the microphone every 20 ms to hear the can crack (a sudden,
+  high-pitched jump in sound), and analyses the audio track of uploaded and test clips the same way.
