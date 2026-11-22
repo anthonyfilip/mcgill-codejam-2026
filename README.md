@@ -1,137 +1,165 @@
-# Shotgun Tracker — McGill CodeJam 2026
+<img src="app/public/icon-192.png" alt="getSendy! app icon" width="96" align="right" />
 
-> Point a laptop camera at someone shotgunning a can. It hears the crack, sees the can at
-> their mouth, stops the clock when the can comes down, and posts the run to a shared feed
-> and leaderboard — no stopwatch, no arguing.
+# getSendy! — McGill CodeJam 2026
 
-*(Working name — TODO: final name.)* Built in 36 hours at McGill CodeJam 2026. The live demo
-uses a can of Celsius.
+> Tap **GET SENDY!** and shotgun. Your phone hears the can crack, watches you drink, stops the
+> clock when the can leaves your mouth, and you flash a 🤙 to confirm. Then post it, let your
+> friends rate it, and climb the individual and **faculty** leaderboards. No stopwatch, no arguing.
 
-**Try it:** https://getsendy-app.vercel.app — open it on a phone or laptop, tap **Record
-Chug**, and allow the camera and microphone.
+**Try it:** **https://getsendy-app.vercel.app**. Open it on a phone, make a profile, then tap
+**Record a chug** and allow the camera and microphone. To install it, go to **Profile →
+getSendy! the app** (or Safari → Share → **Add to Home Screen**).
+
+Built in 36 hours at McGill CodeJam 2026 by Anthony Filip and Lana Avdalovic.
+
+| Results | Faculty leaderboard | Profile |
+|---|---|---|
+| <img src="docs/screenshots/results.png" alt="Results page after a run" width="250" /> | <img src="docs/screenshots/faculty.png" alt="Faculty leaderboard" width="250" /> | <img src="docs/screenshots/profile.png" alt="Profile page" width="250" /> |
 
 ## What it does
 
-- **Hands-free timing.** Press **GET SENDY!**, then just drink. The timer starts on its own at the
-  crack of the can and stops on its own when the can leaves your mouth.
-- **🤙 to send it.** Flash a shaka when you're done to confirm the run. The final time is
-  set to the moment the can came down, not when you got your hand up — your reaction time
-  doesn't count against you.
-- **Anti-cheat built in.** A crack only counts if the can is already at the drinker's mouth
-  (someone else opening a can nearby is ignored), and a 🤙 while the can is still at your mouth
-  is refused.
-- **Works from across the room.** HD camera input, a full-body pose model, and zoomed-in hand
-  tracking around each wrist so hands are found even when people stand a few metres back.
-- **Results, feed and leaderboard.** Every run gets a results page with a replay clip, can be
-  named and posted to a shared feed with a description, rated with stars and commented on. The
-  leaderboard ranks runs rated ★3.5+ first, then by fastest time, with each run's name and day.
-- **Profiles.** Pick a unique username and a photo; your profile shows your runs, personal best
-  and cheers. No passwords yet: a profile belongs to the browser that made it.
+**Timing, hands-free**
+- **GET SENDY!** starts recording. The clock starts on its own at the **crack** of the can and
+  stops on its own when the **can leaves your mouth**.
+- **🤙 to send it.** A shaka confirms the run. The time is set to when the can came down, not
+  when your hand went up, so your reaction time doesn't count against you.
+- **Front and back camera**, a **light** button (phone flash, or a white ring light on the front
+  camera), and **Upload a video**, which is timed by the same rules.
+
+**Fair play**
+- A crack only counts **with the can at the drinker's mouth**, so someone opening a can nearby
+  is ignored. The drinking motion has to follow, by a **real person** in the shot.
+- A 🤙 while the can is still at your mouth is refused.
+- The database only accepts runs of **1–120 seconds**, so nobody can post a fake 0.01 s chug.
+- **Leaderboard rule:** runs rated **★ 3.5+** by friends rank above the rest, then the fastest
+  time wins. Ratings are one per person, final, and you can't rate your own run.
+
+**Social, Instagram-style**
+- **Chugs feed:** full-screen videos you swipe up and down, playing with sound.
+- **Ratings** (Super poop → Legendary) with a live average next to the time.
+- **Comments** in a panel that slides up. Commenters show **Author** or the rating they gave,
+  you can **cheer 🍻** a comment, and you can delete your own.
+- **Share** the video to Instagram, TikTok or Messages, or **save** it.
+- **Profiles:** unique username, photo, **McGill faculty**, and a **password** so you can log
+  back in on any phone. Tap anyone to see their page and swipe through their shotguns.
+- **Faculty leaderboard: "Who has the best faculty chug?"** Each faculty's runs are averaged.
+- **Installable app (PWA):** "Add to Home Screen" gives **getSendy!** its own icon and a
+  full-screen launch, with no app store.
+- **Delete your account** at any time, which removes your posts, videos, comments and ratings.
 
 ## How accurate is it?
 
-We collected 18 real shotgun videos and labelled the true start (tab pop) and end (can leaves
-the mouth) frame by frame. The built-in **detection lab** runs the exact same rules as the live
-tracker on every clip and compares them to those labels.
+We collected **18 real shotgun videos** and labelled the true start (tab pop) and end (can
+leaves the mouth) frame by frame. The built-in **detection lab** (`/lab.html`) runs the same
+rules as the live tracker on every clip and scores them against those labels.
 
-| 8 single-person clips | Detected | Average error | Within ±0.5 s |
-|---|---|---|---|
-| **Start** (crack) | 8 / 8 | **0.64 s** | 5 / 8 |
-| **End** (can leaves mouth) | 8 / 8 | **0.40 s** | 6 / 8 |
+| Single-person clips (8) | Result |
+|---|---|
+| Runs found | **8 / 8**, no false starts |
+| Start (crack) error | **0.15 s** on average |
+| Run time error | **0.15 s** on 7 clips (one clip's end is 1.2 s late) |
 
-Across all 18 clips (including groups of 2–3 people) a run is found in 17. Where the crack is
-audible it starts the clock in all 8 such clips, every one within 0.5 s. On a live laptop-mic
-recording of a real can opened ~2 m away the crack scores in the thousands against a threshold
-of 4, and a noisy no-crack recording produced zero false cracks.
+**Groups of 2–3 people (10 clips):** all 10 start; 2 start late because the tracker followed
+the wrong person. Thresholds were tuned on two separate analyses of the clips, so they aren't
+fitted to one run of the model.
 
-Honest caveats: 18 clips is a small set, about half of the phone videos have a crack too quiet
-to hear (those fall back to the "can at mouth" start, which runs a little late), and clips with
-several people are harder because the tracker follows the most prominent person.
+**Honest caveats:** 18 clips is a small set; groups are harder; and the live phone build uses a
+lighter pose model than the lab measured.
 
 ## How it works
 
-Everything runs in the browser — camera and microphone are processed on the device.
+Everything runs **in the browser, on the device**. Camera and microphone are never uploaded for
+analysis; only the finished clip is, when you post it.
 
 ```
-camera ──► MediaPipe Pose (full) ──► wrist-to-mouth distance, arm height ─┐
-       └─► MediaPipe hand model on zoomed wrist crops ──► 🤙 shaka (3D finger bends)
-mic ────► loudness + brightness (energy above 3 kHz) every 20 ms ──► crack score
-                                                                          ▼
-                       start/end rules ──► timer ──► results ──► Supabase feed + leaderboard
+camera ──► MediaPipe Pose ──► wrist-to-mouth distance, head tilt, forearm angle ─┐
+       └─► MediaPipe hands on zoomed wrist crops ──► 🤙 shaka (3D finger bends)   │
+mic ────► loudness + brightness every 20 ms ──► crack / click score             │
+                                                                                 ▼
+             start + end rules ──► timer ──► results page ──► Supabase feed + leaderboards
 ```
 
-- **Crack detection** — a crack is a sudden, *bright* jump compared with the half-second just
-  before it (loudness jump × share of energy above 3 kHz). Comparing with the moment before,
-  instead of a slow running background, is what makes it work in loud parties.
-- **Start rule** — the crack must happen with the can at the mouth (or up to 1 s before it
-  gets there). If no crack is heard, the can held at the mouth with the hand raised for 0.8 s
-  starts the run, back-dated to when it began.
-- **End rule** — the 🤙 confirms; the time stops at the last moment the can was at the mouth.
-- **Shaka detection** — MediaPipe has no shaka gesture, so we measure how much each finger
-  bends using the 3D hand landmarks: thumb and pinky straight, the other three curled. Bend
-  angles work whichever way the hand faces, including back-of-hand to the camera.
-- **Thresholds are data-driven** — wrist-to-mouth 0.8 body-widths (real drinking measured
-  0.25–0.66, otherwise 1.0–1.4), crack score 4, etc. Each value in `CONFIG` notes where it came from.
+- **Crack detection:** a sudden, *bright* jump in sound (energy above 3 kHz) compared with the
+  half-second just before. Comparing with the moment before, rather than a slow-moving
+  background level, is what makes it work at loud parties. Short "clicks" catch quieter cracks.
+- **Start rule:** can at the mouth → a crack or click → within 2.5 s, the drinking motion (head
+  tips back and forearm swings up) by a real, upright person. The clock is back-dated to the
+  sound. No sound, no start.
+- **End rule:** the 🤙 confirms. The time stops when the can last left the mouth, refined to
+  when the head came forward.
+- **Shaka detection:** MediaPipe has no shaka gesture, so we measure how much each finger bends
+  in 3D: thumb and pinky straight, the other three curled. This works whichever way the hand faces.
+
+## Security and privacy
+
+- **Supabase** (Postgres + storage) with **row-level security**. Changing your profile, posting,
+  deleting, rating and deleting your account go through **server-side functions** that check a
+  secret only your device holds.
+- **Passwords** are stored only as **bcrypt hashes**; wrong guesses are slowed down.
+- **Storage limits:** clips are video only, up to 50 MB; profile photos are images only, up to 2 MB.
+- No API secrets are in the repo. The site only carries Supabase's public "publishable" key.
 
 ## Run it locally
 
 Requires Node.js 20+.
 
-```powershell
+```
 cd app
 npm install
 npm run dev
 ```
 
-Then open:
-
 | Page | URL |
 |---|---|
-| Record Chug (the tracker) | http://localhost:5173 |
-| Feed | http://localhost:5173/feed.html |
+| Chugs feed | http://localhost:5173/feed.html |
+| Record a chug | http://localhost:5173 |
 | Leaderboard | http://localhost:5173/leaderboard.html |
+| Profile | http://localhost:5173/profile.html |
+| Results (demo run) | http://localhost:5173/results.html?demo |
 | Detection lab (dev tool) | http://localhost:5173/lab.html |
 
-Allow camera and microphone when asked. Stand far enough back that your head, shoulders and
-elbows are in frame.
-
-### Shared feed (optional)
-
-Without keys, posts are saved in your own browser only. To share them, create a Supabase
-project, run [`supabase/schema.sql`](supabase/schema.sql) in its SQL editor, and put the keys in
-`app/.env.local` (never commit it). Team members: ask a teammate for the project's two values
-privately rather than creating a new project.
+**Shared feed:** without keys, posts are saved in your own browser. To use a shared database,
+create a Supabase project, run [`supabase/schema.sql`](supabase/schema.sql) in its SQL editor
+(safe to run again), and put its URL and publishable key in `app/.env.local` (never committed):
 
 ```
 VITE_SUPABASE_URL=...
 VITE_SUPABASE_ANON_KEY=...
 ```
 
-### Detection lab
+**Detection lab:** `lab.html` loads test clips from `Chug_Examples/`, which is gitignored
+because the clips show real people. Label each clip's start and end, then **Analyse all clips &
+score** to measure accuracy.
 
-`lab.html` loads test clips from `Chug_Examples/` (gitignored — real people, never committed).
-Label each clip's start/end with **Set start / Set end**, then **Analyse all clips & score**
-to measure accuracy. Results are cached, so changing a threshold and pressing **Re-score**
-takes a second.
+**Deploys:** every push to `main` deploys to Vercel through `.github/workflows/deploy.yml`.
 
 ## Project layout
 
 ```
 app/
-  index.html, src/live/      live tracker (camera, mic, start/end rules, shaka)
+  index.html, src/live/      Record a chug: camera, mic, start/end rules, shaka
   src/detect/                shared maths: angles, crack detector, clip-scoring rules
-  src/feed/                  results page, feed, ratings, comments, profiles, leaderboard
+  src/feed/                  feed, results, comments, ratings, profiles, leaderboards, PWA
   lab.html, src/lab/         detection lab + accuracy scoreboard
-supabase/schema.sql          tables and storage for the shared feed
-docs/                        status, architecture, devpost draft
+  public/                    app icons + manifest (installable app)
+supabase/schema.sql          tables, security rules, functions and storage
+docs/                        status, architecture, Devpost write-up, screenshots
 ```
 
 ## Team
 
-- **Anthony Filip** — tracker: camera/mic detection, crack detector, shaka, accuracy lab
-- **Lana Avdalovic** — live tracker v1, results page, feed, comments, ratings, profiles, leaderboard, Supabase
+- **Anthony Filip:** detection, including camera and mic tracking, the crack and click
+  detectors, the shaka detector, the accuracy lab and the Record screen.
+- **Lana Avdalovic:** the first version of the tracker, then the social app, including the feed, results, comments, ratings, profiles
+  and passwords, the leaderboards (individual and faculty), Supabase, the installable app and
+  deploys.
+
+## What's next
+
+App Store / Google Play builds (wrapping the same code with Capacitor), following the right
+person in group videos, head-to-head challenges, and spill detection.
 
 ## Built with
 
-JavaScript · TypeScript · React · Vite · MediaPipe Tasks Vision (pose, hand / gesture models) ·
-Web Audio API · Supabase (Postgres + storage)
+JavaScript · TypeScript · React · Vite · MediaPipe Tasks Vision (pose and hand landmarks) ·
+Web Audio API · Supabase (Postgres, storage, row-level security) · Vercel · GitHub Actions
