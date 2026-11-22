@@ -61,7 +61,7 @@ function LoginForm({ onBack }: { onBack: () => void }) {
           autoCapitalize="none"
           autoCorrect="off"
           spellCheck={false}
-          autoComplete="username"
+          autoComplete="off" data-1p-ignore data-lpignore="true"
           onChange={(e) => setUsername(e.target.value.toLowerCase())}
         />
       </label>
@@ -70,7 +70,7 @@ function LoginForm({ onBack }: { onBack: () => void }) {
         <input
           type="password"
           value={password}
-          autoComplete="current-password"
+          autoComplete="off" data-1p-ignore data-lpignore="true"
           onChange={(e) => setPasswordText(e.target.value)}
         />
       </label>
@@ -177,6 +177,9 @@ export function ProfileForm({ nameTaken = false }: { nameTaken?: boolean }) {
           maxLength={24}
           autoCapitalize="none"
           autoCorrect="off"
+          autoComplete="off"
+          data-1p-ignore
+          data-lpignore="true"
           spellCheck={false}
           placeholder="e.g. lana_99"
           onChange={(e) => {
@@ -209,7 +212,7 @@ export function ProfileForm({ nameTaken = false }: { nameTaken?: boolean }) {
             <input
               type="password"
               value={password}
-              autoComplete="new-password"
+              autoComplete="off" data-1p-ignore data-lpignore="true"
               onChange={(e) => setPasswordText(e.target.value)}
             />
           </label>

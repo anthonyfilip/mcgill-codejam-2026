@@ -54,7 +54,7 @@ export function AccountSection() {
           <input
             type="password"
             value={pw}
-            autoComplete="new-password"
+            autoComplete="off" data-1p-ignore data-lpignore="true"
             placeholder={`At least ${MIN_PASSWORD} characters`}
             onChange={(e) => setPw(e.target.value)}
           />
