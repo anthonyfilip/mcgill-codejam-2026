@@ -1,12 +1,13 @@
 import { useState } from 'react'
 import { Popup } from './Popup'
 
-// "Terms of Service" link at the bottom of your Profile tab; opens the terms in a pop-up.
-export function TermsLink() {
+// "Terms of Service" link (bottom of your Profile tab and of the welcome pop-up); opens the terms
+// in a pop-up. `small` = the welcome pop-up's small version.
+export function TermsLink({ small = false }: { small?: boolean }) {
   const [open, setOpen] = useState(false)
   return (
     <>
-      <button className="link-btn terms-link" onClick={() => setOpen(true)}>
+      <button className={small ? 'link-btn terms-link small' : 'link-btn terms-link'} onClick={() => setOpen(true)}>
         Terms of Service
       </button>
       {open && (

@@ -261,6 +261,7 @@ div.install-steps ol { padding-left: 20px; display: flex; flex-direction: column
 /* Profile: "Delete account" at the very bottom, small and quiet */
 /* Terms of Service link (Profile tab) + its pop-up (Terms.tsx) */
 .terms-link { margin-top: 16px; min-height: 44px; }
+.terms-link.small { margin-top: -4px; font-size: 12px; font-weight: 500; }
 .terms { padding: 4px 16px 0; font-size: 14px; line-height: 1.45; color: #ddd; }
 .terms p { margin: 8px 0; }
 .terms .terms-date { color: #999; font-size: 12px; }
