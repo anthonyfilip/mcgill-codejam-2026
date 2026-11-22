@@ -39,7 +39,8 @@ export function ProfilePage() {
   const [nameTaken, setNameTaken] = useState(false)
   const [deletingAccount, setDeletingAccount] = useState(false)
   // Your page opens as a view, not a form: text boxes (and the browser's autofill) only appear
-  // after tapping Edit profile. A new visitor or a taken name goes straight to the form.
+  // after tapping Edit profile. A taken name goes straight to the form; a new visitor gets the
+  // welcome pop-up (sign up / log in) instead.
   const [editing, setEditing] = useState(false)
 
   useEffect(() => {
@@ -77,7 +78,7 @@ export function ProfilePage() {
                   Edit profile
                 </button>
               </div>
-            ) : (
+            ) : !me ? null : ( // not logged in: the welcome pop-up (ProfileGate below) comes first
               <>
                 <ProfileForm nameTaken={nameTaken} />
                 {me && !nameTaken && (
@@ -159,7 +160,7 @@ export function ProfilePage() {
         />
       )}
 
-      {!isMe && <ProfileGate />}
+      {(!isMe || !me) && <ProfileGate />}
     </main>
   )
 }
