@@ -38,6 +38,9 @@ export function ProfilePage() {
   const [posts, setPosts] = useState<Post[] | null>(null) // null = loading
   const [nameTaken, setNameTaken] = useState(false)
   const [deletingAccount, setDeletingAccount] = useState(false)
+  // Your page opens as a view, not a form: text boxes (and the browser's autofill) only appear
+  // after tapping Edit profile. A new visitor or a taken name goes straight to the form.
+  const [editing, setEditing] = useState(false)
 
   useEffect(() => {
     if (isMe)
@@ -65,7 +68,25 @@ export function ProfilePage() {
       {isMe ? (
         <>
           <section className="profile-page">
-            <ProfileForm nameTaken={nameTaken} />
+            {me && !editing && !nameTaken ? (
+              <div className="profile-view">
+                <Avatar name={me.username} url={me.avatarUrl} big />
+                <h2>{me.username}</h2>
+                {me.faculty && <span className="faculty-tag">{me.faculty}</span>}
+                <button className="btn" onClick={() => setEditing(true)}>
+                  Edit profile
+                </button>
+              </div>
+            ) : (
+              <>
+                <ProfileForm nameTaken={nameTaken} />
+                {me && !nameTaken && (
+                  <button className="link-btn" onClick={() => setEditing(false)}>
+                    Cancel
+                  </button>
+                )}
+              </>
+            )}
             <a className="btn record-cta" href="/">
               Record a chug
             </a>

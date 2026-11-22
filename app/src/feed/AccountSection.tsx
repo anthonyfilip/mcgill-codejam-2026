@@ -44,12 +44,13 @@ export function AccountSection() {
           Set a password so you can log back in on another phone or after deleting the app.
         </p>
       )}
-      {has && !changing && (
+      {/* The box only appears after tapping, so the browser's autofill doesn't pop up on its own. */}
+      {has !== null && !changing && (
         <button className="account-change" onClick={() => setChanging(true)}>
-          Change password
+          {has ? 'Change password' : 'Set a password'}
         </button>
       )}
-      {(has === false || changing) && (
+      {changing && (
         <form className="account-form" onSubmit={save}>
           <input
             type="password"
