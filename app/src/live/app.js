@@ -60,19 +60,11 @@ const CONFIG = {
   crackHighFreqHz: 3000,
   mouthDist: 0.8,          // wrist-to-mouth distance, in body-scale units (clips: drinking 0.25–0.66, otherwise 1.0–1.4)
   sendHoldMs: 0,           // how long the 🤙 "send it" (shaka) must be held (0 = first frame ends it; was 300)
-  sendHoldFrames: 3,       // ...and in this many frames in a row (Sat: a relaxed hand passed for a single frame)
   sendAboveHead: false,    // false = a shaka anywhere in frame ends the run (true = must be above the nose)
   thumbOutRatio: 0.4,      // thumb tip → index knuckle distance, in palm lengths (live: shaka ~0.55, but a fist is similar)
   thumbBendDeg: 35,        // ...and the thumb must be straight. Live: shaka 4–21°, fist with thumb wrapped 51–61°.
                            // Thumbs-up has a straight thumb too — it's rejected because the pinky is curled (~100°).
-  fingerBendDeg: 60,       // a finger bent more than this (knuckle→joint vs joint→tip, in 3D) counts as curled (display)
-  // The 🤙 itself needs a clear shape, with a margin either side of fingerBendDeg (Sat, "Fail attempt
-  // three": a hand hanging at the side read ring 50–58°, pinky 63–75° — too close to the old single line).
-  pinkyStraightDeg: 50,    // pinky bent less than this = clearly out
-  fingerCurledDeg: 70,     // index / middle / ring bent more than this = clearly curled
-  // End: the can has left the mouth only when NO hand is at the mouth. A wrist last seen at the mouth
-  // that then disappears (hidden behind the can / face at full tilt) still counts as there for this long.
-  wristHiddenHoldMs: 3000,
+  fingerBendDeg: 60,       // a finger bent more than this (knuckle→joint vs joint→tip, in 3D) counts as curled
   minRunMs: 1000,          // ignore the end gesture right after the start
   minVisibility: 0.5,      // pose landmark confidence
   // Distance: people stand several metres back, so hands are small in the frame.
@@ -121,15 +113,13 @@ let state = "idle"; // idle → armed → running → done
 const seen = { crack: -Infinity, angle: -Infinity, mouth: -Infinity };
 let run = null;     // { startAt, startedBy, angles: [] }
 let sendSince = null;
-let sendFrames = 0; // 🤙 frames in a row
 let live = {};      // latest readings, for the debug panel
 
 // Continuous "can at the mouth" / "can tipped" tracking (ms, performance.now()).
 // *Since = when the current stretch began (null if not currently true); last*At = last frame it was true.
 // mouthFrames / lastSeenAtMouth: consecutive frames with the wrist seen at the mouth (for hiddenHoldMs).
 const track = { mouthSince: null, lastMouthAt: -Infinity, angleSince: null, lastAngleAt: -Infinity, mouthFrames: 0, lastSeenAtMouth: -Infinity, lastPersonOkAt: -Infinity,
-  lastPoseAt: -Infinity, heldAtLastMouth: 0, // last frame with any pose; can-at-mouth time at its last at-mouth frame
-  wrist: { L: { atMouth: false, seenAt: -Infinity }, R: { atMouth: false, seenAt: -Infinity } } }; // each hand, for the end
+  lastPoseAt: -Infinity, heldAtLastMouth: 0 }; // last frame with any pose; can-at-mouth time at its last at-mouth frame
 // Recent pose readings { t, headTilt, armAngle } and sounds heard with the can at the mouth { t, db }
 // (a loud crack has db = Infinity, so it beats any click).
 let headLog = [], sounds = [];
@@ -141,7 +131,6 @@ function resetTrack() {
   track.mouthFrames = 0;
   track.lastPersonOkAt = track.lastPoseAt = -Infinity;
   track.heldAtLastMouth = 0;
-  for (const w of Object.values(track.wrist)) Object.assign(w, { atMouth: false, seenAt: -Infinity });
   sounds = [];
 }
 
@@ -228,7 +217,6 @@ $("arm").onclick = async () => {
   $("results").hidden = true;
   run = null;
   sendSince = null;
-  sendFrames = 0;
   seen.crack = seen.angle = seen.mouth = -Infinity;
   resetTrack();
   startRecording(); // the clip runs from this tap to the 🤙, not just the timed part
@@ -520,22 +508,6 @@ function readPose(lm) {
   return { arm, mouth, mouthDist, angle, armAngle, scale, nose: px(lm[NOSE]) };
 }
 
-// Each hand's wrist: at the mouth, away, or not seen (null) this frame. readPose only follows the
-// closest visible wrist; the end needs both, because people let go with one hand mid-chug while the
-// other keeps the can at the mouth — often hidden behind the can, so the other arm took over and
-// "the can left the mouth" (Sat, "Fail attempt three").
-function readWrists(lm) {
-  const W = canvas.width, H = canvas.height;
-  const pt = (p) => ({ x: p.x * W, y: p.y * H });
-  const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
-  const mouth = { x: (lm[MOUTH_L].x + lm[MOUTH_R].x) / 2 * W, y: (lm[MOUTH_L].y + lm[MOUTH_R].y) / 2 * H };
-  const sL = pt(lm[SHOULDER_L]), sR = pt(lm[SHOULDER_R]);
-  const scale = Math.max(dist(sL, sR), dist(mouth, { x: (sL.x + sR.x) / 2, y: (sL.y + sR.y) / 2 }));
-  if (!scale) return { L: null, R: null };
-  const at = (i) => ((lm[i].visibility ?? 1) > CONFIG.minVisibility ? dist(pt(lm[i]), mouth) / scale < CONFIG.mouthDist : null);
-  return { L: at(WRIST_L), R: at(WRIST_R) };
-}
-
 // ---------- End: 🤙 "send it" / shaka (hand landmarks) ----------
 // MediaPipe has no built-in shaka, so we read the 21 hand points ourselves:
 // thumb + pinky out, index + middle + ring curled.
@@ -568,8 +540,7 @@ function readShaka(h) {
   const thumbRatio = dist3(h[THUMB_TIP], h[INDEX_MCP]) / palm;
   bend.thumb = bendDeg(h, [2, 3, 4]); // thumb knuckle → joint → tip
   ext.thumb = thumbRatio > CONFIG.thumbOutRatio && bend.thumb < CONFIG.thumbBendDeg;
-  const curled = (n) => bend[n] > CONFIG.fingerCurledDeg;
-  const shaka = ext.thumb && bend.pinky < CONFIG.pinkyStraightDeg && curled("index") && curled("middle") && curled("ring");
+  const shaka = ext.thumb && ext.pinky && !ext.index && !ext.middle && !ext.ring;
   return { shaka, ext, bend: { ...bend, thumbRatio } };
 }
 
@@ -677,16 +648,6 @@ function frame() {
   }
   const hidden = !p && now - track.lastSeenAtMouth <= CONFIG.hiddenHoldMs; // arm/can covering the face
   const atMouth = seenAtMouth || hidden;
-  // During a run: still drinking while ANY hand is at the mouth, counting a hand last seen there and
-  // now hidden (for up to wristHiddenHoldMs). Before the run, the start uses atMouth as tuned.
-  if (lm) {
-    const wr = readWrists(lm);
-    for (const side of ["L", "R"]) {
-      if (wr[side] !== null) Object.assign(track.wrist[side], { atMouth: wr[side], seenAt: now });
-    }
-  }
-  const handAtMouth = Object.values(track.wrist).some((w) => w.atMouth && now - w.seenAt <= CONFIG.wristHiddenHoldMs);
-  const drinking = atMouth || (state === "running" && handAtMouth);
   const armUp = !!p && p.armAngle <= CONFIG.armUpDeg; // display only: the "Angle" light
 
   // Head tilt = how far the ears sit below the nose, in shoulder widths (src/detect/signals.ts headTilt).
@@ -703,7 +664,7 @@ function frame() {
   headLog.push({ t: now, headTilt, armAngle: p?.armAngle ?? null, ok: !!person?.ok });
   while (headLog.length && now - headLog[0].t > LOG_MS) headLog.shift();
   live.headTilt = headTilt;
-  updateStretch(drinking, now, "mouthSince", "lastMouthAt"); // = atMouth outside a run
+  updateStretch(atMouth, now, "mouthSince", "lastMouthAt");
   if (p) track.lastPoseAt = now;
   if (atMouth && track.mouthSince !== null) track.heldAtLastMouth = now - track.mouthSince;
   if (state === "armed") {
@@ -749,14 +710,12 @@ function frame() {
     if (ang) run.hand.push({ t: now - run.startAt, hand: ang.hand, wristFlex: ang.wristFlex, can: ang.can });
     if (send) sendSince ??= now;
     else sendSince = null;
-    sendFrames = send ? sendFrames + 1 : 0;
-    const confirmed = sendSince !== null && sendFrames >= CONFIG.sendHoldFrames && now - sendSince >= CONFIG.sendHoldMs &&
-      sendSince - run.startAt >= CONFIG.minRunMs;
+    const confirmed = sendSince !== null && now - sendSince >= CONFIG.sendHoldMs && sendSince - run.startAt >= CONFIG.minRunMs;
     if (confirmed) {
-      // A hand still at the mouth → they're signing mid-drink: don't end yet (no message during a chug).
-      if (!drinking) run.sendAt ??= sendSince; // remember the 🤙 even if the hand drops before we finish below
+      // Can still at the mouth → they're signing mid-drink: don't end yet (no message during a chug).
+      if (!atMouth) run.sendAt ??= sendSince; // remember the 🤙 even if the hand drops before we finish below
     }
-    if (run.sendAt != null && drinking) run.sendAt = null; // went back to drinking
+    if (run.sendAt != null && atMouth) run.sendAt = null; // went back to drinking
     if (run.sendAt != null) {
       // End = when the head came forward near the last moment the can was at the mouth, however
       // long ago the 🤙 came after it. Only if the can was never seen at the mouth during the run is
