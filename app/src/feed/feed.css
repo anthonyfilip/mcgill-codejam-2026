@@ -259,6 +259,13 @@ div.install-steps ol { padding-left: 20px; display: flex; flex-direction: column
 .sheet-list .comment p { flex: 1; min-width: 0; }
 
 /* Profile: "Delete account" at the very bottom, small and quiet */
+/* Terms of Service link (Profile tab) + its pop-up (Terms.tsx) */
+.terms-link { margin-top: 16px; min-height: 44px; }
+.terms { padding: 4px 16px 0; font-size: 14px; line-height: 1.45; color: #ddd; }
+.terms p { margin: 8px 0; }
+.terms .terms-date { color: #999; font-size: 12px; }
+.terms h3 { margin: 14px 0 4px; font-size: 15px; color: #f5b400; }
+.terms ul { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; }
 .danger-link { align-self: center; margin: 24px 0 8px; padding: 6px 12px; border: 0; background: none; color: #f88; font-size: 13px; font-weight: 600; cursor: pointer; opacity: 0.8; }
 
 /* Log in form + Profile "Password" section */

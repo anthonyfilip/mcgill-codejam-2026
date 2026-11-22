@@ -9,6 +9,7 @@ import { ProfileForm } from './ProfileModal'
 import { DeletePopup } from './Popup'
 import { deleteAccount, ensureProfileSaved, isMine, loadPosts, samplePosts } from './store'
 import { Tabs } from './Tabs'
+import { TermsLink } from './Terms'
 
 const secs = (ms: number) => (ms / 1000).toFixed(2)
 const videoOf = (p: Post) => p.videoUrl ?? (p.clip ? URL.createObjectURL(p.clip) : null)
@@ -139,6 +140,7 @@ export function ProfilePage() {
         </>
       )}
 
+      {isMe && <TermsLink />}
       {isMe && me && (
         <button className="danger-link" onClick={() => setDeletingAccount(true)}>
           Delete account
