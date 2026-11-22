@@ -32,7 +32,7 @@ export function TermsLink() {
             <h3>Pace yourself</h3>
             <ul>
               <li>
-                Don't post more than <b>1 chug an hour</b> or <b>3 chugs a day</b>.
+                Users are not advised to post more than <b>1 chug an hour</b> or <b>3 chugs a day</b>.
               </li>
               <li>
                 Energy drinks are high in caffeine (a Celsius has about 200 mg). Keep it to about <b>2 a day</b>: adults
