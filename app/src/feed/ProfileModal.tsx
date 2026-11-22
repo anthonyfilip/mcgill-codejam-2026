@@ -3,6 +3,7 @@ import { Avatar } from './Avatar'
 import { getProfile, setProfile } from './me'
 import { FACULTIES } from './posts'
 import { isShared, isUsernameTaken, login, MIN_PASSWORD, saveProfile, setPassword, USERNAME_RE } from './store'
+import { TermsLink } from './Terms'
 
 const PHOTO_SIZE = 256 // px, square
 
@@ -274,6 +275,7 @@ function Welcome({ onPick }: { onPick: (logIn: boolean) => void }) {
           </button>
         )}
       </div>
+      <TermsLink small />
     </>
   )
 }
