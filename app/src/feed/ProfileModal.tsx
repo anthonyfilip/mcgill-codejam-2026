@@ -85,10 +85,10 @@ function LoginForm({ onBack }: { onBack: () => void }) {
   )
 }
 
-export function ProfileForm({ nameTaken = false }: { nameTaken?: boolean }) {
+export function ProfileForm({ nameTaken = false, startLoggingIn = false }: { nameTaken?: boolean; startLoggingIn?: boolean }) {
   const current = getProfile()
   const creating = !current
-  const [loggingIn, setLoggingIn] = useState(false)
+  const [loggingIn, setLoggingIn] = useState(startLoggingIn)
   const [password, setPasswordText] = useState('')
   const needPassword = creating && isShared // new profiles get a password so they can log back in
   const [username, setUsername] = useState(nameTaken ? '' : (current?.username ?? ''))
@@ -245,13 +245,51 @@ export function ProfileForm({ nameTaken = false }: { nameTaken?: boolean }) {
   )
 }
 
+// First thing a new visitor sees: what the app is for and how to use it, then sign up / log in.
+function Welcome({ onPick }: { onPick: (logIn: boolean) => void }) {
+  return (
+    <>
+      <h2>Welcome to getSendy!</h2>
+      <p className="welcome-intro">
+        Your phone times your shotgun automatically: the camera and mic catch the crack and the finish. Post
+        your run with its replay to the feed and climb the leaderboard.
+      </p>
+      <ol className="welcome-steps">
+        <li>Stand the phone ~2 m away with your head, shoulders and arms in frame.</li>
+        <li>
+          Tap <b>GET SENDY!</b>, crack the can at your mouth and drink. The clock starts at the crack.
+        </li>
+        <li>
+          Done? Lower the can and flash a <b>🤙 shaka</b> (thumb + pinky out) to stop the clock.
+        </li>
+        <li>Name your run and post it.</li>
+      </ol>
+      <div className="welcome-actions">
+        <button className="btn primary" onClick={() => onPick(false)}>
+          Sign up
+        </button>
+        {isShared && (
+          <button className="btn" onClick={() => onPick(true)}>
+            Log in
+          </button>
+        )}
+      </div>
+    </>
+  )
+}
+
 // Pop-up in the middle of the screen for when you must act before using the site:
-// first visit (no profile yet) or your name was taken. It can't be closed.
+// first visit (no profile yet: welcome first) or your name was taken. It can't be closed.
 export function ProfileModal({ nameTaken = false }: { nameTaken?: boolean }) {
+  const [step, setStep] = useState<'welcome' | 'signup' | 'login'>(getProfile() ? 'signup' : 'welcome')
   return (
     <div className="modal-backdrop">
       <div className="modal" role="dialog" aria-modal="true">
-        <ProfileForm nameTaken={nameTaken} />
+        {step === 'welcome' ? (
+          <Welcome onPick={(logIn) => setStep(logIn ? 'login' : 'signup')} />
+        ) : (
+          <ProfileForm nameTaken={nameTaken} startLoggingIn={step === 'login'} />
+        )}
       </div>
     </div>
   )
