@@ -107,6 +107,8 @@ fileInput.onchange = async () => {
   if (file.size > MAX_CLIP_BYTES) return setStatus('That video is over 50 MB. Pick a shorter clip.')
   upload.classList.add('busy')
   preview.hidden = false
+  // The tracker (live/app.js) stops the camera and live tracking until the upload is done or fails.
+  window.dispatchEvent(new Event('upload:start'))
   try {
     // Loaded only when needed: the analysis pulls in the lab's body tracker.
     const { analyseUpload } = await import('./upload')
@@ -117,5 +119,6 @@ fileInput.onchange = async () => {
     setStatus(`Couldn't time that video: ${(e as Error).message}. Try another clip.`)
     preview.hidden = true
     upload.classList.remove('busy')
+    window.dispatchEvent(new Event('upload:end'))
   }
 }
