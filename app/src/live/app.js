@@ -181,7 +181,7 @@ function mouthHeldMs(now) {
 // extra tap), so the browser asks for camera + mic permission straight away. GET SENDY! stays
 // hidden (disabled) until they're ready, then starts the recording. If permission is refused,
 // tapping GET SENDY! asks again.
-let ready = false, starting = null;
+let ready = false, starting = null, uploading = false; // uploading: see "upload:start" below
 function startCamera() {
   starting ??= setup()
     .then(() => { ready = true; })
@@ -196,8 +196,32 @@ if (document.referrer.startsWith(location.origin)) {
   startCamera()
     .then(() => setStateText(""))
     .catch((err) => setStateText(`Camera or mic blocked (${err.message}). Tap GET SENDY! to try again.`))
-    .finally(() => { $("arm").disabled = false; });
+    .finally(() => { if (!uploading) $("arm").disabled = false; });
 }
+
+// While an uploaded video is being timed (share.ts "Upload a video of your chug"), the camera and
+// live tracking stop so the upload gets the whole phone. Mon test: with both running, clip 02
+// (labelled 5.6 s) timed 3.93 s instead of 5.15 s — the upload plays once at normal speed and
+// skips frames it can't keep up with — and an iPhone stalled for minutes at "Loading the body
+// tracker…" (likely too much at once; not confirmed on the phone).
+// No camera picture = loop() skips every frame. If the upload fails, the camera comes back.
+window.addEventListener("upload:start", async () => {
+  uploading = true;
+  $("arm").disabled = true;
+  await starting?.catch(() => {}); // camera still opening: stop it once it's open
+  if (!uploading) return; // the upload already failed and the camera is back
+  stream?.getTracks().forEach((t) => t.stop());
+  stream = null;
+  video.srcObject = null;
+  ready = false; // GET SENDY! re-opens the camera (models and audio are kept)
+});
+window.addEventListener("upload:end", () => {
+  uploading = false;
+  startCamera()
+    .then(() => setStateText(""))
+    .catch((err) => setStateText(`Camera or mic blocked (${err.message}). Tap GET SENDY! to try again.`))
+    .finally(() => { $("arm").disabled = false; });
+});
 
 $("arm").onclick = async () => {
   $("arm").disabled = true;
