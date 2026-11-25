@@ -6,7 +6,7 @@
 > clock when the can leaves your mouth, and you flash a 🤙 to confirm. Then post it, let your
 > friends rate it, and climb the individual and **faculty** leaderboards. No stopwatch, no arguing.
 
-**Try it:** **https://getsendy-app.vercel.app**. Open it on a phone, make a profile, then tap
+**Try it:** **https://getsendy.pages.dev**. Open it on a phone, make a profile, then tap
 **Record a chug** and allow the camera and microphone. To install it, go to **Profile →
 getSendy! the app** (or Safari → Share → **Add to Home Screen**).
 

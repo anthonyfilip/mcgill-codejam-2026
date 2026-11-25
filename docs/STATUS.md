@@ -1,7 +1,7 @@
 # Status
 
 Updated Mon 2026-11-23. **The hackathon is over** (McGill CodeJam 2026, pitched with a Celsius can);
-getSendy! is now an ongoing side project. Live: https://getsendy-app.vercel.app (every merge to
+getSendy! is now an ongoing side project. Live: https://getsendy.pages.dev (Cloudflare Pages; every merge to
 `main` deploys). Hackathon-era plan: [TODO.md](TODO.md) (historical).
 
 ## Next up (start here in a new chat)
