@@ -58,12 +58,12 @@ All commands run from `app/`:
   hidden everywhere (the debug readout has the same readings).
   Production build locally: `npm run build; npm run preview`.
 - Build / type-check: `npm run build` · Lint: `npm run lint` · Tracker syntax: `node --check src/live/app.js`
-- Deploy: automatic — every push to `main` runs `.github/workflows/deploy.yml` (Vercel CLI, repo
-  secret `VERCEL_TOKEN`; Supabase env vars live in the Vercel project) → https://getsendy-app.vercel.app (the old https://shotgun-tracker-xi.vercel.app still works).
-  So merging a PR ships it live; manual redeploy: Actions → Deploy to Vercel → Run workflow.
-  **Only Lana merges into `main`.** The Vercel project is on Lana's free (Hobby) account, which
-  only deploys commits authored by her: a merge by anyone else fails with "The commit author
-  doesn't have access to this team" (it ships with Lana's next merge).
+- Deploy: automatic — every push to `main` runs `.github/workflows/deploy.yml` (builds, then
+  `wrangler pages deploy`; repo secrets `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`,
+  `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`) → https://getsendy.pages.dev (Cloudflare Pages, free).
+  So merging a PR ships it live, whoever wrote the commits; manual redeploy: Actions → Deploy to
+  Cloudflare Pages → Run workflow. **Only Lana merges into `main`.** The old Vercel site
+  (getsendy-app.vercel.app) no longer updates.
 
 ## Git workflow
 Work on a branch, never directly on `main`: `git switch main; git pull; git switch -c <task>` →
